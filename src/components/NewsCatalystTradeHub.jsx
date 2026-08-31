@@ -15,23 +15,29 @@ import {
   Radio
 } from 'lucide-react';
 
-export default function NewsCatalystTradeHub({ news = [], onSelectStock, onOpenCalculator }) {
+export default function NewsCatalystTradeHub({ news = [], newsList = [], onSelectStock, onOpenCalculator }) {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [selectedSentiment, setSelectedSentiment] = useState('ALL');
 
   const categories = [
     { id: 'ALL', label: 'All Live News' },
-    { id: 'OIL_GAS', label: 'Oil & Gas / Petrol' },
-    { id: 'COMMERCIAL_BANKS', label: 'Banks & SBP Rates' },
-    { id: 'TECHNOLOGY', label: 'Tech & IT Exports' },
-    { id: 'CEMENT', label: 'Cement & Coal' },
-    { id: 'FERTILIZER', label: 'Fertilizer & Agriculture' },
-    { id: 'GENERAL_MARKET', label: 'General Economy' }
+    { id: 'OIL_GAS', label: 'Oil & Gas' },
+    { id: 'COMMERCIAL_BANKS', label: 'Commercial Banks' },
+    { id: 'TECHNOLOGY', label: 'Tech & IT' },
+    { id: 'CEMENT', label: 'Cement' },
+    { id: 'FERTILIZER', label: 'Fertilizer' },
+    { id: 'AUTOMOBILE', label: 'Automobile' },
+    { id: 'POWER_ENERGY', label: 'Power & Energy' },
+    { id: 'PHARMACEUTICALS', label: 'Pharma' },
+    { id: 'STEEL_ENGINEERING', label: 'Steel & Engineering' },
+    { id: 'TEXTILE', label: 'Textiles' },
+    { id: 'SUGAR_FOOD', label: 'Sugar & Food' },
+    { id: 'MACRO_ECONOMY', label: 'Macro Economy' }
   ];
 
-  const newsList = Array.isArray(news) ? news : [];
+  const rawList = Array.isArray(news) && news.length > 0 ? news : (Array.isArray(newsList) ? newsList : []);
 
-  const filtered = newsList.filter(n => {
+  const filtered = rawList.filter(n => {
     if (selectedCategory !== 'ALL' && n.category !== selectedCategory) return false;
     if (selectedSentiment !== 'ALL' && n.sentiment !== selectedSentiment) return false;
     return true;

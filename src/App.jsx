@@ -50,7 +50,7 @@ export default function App() {
 
   const loadData = async (silent = false) => {
     try {
-      const [marketRes, stocksRes, recsRes, newsRes, watchRes, portRes] = await Promise.all([
+      const results = await Promise.allSettled([
         getMarketSummary(),
         getStocks(),
         getRecommendations(),
@@ -59,16 +59,18 @@ export default function App() {
         getPortfolio()
       ]);
 
-      if (marketRes.success) setMarketSummary(marketRes.data);
-      if (stocksRes.success) setStocks(stocksRes.data);
-      if (recsRes.success) setRecommendations(recsRes);
-      if (newsRes.success) setNews(newsRes.data);
-      if (watchRes.success) {
-        setWatchlist(watchRes.data);
-        setWatchlistSet(new Set(watchRes.data.map(w => w.symbol)));
+      const [m, s, r, n, w, p] = results;
+
+      if (m.status === 'fulfilled' && m.value?.success) setMarketSummary(m.value.data);
+      if (s.status === 'fulfilled' && s.value?.success) setStocks(s.value.data);
+      if (r.status === 'fulfilled' && r.value?.success) setRecommendations(r.value);
+      if (n.status === 'fulfilled' && n.value?.success) setNews(n.value.data);
+      if (w.status === 'fulfilled' && w.value?.success) {
+        setWatchlist(w.value.data);
+        setWatchlistSet(new Set(w.value.data.map(item => item.symbol)));
       }
-      if (portRes.success) {
-        setPortfolioData(portRes);
+      if (p.status === 'fulfilled' && p.value?.success) {
+        setPortfolioData(p.value);
       }
       if (!silent) {
         setCountdown(AUTO_SYNC_SECONDS);
@@ -214,6 +216,7 @@ export default function App() {
         {activeTab === 'news' && (
           <NewsCatalystTradeHub
             news={news}
+            newsList={news}
             onSelectStock={handleSelectStock}
             onOpenCalculator={setCalcStock}
           />
