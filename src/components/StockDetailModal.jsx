@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   X, 
   Layers, 
@@ -32,27 +32,29 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
 
   const [selectedTimeframe, setSelectedTimeframe] = useState('1M');
 
-  const sym = (stock.symbol || '').toUpperCase().trim();
-  const official = officialQuotes ? officialQuotes[sym] : null;
+  // Safely extract symbol whether stock is string or object
+  const stockObj = typeof stock === 'string' ? { symbol: stock } : (stock || {});
+  const sym = (stockObj.symbol || stockObj.name || (typeof stock === 'string' ? stock : '') || 'STOCK').toUpperCase().trim();
+  const official = (officialQuotes && officialQuotes[sym]) ? officialQuotes[sym] : null;
 
-  const currentPrice = Number(stock.currentPrice || official?.currentPrice || 100);
-  const prevClose = Number(stock.prevClose || official?.prevClose || (currentPrice * 0.99));
-  const change = stock.change !== undefined ? Number(stock.change) : (official?.change !== undefined ? Number(official.change) : Number((currentPrice - prevClose).toFixed(2)));
-  const changePercent = stock.changePercent !== undefined ? Number(stock.changePercent) : (official?.changePercent !== undefined ? Number(official.changePercent) : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0));
-  const volume = Number(stock.volume || official?.volume || 1500000);
-  const name = stock.name || official?.name || sym;
-  const sector = stock.sector || official?.sector || 'General';
-  const high = Number(stock.high || official?.high || (currentPrice * 1.02));
-  const low = Number(stock.low || official?.low || (currentPrice * 0.98));
-  const peRatio = Number(stock.peRatio || 5.35);
-  const eps = Number(stock.eps || 6.9);
-  const dividendYield = Number(stock.dividendYield || 0);
-  const marketCap = Number(stock.marketCap || (currentPrice * (volume > 5000000 ? 5500000000 : 120000000)));
-  const technicals = stock.technicals || {};
-  const historicalPrices = stock.historicalPrices || [];
+  const currentPrice = Number(stockObj.currentPrice || official?.currentPrice || 100);
+  const prevClose = Number(stockObj.prevClose || official?.prevClose || (currentPrice * 0.99));
+  const change = stockObj.change !== undefined ? Number(stockObj.change) : (official?.change !== undefined ? Number(official.change) : Number((currentPrice - prevClose).toFixed(2)));
+  const changePercent = stockObj.changePercent !== undefined ? Number(stockObj.changePercent) : (official?.changePercent !== undefined ? Number(official.changePercent) : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0));
+  const volume = Number(stockObj.volume || official?.volume || 1500000);
+  const name = stockObj.name || official?.name || sym;
+  const sector = stockObj.sector || official?.sector || 'General Market';
+  const high = Number(stockObj.high || official?.high || (currentPrice * 1.02));
+  const low = Number(stockObj.low || official?.low || (currentPrice * 0.98));
+  const peRatio = Number(stockObj.peRatio || 5.35);
+  const eps = Number(stockObj.eps || 6.9);
+  const dividendYield = Number(stockObj.dividendYield || 0);
+  const marketCap = Number(stockObj.marketCap || (currentPrice * (volume > 5000000 ? 5500000000 : 120000000)));
+  const technicals = stockObj.technicals || {};
+  const historicalPrices = stockObj.historicalPrices || [];
 
   const isPositive = change >= 0;
-  const price = Number(currentPrice);
+  const price = Number(currentPrice > 0 ? currentPrice : 10);
 
   // Derive 52-Week High/Low & Day Range
   const dayHigh = Number(high || (price * 1.018)).toFixed(2);
@@ -84,12 +86,12 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
   const ret1Y = Number((changePercent > 0 ? (changePercent * 11.2 + 35.8) : 8.2).toFixed(2));
 
   // Generate Multi-Timeframe Chart Data
-  const getFilteredChartData = () => {
+  const chartData = useMemo(() => {
     if (!historicalPrices || historicalPrices.length === 0) {
       // Fallback synthetic curve
       return Array.from({ length: 30 }, (_, i) => ({
-        date: `Day ${i + 1}`,
-        price: Number((price * (0.85 + (i / 30) * 0.15 + (Math.sin(i) * 0.03))).toFixed(2)),
+        date: `D-${30 - i}`,
+        price: Number((price * (0.88 + (i / 30) * 0.12 + Math.sin(i * 0.5) * 0.02)).toFixed(2)),
         volume: Math.round(volume * (0.6 + Math.random() * 0.8))
       }));
     }
@@ -102,16 +104,14 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
     else sliceCount = historicalPrices.length;
 
     return historicalPrices.slice(-sliceCount).map(h => ({
-      date: h.date?.slice(5) || h.date,
-      price: h.close || h.price,
-      volume: (h.volume || volume) / 1000000,
+      date: h.date?.slice(5) || h.date || 'D',
+      price: Number(h.close || h.price || price),
+      volume: (Number(h.volume || volume) / 1000000),
       open: h.open,
       high: h.high,
       low: h.low
     }));
-  };
-
-  const chartData = getFilteredChartData();
+  }, [historicalPrices, selectedTimeframe, price, volume]);
 
   // Plain-English AI Decision Summary
   const rsi = Number(technicals.rsi14 || 65).toFixed(1);
@@ -124,19 +124,19 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
       return {
         verdict: 'OVERBOUGHT • TAKE PARTIAL PROFIT',
         color: 'text-amber-400 border-amber-500/30 bg-amber-500/10',
-        summary: `${name} (${symbol}) has witnessed an intense rally and RSI is currently elevated at ${rsi}. While the primary trend in the ${sector} sector remains strong, short-term volatility and profit-taking are anticipated. Existing holders should book partial gains at current rates and raise their stop loss to PKR ${stopLoss}. New entries should wait for a healthier pullback towards S1 (PKR ${s1}).`
+        summary: `${name} (${sym}) has witnessed an intense rally and RSI is currently elevated at ${rsi}. While the primary trend in the ${sector} sector remains strong, short-term volatility and profit-taking are anticipated. Existing holders should book partial gains at current rates and raise their stop loss to PKR ${stopLoss}. New entries should wait for a healthier pullback towards S1 (PKR ${s1}).`
       };
     } else if (trend === 'BULLISH' || changePercent > 0) {
       return {
         verdict: 'BULLISH BREAKOUT • ACCUMULATE / BUY',
         color: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10',
-        summary: `${name} (${symbol}) is demonstrating strong institutional accumulation in the ${sector} sector. Price is holding comfortably above pivot point (PKR ${pp}) with solid trading volume (${(volume).toLocaleString()} shares). Favorable P/E valuation (${peRatio}x vs Sector ${sectorPe}x) provides attractive upside. Ideal buy zone is PKR ${s1} - ${price}, with a primary breakout target of PKR ${targetSell} and stop loss at PKR ${stopLoss}.`
+        summary: `${name} (${sym}) is demonstrating strong institutional accumulation in the ${sector} sector. Price is holding comfortably above pivot point (PKR ${pp}) with solid trading volume (${(volume).toLocaleString()} shares). Favorable P/E valuation (${peRatio}x vs Sector ${sectorPe}x) provides attractive upside. Ideal buy zone is PKR ${s1} - ${price.toFixed(2)}, with a primary breakout target of PKR ${targetSell} and stop loss at PKR ${stopLoss}.`
       };
     } else {
       return {
         verdict: 'CONSOLIDATION • HOLD & MONITOR',
         color: 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10',
-        summary: `${name} (${symbol}) is currently trading in a consolidation range near support S1 (PKR ${s1}). Downside risk is cushioned by historical support at PKR ${s2}. Maintain existing positions with stop loss at PKR ${stopLoss} and wait for volume expansion before adding aggressive new exposure.`
+        summary: `${name} (${sym}) is currently trading in a consolidation range near support S1 (PKR ${s1}). Downside risk is cushioned by historical support at PKR ${s2}. Maintain existing positions with stop loss at PKR ${stopLoss} and wait for volume expansion before adding aggressive new exposure.`
       };
     }
   };
@@ -154,13 +154,13 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
           <X className="w-5 h-5" />
         </button>
 
-        {/* 1. Header with Sector, Symbol, & Indices Badges (Matching Screenshot 1) */}
+        {/* 1. Header with Sector, Symbol, & Indices Badges */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-gray-800/80 pr-12">
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <h2 className="text-2xl font-black text-white tracking-tight">{name}</h2>
               <span className="px-3 py-1 rounded-lg bg-cyan-500 text-black font-black mono text-xs">
-                {symbol}
+                {sym}
               </span>
             </div>
 
@@ -168,25 +168,22 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
               <span className="px-2.5 py-0.5 rounded-md bg-gray-800 text-cyan-400 text-[11px] font-bold">
                 {sector}
               </span>
-              <span className="px-2 py-0.5 rounded-md bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 text-[10px] font-bold">
+              <span className="px-2.5 py-0.5 rounded-md bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 text-[10px] font-bold">
                 KSE ALL
               </span>
-              <span className="px-2 py-0.5 rounded-md bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 text-[10px] font-bold">
+              <span className="px-2.5 py-0.5 rounded-md bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 text-[10px] font-bold">
                 JSMF Index
               </span>
-              <span className="px-2 py-0.5 rounded-md bg-teal-950/80 text-teal-300 border border-teal-800/60 text-[10px] font-bold">
+              <span className="px-2.5 py-0.5 rounded-md bg-teal-950/80 text-teal-300 border border-teal-800/60 text-[10px] font-bold">
                 KMI ALL
               </span>
-              <span className="px-2 py-0.5 rounded-md bg-amber-950/80 text-amber-300 border border-amber-800/60 text-[10px] font-bold">
+              <span className="px-2.5 py-0.5 rounded-md bg-amber-950/80 text-amber-300 border border-amber-800/60 text-[10px] font-bold">
                 KSE 100
-              </span>
-              <span className="px-2 py-0.5 rounded-md bg-blue-950/80 text-blue-300 border border-blue-800/60 text-[10px] font-bold">
-                KSE 100 PR
               </span>
             </div>
           </div>
 
-          {/* Timeframe Switcher (Screenshot 1 Style) */}
+          {/* Timeframe Switcher */}
           <div className="flex items-center space-x-1 bg-[#070B12] p-1.5 rounded-xl border border-gray-800 shrink-0">
             {['1D', '5D', '1M', '3M', 'YTD', '1Y', '3Y', '5Y'].map((tf) => (
               <button
@@ -311,31 +308,31 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
               </div>
             </div>
 
-            {/* Returns Matrix (Screenshot 1 Style) */}
+            {/* Returns Matrix */}
             <div className="bg-[#070B12] rounded-2xl p-4 border border-gray-800">
               <span className="text-[10px] uppercase font-bold text-gray-400 block mb-2">
                 Historical Returns Performance
               </span>
               <div className="grid grid-cols-5 gap-1.5 text-center text-xs mono font-extrabold">
-                <div className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 p-2 rounded-xl">
+                <div className={`${ret1W >= 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border-rose-500/30'} border p-2 rounded-xl`}>
                   <span className="text-[10px] text-gray-400 block font-normal">1W</span>
                   <span>{ret1W >= 0 ? '+' : ''}{ret1W}%</span>
                 </div>
-                <div className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 p-2 rounded-xl">
+                <div className={`${ret1M >= 0 ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40' : 'bg-rose-500/15 text-rose-400 border-rose-500/40'} border p-2 rounded-xl`}>
                   <span className="text-[10px] text-gray-400 block font-normal">1M</span>
-                  <span>+{ret1M}%</span>
+                  <span>{ret1M >= 0 ? '+' : ''}{ret1M}%</span>
                 </div>
-                <div className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 p-2 rounded-xl">
+                <div className={`${ret3M >= 0 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : 'bg-rose-500/20 text-rose-400 border-rose-500/50'} border p-2 rounded-xl`}>
                   <span className="text-[10px] text-gray-400 block font-normal">3M</span>
-                  <span>+{ret3M}%</span>
+                  <span>{ret3M >= 0 ? '+' : ''}{ret3M}%</span>
                 </div>
-                <div className="bg-emerald-500/25 text-emerald-400 border border-emerald-500/60 p-2 rounded-xl">
+                <div className={`${ret6M >= 0 ? 'bg-emerald-500/25 text-emerald-400 border-emerald-500/60' : 'bg-rose-500/25 text-rose-400 border-rose-500/60'} border p-2 rounded-xl`}>
                   <span className="text-[10px] text-gray-400 block font-normal">6M</span>
-                  <span>+{ret6M}%</span>
+                  <span>{ret6M >= 0 ? '+' : ''}{ret6M}%</span>
                 </div>
-                <div className="bg-emerald-500/30 text-emerald-400 border border-emerald-500/70 p-2 rounded-xl">
+                <div className={`${ret1Y >= 0 ? 'bg-emerald-500/30 text-emerald-400 border-emerald-500/70' : 'bg-rose-500/30 text-rose-400 border-rose-500/70'} border p-2 rounded-xl`}>
                   <span className="text-[10px] text-gray-400 block font-normal">1Y</span>
-                  <span>+{ret1Y}%</span>
+                  <span>{ret1Y >= 0 ? '+' : ''}{ret1Y}%</span>
                 </div>
               </div>
             </div>
@@ -343,12 +340,12 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
 
           {/* Right Column (7 Cols): Multi-Timeframe Chart */}
           <div className="lg:col-span-7 flex flex-col space-y-4">
-            <div className="bg-[#070B12] rounded-2xl p-4 border border-gray-800/90 flex-1 flex flex-col min-h-[360px]">
+            <div className="bg-[#070B12] rounded-2xl p-4 border border-gray-800/90 flex-1 flex flex-col min-h-[380px]">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-2">
                   <Activity className="w-4 h-4 text-cyan-400" />
                   <span className="font-extrabold text-white text-xs">
-                    {symbol} {selectedTimeframe} Technical Trajectory & Price Action
+                    {sym} {selectedTimeframe} Technical Trajectory & Price Action
                   </span>
                 </div>
                 <span className="text-xs text-gray-400 mono">
@@ -356,8 +353,8 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
                 </span>
               </div>
 
-              <div className="flex-1 w-full min-h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="w-full h-[310px]">
+                <ResponsiveContainer width="100%" height={300}>
                   <AreaChart data={chartData}>
                     <defs>
                       <linearGradient id="terminalGrad" x1="0" y1="0" x2="0" y2="1">
@@ -425,7 +422,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
           <button
             onClick={() => {
               onClose();
-              if (onOpenCalculator) onOpenCalculator(stock);
+              if (onOpenCalculator) onOpenCalculator(stockObj);
             }}
             className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 hover:opacity-90 text-black font-extrabold text-xs flex items-center justify-center space-x-2 cursor-pointer shadow-lg shadow-cyan-500/25 transition-all"
           >
