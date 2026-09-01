@@ -12,7 +12,8 @@ import {
   Crown,
   Sun,
   Moon,
-  BarChart3
+  BarChart3,
+  Coins
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 
@@ -246,6 +247,18 @@ export default function Navbar({
             </button>
 
             <button
+              onClick={() => setActiveTab('dividends')}
+              className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
+                activeTab === 'dividends' 
+                  ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-lg shadow-amber-500/25' 
+                  : (isLight ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70' : 'text-gray-400 hover:text-white hover:bg-gray-800/60')
+              }`}
+            >
+              <Coins className="w-3.5 h-3.5" />
+              <span>Upcoming Dividends 💰</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('screener')}
               className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
                 activeTab === 'screener' 
@@ -394,7 +407,13 @@ export default function Navbar({
           onClick={() => setActiveTab('recommendations')}
           className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'recommendations' ? 'bg-emerald-500 text-black shadow' : ''}`}
         >
-          🎯 AI Signals
+          🎯 Signals
+        </button>
+        <button
+          onClick={() => setActiveTab('dividends')}
+          className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'dividends' ? 'bg-amber-400 text-black shadow' : ''}`}
+        >
+          💰 Dividends
         </button>
         <button
           onClick={() => setActiveTab('screener')}

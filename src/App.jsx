@@ -13,6 +13,7 @@ import DayTradeSuggestionModal from './components/DayTradeSuggestionModal';
 import AuthModal from './components/AuthModal';
 import ProUpgradeModal from './components/ProUpgradeModal';
 import AdminDashboard from './components/AdminDashboard';
+import DividendIntelligenceHub from './components/DividendIntelligenceHub';
 
 import {
   getMarketSummary,
@@ -703,7 +704,15 @@ export default function App() {
           />
         )}
 
-        {/* Tab 4: Full Market Screener */}
+        {/* Tab 4: Upcoming Dividends Intelligence Hub */}
+        {activeTab === 'dividends' && (
+          <DividendIntelligenceHub
+            stocks={stocks}
+            onSelectStock={handleSelectStock}
+          />
+        )}
+
+        {/* Tab 5: Full Market Screener */}
         {activeTab === 'screener' && (
           <StockScreenerTable
             stocks={stocks}
