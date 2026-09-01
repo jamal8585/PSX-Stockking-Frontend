@@ -63,9 +63,14 @@ const calculateClientPortfolio = (savedPositions = [], stocksList = []) => {
       : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0);
 
     const buyPrice = Number(pos.buyPrice);
+    const commission = Number(pos.commission || pos.commissionPerShare || 0);
     const quantity = Number(pos.quantity || 1);
 
-    const invested = Number((buyPrice * quantity).toFixed(2));
+    const grossCost = Number((buyPrice * quantity).toFixed(2));
+    const totalCommission = Number((commission * quantity).toFixed(2));
+    const invested = Number((grossCost + totalCommission).toFixed(2));
+    const effectiveBuyRate = quantity > 0 ? Number((invested / quantity).toFixed(2)) : buyPrice;
+
     const currentValue = Number((currentPrice * quantity).toFixed(2));
     const pnlAmount = Number((currentValue - invested).toFixed(2));
     const pnlPercent = invested > 0 ? Number(((pnlAmount / invested) * 100).toFixed(2)) : 0;
@@ -105,6 +110,10 @@ const calculateClientPortfolio = (savedPositions = [], stocksList = []) => {
       name: official?.name || pos.name || sym,
       sector: official?.sector || pos.sector || 'General Market',
       buyPrice,
+      commission,
+      effectiveBuyRate,
+      grossCost,
+      totalCommission,
       quantity,
       notes: pos.notes || '',
       currentPrice,
@@ -149,7 +158,12 @@ const calculateClientPortfolio = (savedPositions = [], stocksList = []) => {
 export default function App() {
   const [activeTab, setActiveTab] = useState('news');
   const [marketSummary, setMarketSummary] = useState(null);
-  const [stocks, setStocks] = useState([]);
+  const [stocks, setStocks] = useState(() => {
+    if (officialQuotes && typeof officialQuotes === 'object') {
+      return Object.values(officialQuotes);
+    }
+    return [];
+  });
   const [recommendations, setRecommendations] = useState(null);
   const [news, setNews] = useState([]);
   const [watchlist, setWatchlist] = useState([]);
@@ -303,6 +317,7 @@ export default function App() {
         name: stockInfo.name,
         sector: stockInfo.sector,
         buyPrice: Number(tradeData.buyPrice),
+        commission: Number(tradeData.commission || 0),
         quantity: Number(tradeData.quantity),
         notes: tradeData.notes || '',
         createdAt: new Date().toISOString()
@@ -322,15 +337,16 @@ export default function App() {
     }
   };
 
-  // Instant Update Position (Buy Price / Quantity)
+  // Instant Update Position (Buy Price / Quantity / Commission)
   const handleUpdatePosition = async (id, updateData) => {
     try {
       const updated = rawPositions.map(p => {
         if (p._id === id) {
           return {
             ...p,
-            ...(updateData.buyPrice ? { buyPrice: Number(updateData.buyPrice) } : {}),
-            ...(updateData.quantity ? { quantity: Number(updateData.quantity) } : {}),
+            ...(updateData.buyPrice !== undefined ? { buyPrice: Number(updateData.buyPrice) } : {}),
+            ...(updateData.commission !== undefined ? { commission: Number(updateData.commission) } : {}),
+            ...(updateData.quantity !== undefined ? { quantity: Number(updateData.quantity) } : {}),
             ...(updateData.notes !== undefined ? { notes: updateData.notes } : {})
           };
         }

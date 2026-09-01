@@ -41,10 +41,12 @@ export default function PortfolioAdvisor({
   const [editingPosition, setEditingPosition] = useState(null);
   const [symbolInput, setSymbolInput] = useState('');
   const [buyPrice, setBuyPrice] = useState('');
+  const [commission, setCommission] = useState('0.05');
   const [quantity, setQuantity] = useState('1000');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editBuyPrice, setEditBuyPrice] = useState('');
+  const [editCommission, setEditCommission] = useState('0.05');
   const [editQuantity, setEditQuantity] = useState('');
   const [editNotes, setEditNotes] = useState('');
 
@@ -71,18 +73,21 @@ export default function PortfolioAdvisor({
     }
 
     const finalQty = Number(quantity) || 1000;
+    const finalComm = Number(commission) || 0;
 
     setIsSubmitting(true);
     try {
       await onAddPosition({
         symbol: sym,
         buyPrice: finalPrice,
+        commission: finalComm,
         quantity: finalQty,
         notes: notes.trim()
       });
       setIsModalOpen(false);
       setSymbolInput('');
       setBuyPrice('');
+      setCommission('0.05');
       setNotes('');
     } finally {
       setIsSubmitting(false);
@@ -92,6 +97,7 @@ export default function PortfolioAdvisor({
   const handleOpenEdit = (pos) => {
     setEditingPosition(pos);
     setEditBuyPrice(pos.buyPrice);
+    setEditCommission(pos.commission !== undefined ? pos.commission : '0.05');
     setEditQuantity(pos.quantity);
     setEditNotes(pos.notes || '');
   };
@@ -104,6 +110,7 @@ export default function PortfolioAdvisor({
       if (onUpdatePosition) {
         await onUpdatePosition(editingPosition._id, {
           buyPrice: Number(editBuyPrice),
+          commission: Number(editCommission) || 0,
           quantity: Number(editQuantity),
           notes: editNotes.trim()
         });
@@ -458,8 +465,17 @@ export default function PortfolioAdvisor({
                       {/* Matrix */}
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-[#070B12] p-3 rounded-xl border border-gray-800/80 text-xs">
                         <div>
-                          <span className="text-[9px] uppercase text-gray-400 font-bold block">Aapka Buy Price</span>
-                          <span className="text-sm font-extrabold text-white mono">PKR {Number(pos.buyPrice).toFixed(2)}</span>
+                          <span className="text-[9px] uppercase text-gray-400 font-bold block">
+                            Aapka Buy Rate {pos.commission > 0 ? `(+PKR ${pos.commission} Comm.)` : ''}
+                          </span>
+                          <span className="text-sm font-extrabold text-white mono">
+                            PKR {Number(pos.buyPrice).toFixed(2)}
+                            {pos.commission > 0 && (
+                              <span className="text-[10px] text-cyan-400 block font-normal">
+                                Net: PKR {Number(pos.effectiveBuyRate || (pos.buyPrice + pos.commission)).toFixed(2)}
+                              </span>
+                            )}
+                          </span>
                         </div>
                         <div>
                           <span className="text-[9px] uppercase text-cyan-400 font-bold block">Current Market Price</span>
@@ -470,8 +486,10 @@ export default function PortfolioAdvisor({
                           <span className="text-sm font-extrabold text-white mono">{Number(pos.quantity).toLocaleString()} Shares</span>
                         </div>
                         <div>
-                          <span className="text-[9px] uppercase text-gray-400 font-bold block">Current Total Value</span>
-                          <span className="text-sm font-extrabold text-emerald-400 mono">PKR {Number(pos.currentValue).toLocaleString()}</span>
+                          <span className="text-[9px] uppercase text-gray-400 font-bold block">Net Capital Invested</span>
+                          <span className="text-sm font-extrabold text-amber-400 mono">
+                            PKR {Number(pos.invested).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -592,6 +610,25 @@ export default function PortfolioAdvisor({
                 />
               </div>
 
+              {/* Per-Share Brokerage Commission */}
+              <div>
+                <label className="block text-gray-300 font-bold mb-1 flex items-center justify-between">
+                  <span>Per-Share Brokerage Commission / Tax (PKR):</span>
+                  <span className="text-cyan-400 text-[10px]">e.g. 0.05 (5 Paisa)</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.001"
+                  placeholder="e.g. 0.05"
+                  value={commission}
+                  onChange={e => setCommission(e.target.value)}
+                  className="w-full bg-[#070B12] border border-cyan-900 rounded-xl px-3 py-2.5 text-white font-extrabold mono text-xs focus:outline-none focus:border-cyan-400"
+                />
+                <span className="text-[10px] text-gray-400 mt-1 block">
+                  Automatically added into Total Investment capital for exact real-world net P&L.
+                </span>
+              </div>
+
               {/* Quantity */}
               <div>
                 <label className="block text-gray-300 font-bold mb-1">Quantity (Number of Shares):</label>
@@ -618,13 +655,28 @@ export default function PortfolioAdvisor({
                 />
               </div>
 
-              {/* Preview Total */}
+              {/* Preview Total Breakdown */}
               {buyPrice && quantity && (
-                <div className="bg-[#070B12] p-3 rounded-xl border border-gray-800 flex justify-between items-center text-xs">
-                  <span className="text-gray-400">Total Capital Outlay:</span>
-                  <span className="font-extrabold text-cyan-400 mono text-sm">
-                    PKR {(Number(buyPrice) * Number(quantity)).toLocaleString()}
-                  </span>
+                <div className="bg-[#070B12] p-3 rounded-xl border border-gray-800 space-y-1.5 text-xs">
+                  <div className="flex justify-between items-center text-gray-400">
+                    <span>Shares Cost ({quantity} × PKR {buyPrice}):</span>
+                    <span className="font-bold text-white mono">PKR {(Number(buyPrice) * Number(quantity)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  {Number(commission) > 0 && (
+                    <div className="flex justify-between items-center text-gray-400">
+                      <span>Brokerage Fee ({quantity} × PKR {commission}):</span>
+                      <span className="font-bold text-amber-400 mono">PKR {(Number(commission) * Number(quantity)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center border-t border-gray-800 pt-1">
+                    <span className="text-gray-300 font-bold">Total Net Capital Outlay:</span>
+                    <span className="font-extrabold text-cyan-400 mono text-sm">
+                      PKR {((Number(buyPrice) + Number(commission || 0)) * Number(quantity)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-gray-400 text-right">
+                    Effective Net Buy Rate: <b className="text-white mono">PKR {(Number(buyPrice) + Number(commission || 0)).toFixed(2)}</b> / share
+                  </div>
                 </div>
               )}
 
@@ -640,7 +692,7 @@ export default function PortfolioAdvisor({
         </div>
       )}
 
-      {/* 5. Modal 2: Edit Position Buy Rate & Quantity */}
+      {/* 5. Modal 2: Edit Position Buy Rate, Commission & Quantity */}
       {editingPosition && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
           <div className="bg-gradient-to-b from-[#0F172A] to-[#070B12] border border-amber-500/40 rounded-2xl w-full max-w-md shadow-2xl p-6 relative">
@@ -675,6 +727,17 @@ export default function PortfolioAdvisor({
               </div>
 
               <div>
+                <label className="block text-gray-300 font-bold mb-1">Per-Share Brokerage Commission (PKR):</label>
+                <input
+                  type="number"
+                  step="0.001"
+                  value={editCommission}
+                  onChange={e => setEditCommission(e.target.value)}
+                  className="w-full bg-[#070B12] border border-amber-900/60 rounded-xl px-3 py-2.5 text-white font-extrabold mono text-xs focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div>
                 <label className="block text-gray-300 font-bold mb-1">Holding Quantity (Shares):</label>
                 <input
                   type="number"
@@ -700,16 +763,25 @@ export default function PortfolioAdvisor({
               {editBuyPrice && editQuantity && (
                 <div className="bg-[#070B12] p-3 rounded-xl border border-gray-800 space-y-1.5 text-xs">
                   <div className="flex justify-between items-center text-gray-400">
-                    <span>Invested Capital:</span>
-                    <span className="font-bold text-white mono">PKR {(Number(editBuyPrice) * Number(editQuantity)).toLocaleString()}</span>
+                    <span>Net Invested (with Comm.):</span>
+                    <span className="font-bold text-white mono">
+                      PKR {((Number(editBuyPrice) + Number(editCommission || 0)) * Number(editQuantity)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400">Recalculated Profit/Loss:</span>
-                    <span className={`font-extrabold mono ${
-                      ((editingPosition.currentPrice - editBuyPrice) >= 0) ? 'text-emerald-400' : 'text-rose-400'
-                    }`}>
-                      {((editingPosition.currentPrice - editBuyPrice) >= 0 ? '+' : '')}PKR {((editingPosition.currentPrice - editBuyPrice) * editQuantity).toLocaleString(undefined, { minimumFractionDigits: 2 })} ({(((editingPosition.currentPrice - editBuyPrice)/editBuyPrice)*100).toFixed(2)}%)
-                    </span>
+                    {(() => {
+                      const netCost = (Number(editBuyPrice) + Number(editCommission || 0)) * Number(editQuantity);
+                      const curVal = editingPosition.currentPrice * Number(editQuantity);
+                      const pnl = curVal - netCost;
+                      const pnlPct = netCost > 0 ? (pnl / netCost) * 100 : 0;
+                      const isUp = pnl >= 0;
+                      return (
+                        <span className={`font-extrabold mono ${isUp ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {isUp ? '+' : ''}PKR {pnl.toLocaleString(undefined, { minimumFractionDigits: 2 })} ({isUp ? '+' : ''}{pnlPct.toFixed(2)}%)
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -719,7 +791,7 @@ export default function PortfolioAdvisor({
                 disabled={isSubmitting}
                 className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-emerald-500 text-black font-extrabold text-xs shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
               >
-                {isSubmitting ? 'Updating...' : 'Update & Recalculate Live P&L'}
+                {isSubmitting ? 'Updating...' : 'Update & Recalculate Live Net P&L'}
               </button>
             </form>
           </div>
