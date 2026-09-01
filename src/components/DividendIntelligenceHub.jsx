@@ -6,7 +6,10 @@ import {
   Clock, 
   Search, 
   ShieldCheck, 
-  ArrowUpRight
+  ArrowUpRight,
+  TrendingUp,
+  LineChart,
+  Calendar
 } from 'lucide-react';
 
 const UPCOMING_DIVIDEND_STOCKS = [
@@ -499,59 +502,60 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
             return (
               <div
                 key={`${item.month}-${item.symbol}`}
-                className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] hover:border-[#2563EB] dark:hover:border-[#3B82F6] rounded-xl p-5 shadow-sm dark:shadow-md transition-all flex flex-col justify-between space-y-4 relative"
+                className="group bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] hover:border-[#D97706]/60 dark:hover:border-[#F59E0B]/60 rounded-xl p-5 shadow-sm dark:shadow-md hover:shadow-lg transition-all flex flex-col justify-between space-y-4 relative"
               >
-                <div className="space-y-3">
-                  {/* Top Row */}
-                  <div className="flex items-start justify-between gap-2">
+                <div className="space-y-3.5">
+                  {/* Top Row: Symbol, Badges & Expected Payout Box */}
+                  <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                         <span 
                           onClick={() => onSelectStock && onSelectStock(item.symbol)}
                           className="text-2xl font-black text-[#0F172A] dark:text-[#F8FAFC] mono cursor-pointer hover:text-[#2563EB] dark:hover:text-[#3B82F6] transition-colors"
                         >
                           {item.symbol}
                         </span>
-                        <span className="px-2.5 py-0.5 rounded-md bg-[#D97706]/10 text-[#D97706] dark:bg-[#F59E0B]/10 dark:text-[#F59E0B] text-[10px] font-bold border border-[#D97706]/20 dark:border-[#F59E0B]/20">
-                          {item.month}
+                        <span className="px-2 py-0.5 rounded-md bg-[#D97706]/10 text-[#D97706] dark:bg-[#F59E0B]/10 dark:text-[#F59E0B] text-[10px] font-bold border border-[#D97706]/20 dark:border-[#F59E0B]/20 flex items-center space-x-1">
+                          <Calendar className="w-2.5 h-2.5" />
+                          <span>{item.month}</span>
                         </span>
                         {item.shariahCompliant && (
                           <span className="px-2 py-0.5 rounded-md bg-[#16A34A]/10 text-[#16A34A] dark:bg-[#22C55E]/10 dark:text-[#22C55E] text-[10px] font-bold border border-[#16A34A]/20 dark:border-[#22C55E]/20">
-                            KMI-30 Shariah
+                            🕌 KMI-30
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5 truncate max-w-[280px]">
+                      <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1 truncate max-w-[280px]">
                         {item.name} • <b className="text-[#0F172A] dark:text-[#F8FAFC]">{item.sector}</b>
                       </p>
                     </div>
 
-                    {/* Expected Dividend Badge */}
-                    <div className="text-right shrink-0 bg-[#F8FAFC] dark:bg-[#0B0F19] px-3.5 py-2 rounded-lg border border-[#E2E8F0] dark:border-[#243044]">
+                    {/* Enhanced Expected Dividend Floating Badge */}
+                    <div className="text-right shrink-0 bg-[#F8FAFC] dark:bg-[#0B0F19] px-3.5 py-2 rounded-lg border border-[#D97706]/30 dark:border-[#F59E0B]/30 shadow-xs">
                       <span className="text-[9px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] block">Expected Payout</span>
-                      <span className="text-base font-black text-[#D97706] dark:text-[#F59E0B] mono">
+                      <span className="text-lg font-black text-[#D97706] dark:text-[#F59E0B] mono block mt-0.5">
                         PKR {item.expectedDividend.toFixed(2)}
                       </span>
-                      <span className="text-[10px] text-[#16A34A] dark:text-[#22C55E] font-bold block">
-                        Yield: {item.expectedYield}
+                      <span className="text-[10px] text-[#16A34A] dark:text-[#22C55E] font-bold block mt-0.5">
+                        +{item.expectedYield} Yield
                       </span>
                     </div>
                   </div>
 
-                  {/* Dividend Type & Live Price Matrix */}
-                  <div className="grid grid-cols-2 gap-2 bg-[#F8FAFC] dark:bg-[#0B0F19] p-2.5 rounded-lg border border-[#E2E8F0] dark:border-[#243044] text-xs">
+                  {/* Announcement & Live Rate Grid */}
+                  <div className="grid grid-cols-2 gap-2.5 bg-[#F8FAFC] dark:bg-[#0B0F19] p-3 rounded-lg border border-[#E2E8F0] dark:border-[#243044] text-xs">
                     <div>
                       <span className="text-[9px] uppercase text-[#64748B] dark:text-[#94A3B8] font-bold block">Announcement Type</span>
-                      <span className="font-bold text-[#0F172A] dark:text-[#F8FAFC] text-[11px] truncate block">{item.dividendType}</span>
+                      <span className="font-bold text-[#0F172A] dark:text-[#F8FAFC] text-[11px] truncate block mt-0.5">{item.dividendType}</span>
                     </div>
                     <div>
                       <span className="text-[9px] uppercase text-[#2563EB] dark:text-[#3B82F6] font-bold block">Live Market Rate</span>
-                      <span className="font-bold text-[#2563EB] dark:text-[#3B82F6] mono text-sm">PKR {livePrice.toFixed(2)}</span>
+                      <span className="font-black text-[#2563EB] dark:text-[#3B82F6] mono text-sm block mt-0.5">PKR {livePrice.toFixed(2)}</span>
                     </div>
                   </div>
 
                   {/* 💡 "Kion Buy Karna Chaye?" Rationale */}
-                  <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] p-3 rounded-lg space-y-1 text-xs">
+                  <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#2563EB]/20 dark:border-[#3B82F6]/20 p-3 rounded-lg space-y-1 text-xs">
                     <div className="flex items-center space-x-1.5 text-[#2563EB] dark:text-[#3B82F6] font-bold text-[11px]">
                       <Sparkles className="w-3.5 h-3.5 shrink-0" />
                       <span>Kion Buy Karna Chaye? (Fundamental Reason)</span>
@@ -562,7 +566,7 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
                   </div>
 
                   {/* ⏰ "2-3 Din Pehle Buy Karne Ka Tareeqa" Timing Tip */}
-                  <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#D97706]/40 dark:border-[#F59E0B]/40 p-3 rounded-lg space-y-1 text-xs">
+                  <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#D97706]/30 dark:border-[#F59E0B]/30 p-3 rounded-lg space-y-1 text-xs">
                     <div className="flex items-center space-x-1.5 text-[#D97706] dark:text-[#F59E0B] font-bold text-[11px]">
                       <Clock className="w-3.5 h-3.5 shrink-0" />
                       <span>Buy Timing Rule (Approx Ex-Date: {item.approxExDate}):</span>
@@ -573,19 +577,21 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
                   </div>
                 </div>
 
-                {/* Bottom Card Actions */}
-                <div className="flex items-center space-x-2 pt-2 border-t border-[#E2E8F0] dark:border-[#243044]">
+                {/* Sleek, Beautiful Redesigned Action Buttons */}
+                <div className="flex items-center space-x-2 pt-3 border-t border-[#E2E8F0] dark:border-[#243044]">
+                  {/* Primary Calculator Action: Stylish Amber/Gold Gradient Pill */}
                   <button
                     onClick={() => handleLoadCalculator(item)}
-                    className="flex-1 py-2.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-xs flex items-center justify-center space-x-1.5 shadow-sm cursor-pointer"
+                    className="flex-1 py-2.5 px-4 rounded-lg bg-gradient-to-r from-[#D97706] to-[#B45309] hover:from-[#B45309] hover:to-[#92400E] dark:from-[#F59E0B] dark:to-[#D97706] dark:hover:from-[#FBBF24] dark:hover:to-[#F59E0B] text-white dark:text-black font-bold text-xs flex items-center justify-center space-x-2 shadow-sm hover:shadow-md transition-all cursor-pointer"
                   >
-                    <Calculator className="w-3.5 h-3.5 stroke-[2.5]" />
-                    <span>Calculate My Dividend</span>
+                    <Calculator className="w-4 h-4 stroke-[2.5]" />
+                    <span>Calculate Net Dividend</span>
                   </button>
 
+                  {/* Secondary Intel Action: Sleek Ghost Pill */}
                   <button
                     onClick={() => onSelectStock && onSelectStock(item.symbol)}
-                    className="px-3.5 py-2.5 rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] hover:bg-[#E2E8F0] dark:hover:bg-[#243044] text-[#0F172A] dark:text-[#F8FAFC] text-xs font-bold flex items-center space-x-1 border border-[#E2E8F0] dark:border-[#243044] cursor-pointer"
+                    className="py-2.5 px-4 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] hover:bg-[#2563EB] hover:text-white dark:hover:bg-[#3B82F6] dark:hover:text-white text-[#64748B] dark:text-[#94A3B8] text-xs font-bold flex items-center justify-center space-x-1.5 border border-[#E2E8F0] dark:border-[#243044] hover:border-transparent transition-all cursor-pointer shadow-xs"
                     title="Open Technical Chart & Fundamentals"
                   >
                     <span>View Intel</span>
@@ -601,8 +607,8 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
       {/* 4. Interactive Dividend Profit & Tax Calculator Tool */}
       <div id="dividend-calculator-box" className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-6 shadow-sm dark:shadow-md space-y-6 relative">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-lg bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 border border-[#2563EB]/20 dark:border-[#3B82F6]/20 flex items-center justify-center text-[#2563EB] dark:text-[#3B82F6]">
-            <Calculator className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-lg bg-[#D97706]/10 dark:bg-[#F59E0B]/10 border border-[#D97706]/20 dark:border-[#F59E0B]/20 flex items-center justify-center text-[#D97706] dark:text-[#F59E0B]">
+            <Calculator className="w-5 h-5 stroke-[2.5]" />
           </div>
           <div>
             <h3 className="text-lg font-bold text-[#0F172A] dark:text-[#F8FAFC]">Interactive PSX Dividend Profit & Net Cash Calculator</h3>
