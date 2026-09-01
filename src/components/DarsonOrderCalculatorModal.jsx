@@ -113,7 +113,7 @@ Risk-to-Reward: 1 : ${riskRewardRatio}`;
               <span className="text-base font-bold text-rose-400 mono block mt-1">
                 - PKR {totalRiskPKR.toLocaleString()}
               </span>
-              <span className="text-[10px] text-rose-300/80">Trigger @ PKR {stopLoss}</span>
+              <span className="text-[10px] text-rose-300/80">Trigger @ PKR {Number(stopLoss).toFixed(2)}</span>
             </div>
 
             <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl">
@@ -123,7 +123,7 @@ Risk-to-Reward: 1 : ${riskRewardRatio}`;
               <span className="text-base font-bold text-emerald-400 mono block mt-1">
                 + PKR {totalGainPKR.toLocaleString()}
               </span>
-              <span className="text-[10px] text-emerald-300/80">Target @ PKR {target1}</span>
+              <span className="text-[10px] text-emerald-300/80">Target @ PKR {Number(target1).toFixed(2)}</span>
             </div>
           </div>
 
