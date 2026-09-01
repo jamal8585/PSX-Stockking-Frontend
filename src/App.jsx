@@ -37,6 +37,7 @@ import officialQuotes from './data/official_quotes.json';
 
 const AUTO_SYNC_SECONDS = 3;
 const STORAGE_KEY = 'psx_user_portfolio_positions_v1';
+const WATCHLIST_STORAGE_KEY = 'psx_user_watchlist_v1';
 
 // Client-side instant recalculation helper for portfolio
 const calculateClientPortfolio = (savedPositions = [], stocksList = []) => {
@@ -255,8 +256,49 @@ export default function App() {
   const [stocks, setStocks] = useState(() => mergeWithOfficialQuotes([]));
   const [recommendations, setRecommendations] = useState(null);
   const [news, setNews] = useState([]);
-  const [watchlist, setWatchlist] = useState([]);
-  const [watchlistSet, setWatchlistSet] = useState(new Set());
+  // Persistent local watchlist with instant multi-key recovery
+  const [watchlist, setWatchlist] = useState(() => {
+    try {
+      const candidateKeys = [
+        WATCHLIST_STORAGE_KEY,
+        'psx_user_watchlist_v1',
+        'psx_user_watchlist',
+        'psx_watchlist',
+        'user_watchlist'
+      ];
+      for (const k of candidateKeys) {
+        const saved = localStorage.getItem(k);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(parsed));
+            return parsed;
+          }
+        }
+      }
+      return [
+        { symbol: 'OGDC', name: 'Oil & Gas Development Company', sector: 'Oil & Gas (E&P)' },
+        { symbol: 'PRL', name: 'Pakistan Refinery Limited', sector: 'Refinery' },
+        { symbol: 'MEBL', name: 'Meezan Bank Limited', sector: 'Commercial Banks' },
+        { symbol: 'FFC', name: 'Fauji Fertilizer Company', sector: 'Fertilizer' }
+      ];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const [watchlistSet, setWatchlistSet] = useState(() => {
+    try {
+      const saved = localStorage.getItem(WATCHLIST_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return new Set(parsed.map(w => (typeof w === 'string' ? w : w.symbol).toUpperCase()));
+        }
+      }
+    } catch (e) {}
+    return new Set(['OGDC', 'PRL', 'MEBL', 'FFC']);
+  });
   
   // Persistent local portfolio state with multi-key fallback recovery
   const [rawPositions, setRawPositions] = useState(() => {
@@ -473,10 +515,10 @@ export default function App() {
         setStocks(mergeWithOfficialQuotes(s.value.data));
       }
       if (r.status === 'fulfilled' && r.value?.success) setRecommendations(r.value);
-      if (n.status === 'fulfilled' && n.value?.success) setNews(n.value.data);
-      if (w.status === 'fulfilled' && w.value?.success) {
+      if (w.status === 'fulfilled' && w.value?.success && Array.isArray(w.value.data) && w.value.data.length > 0) {
         setWatchlist(w.value.data);
-        setWatchlistSet(new Set(w.value.data.map(item => item.symbol)));
+        setWatchlistSet(new Set(w.value.data.map(item => (item.symbol || item).toUpperCase())));
+        localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(w.value.data));
       }
 
       if (!silent) {
@@ -541,17 +583,42 @@ export default function App() {
     }
   };
 
-  const handleToggleWatchlist = async (symbol) => {
+  // Instant 0ms Local Watchlist Toggle with Permanent Storage & Background Sync
+  const handleToggleWatchlist = (symbolOrStock) => {
     try {
-      const res = await toggleWatchlist(symbol);
-      if (res.success) {
-        showToast(res.isWatchlisted ? `Added ${symbol} to Watchlist` : `Removed ${symbol} from Watchlist`);
-        const watchRes = await getWatchlist();
-        if (watchRes.success) {
-          setWatchlist(watchRes.data);
-          setWatchlistSet(new Set(watchRes.data.map(w => w.symbol)));
-        }
+      const sym = typeof symbolOrStock === 'string' 
+        ? symbolOrStock.toUpperCase().trim() 
+        : (symbolOrStock?.symbol || '').toUpperCase().trim();
+      if (!sym) return;
+
+      const isAlreadyIn = watchlist.some(w => (typeof w === 'string' ? w : w.symbol).toUpperCase() === sym);
+      let updated;
+
+      if (isAlreadyIn) {
+        updated = watchlist.filter(w => (typeof w === 'string' ? w : w.symbol).toUpperCase() !== sym);
+        showToast(`Removed ${sym} from Watchlist`);
+      } else {
+        const stockInfo = (stocks && stocks.find(s => s.symbol?.toUpperCase() === sym)) || 
+          (officialQuotes ? officialQuotes[sym] : null) || 
+          (typeof symbolOrStock === 'object' ? symbolOrStock : { symbol: sym, name: sym, sector: 'General Market' });
+
+        const newEntry = {
+          symbol: sym,
+          name: stockInfo.name || sym,
+          sector: stockInfo.sector || 'General Market',
+          currentPrice: Number(stockInfo.currentPrice || 100),
+          addedAt: new Date().toISOString()
+        };
+        updated = [newEntry, ...watchlist];
+        showToast(`⭐ Added ${sym} to Watchlist Radar!`);
       }
+
+      setWatchlist(updated);
+      setWatchlistSet(new Set(updated.map(w => (typeof w === 'string' ? w : w.symbol).toUpperCase())));
+      localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(updated));
+
+      // Background sync with server
+      toggleWatchlist(sym).catch(() => {});
     } catch (err) {
       console.error('Toggle Watchlist Error:', err);
     }
