@@ -17,15 +17,136 @@ import {
   Info
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
-import { 
-  ResponsiveContainer, 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
-  CartesianGrid 
-} from 'recharts';
+
+// High-Performance Interactive SVG Stock Chart
+function InteractiveStockChart({ data = [], currentPrice = 100, symbol = 'STOCK' }) {
+  const [hoverIndex, setHoverIndex] = useState(null);
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs py-20">
+        Loading chart telemetry...
+      </div>
+    );
+  }
+
+  const prices = data.map(d => Number(d.price) || currentPrice);
+  const minPrice = Math.min(...prices) * 0.985;
+  const maxPrice = Math.max(...prices) * 1.015;
+  const priceRange = maxPrice - minPrice || 1;
+
+  const width = 640;
+  const height = 280;
+  const paddingLeft = 10;
+  const paddingRight = 45;
+  const paddingTop = 20;
+  const paddingBottom = 30;
+
+  const chartWidth = width - paddingLeft - paddingRight;
+  const chartHeight = height - paddingTop - paddingBottom;
+
+  const points = data.map((d, i) => {
+    const x = paddingLeft + (i / (data.length - 1 || 1)) * chartWidth;
+    const y = paddingTop + chartHeight - ((Number(d.price || currentPrice) - minPrice) / priceRange) * chartHeight;
+    return { x, y, data: d };
+  });
+
+  const linePath = points.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '');
+  const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${(paddingTop + chartHeight).toFixed(1)} L ${points[0].x.toFixed(1)} ${(paddingTop + chartHeight).toFixed(1)} Z`;
+
+  const activePoint = hoverIndex !== null && points[hoverIndex] ? points[hoverIndex] : points[points.length - 1];
+
+  return (
+    <div className="relative w-full h-[280px] select-none">
+      <svg 
+        viewBox={`0 0 ${width} ${height}`} 
+        className="w-full h-full overflow-visible"
+        onMouseMove={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const mouseX = e.clientX - rect.left;
+          const ratio = Math.max(0, Math.min(1, (mouseX - paddingLeft) / chartWidth));
+          const idx = Math.round(ratio * (data.length - 1));
+          setHoverIndex(idx);
+        }}
+        onMouseLeave={() => setHoverIndex(null)}
+      >
+        <defs>
+          <linearGradient id={`grad_${symbol}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#06B6D4" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#06B6D4" stopOpacity="0.0" />
+          </linearGradient>
+        </defs>
+
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => {
+          const y = paddingTop + chartHeight * pct;
+          const priceAtY = maxPrice - pct * priceRange;
+          return (
+            <g key={i}>
+              <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="#1E293B" strokeDasharray="3 3" />
+              <text x={width - paddingRight + 6} y={y + 3} fill="#64748B" fontSize="9" fontFamily="monospace">
+                {priceAtY.toFixed(1)}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Area fill */}
+        <path d={areaPath} fill={`url(#grad_${symbol})`} />
+
+        {/* Price Line */}
+        <path d={linePath} fill="none" stroke="#06B6D4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+
+        {/* Active hover crosshair & point */}
+        {activePoint && (
+          <g>
+            <line 
+              x1={activePoint.x} 
+              y1={paddingTop} 
+              x2={activePoint.x} 
+              y2={paddingTop + chartHeight} 
+              stroke="#22D3EE" 
+              strokeWidth="1.5" 
+              strokeDasharray="2 2" 
+            />
+            <circle 
+              cx={activePoint.x} 
+              cy={activePoint.y} 
+              r="4.5" 
+              fill="#06B6D4" 
+              stroke="#FFFFFF" 
+              strokeWidth="2" 
+            />
+          </g>
+        )}
+
+        {/* Date labels at bottom */}
+        {points.filter((_, idx) => idx % Math.ceil(points.length / 6) === 0).map((pt, i) => (
+          <text key={i} x={pt.x} y={height - 8} fill="#64748B" fontSize="9" textAnchor="middle" fontFamily="monospace">
+            {pt.data.date}
+          </text>
+        ))}
+      </svg>
+
+      {/* Floating Tooltip */}
+      {activePoint && (
+        <div 
+          className="absolute pointer-events-none bg-[#0F172A] border border-cyan-500/60 rounded-xl px-3 py-1.5 shadow-xl text-xs z-20"
+          style={{
+            left: `${Math.min(75, Math.max(15, (activePoint.x / width) * 100))}%`,
+            top: '8px',
+            transform: 'translateX(-50%)'
+          }}
+        >
+          <div className="flex items-center space-x-2 font-mono">
+            <span className="text-gray-400">{activePoint.data.date}</span>
+            <span className="font-extrabold text-cyan-300">PKR {Number(activePoint.data.price).toFixed(2)}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
   if (!stock) return null;
@@ -353,31 +474,9 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
                 </span>
               </div>
 
-              <div className="w-full h-[310px]">
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={chartData}>
-                    <defs>
-                      <linearGradient id="terminalGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#06B6D4" stopOpacity={0.45} />
-                        <stop offset="95%" stopColor="#06B6D4" stopOpacity={0.0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" vertical={false} />
-                    <XAxis dataKey="date" stroke="#64748B" tick={{ fontSize: 10 }} />
-                    <YAxis domain={['auto', 'auto']} stroke="#64748B" tick={{ fontSize: 10 }} orientation="right" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#0F172A', borderColor: '#06B6D4', borderRadius: '0.75rem', fontSize: '12px' }}
-                      formatter={(val) => [`PKR ${Number(val).toFixed(2)}`, 'Price']}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="price"
-                      stroke="#06B6D4"
-                      strokeWidth={2.5}
-                      fill="url(#terminalGrad)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+              {/* Direct High-Performance SVG Chart */}
+              <div className="w-full h-[280px]">
+                <InteractiveStockChart data={chartData} currentPrice={price} symbol={sym} />
               </div>
             </div>
           </div>
