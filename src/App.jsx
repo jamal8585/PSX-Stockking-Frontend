@@ -469,6 +469,7 @@ export default function App() {
           <NewsCatalystTradeHub
             news={news}
             newsList={news}
+            stocks={stocks}
             onSelectStock={handleSelectStock}
             onOpenCalculator={setCalcStock}
           />

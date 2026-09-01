@@ -14,10 +14,66 @@ import {
   Filter, 
   Radio
 } from 'lucide-react';
+import officialQuotes from '../data/official_quotes.json';
 
-export default function NewsCatalystTradeHub({ news = [], newsList = [], onSelectStock, onOpenCalculator }) {
+export default function NewsCatalystTradeHub({ 
+  news = [], 
+  newsList = [], 
+  stocks = [], 
+  onSelectStock, 
+  onOpenCalculator 
+}) {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [selectedSentiment, setSelectedSentiment] = useState('ALL');
+
+  const getLiveTradeData = (trade) => {
+    const sym = (trade?.symbol || '').toUpperCase().trim();
+    const foundStock = Array.isArray(stocks) ? stocks.find(s => s.symbol?.toUpperCase() === sym) : null;
+    const foundOfficial = officialQuotes ? officialQuotes[sym] : null;
+
+    const currentPrice = Number(
+      foundStock?.currentPrice || 
+      foundOfficial?.currentPrice || 
+      trade?.currentPrice || 
+      100
+    );
+
+    const prevClose = Number(
+      foundStock?.prevClose || 
+      foundOfficial?.prevClose || 
+      (currentPrice * 0.99)
+    );
+
+    const change = foundStock?.change !== undefined 
+      ? Number(foundStock.change) 
+      : (foundOfficial?.change !== undefined 
+          ? Number(foundOfficial.change) 
+          : Number((currentPrice - prevClose).toFixed(2)));
+
+    const changePercent = foundStock?.changePercent !== undefined 
+      ? Number(foundStock.changePercent) 
+      : (foundOfficial?.changePercent !== undefined 
+          ? Number(foundOfficial.changePercent) 
+          : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0));
+
+    const targetSellPrice = Number((currentPrice * 1.115).toFixed(2));
+    const stopLoss = Number((currentPrice * 0.95).toFixed(2));
+    const entryPriceMin = Number((currentPrice * 0.985).toFixed(2));
+    const entryPriceMax = Number((currentPrice * 1.01).toFixed(2));
+
+    return {
+      ...trade,
+      name: foundStock?.name || foundOfficial?.name || trade?.name || sym,
+      currentPrice: currentPrice.toFixed(2),
+      targetSellPrice: targetSellPrice.toFixed(2),
+      stopLoss: stopLoss.toFixed(2),
+      entryPriceMin: entryPriceMin.toFixed(2),
+      entryPriceMax: entryPriceMax.toFixed(2),
+      expectedGainPct: (11.5).toFixed(1),
+      change,
+      changePercent
+    };
+  };
 
   const categories = [
     { id: 'ALL', label: 'All Live News' },
@@ -197,76 +253,86 @@ export default function NewsCatalystTradeHub({ news = [], newsList = [], onSelec
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {upList.map((trade, tIdx) => (
-                        <div
-                          key={tIdx}
-                          className="bg-[#070B12] border border-emerald-500/30 hover:border-emerald-500/60 rounded-xl p-4 shadow-xl flex flex-col justify-between transition-all"
-                        >
-                          <div>
-                            <div className="flex items-start justify-between mb-2">
-                              <div>
-                                <span className="text-xl font-extrabold text-white mono">{trade.symbol}</span>
-                                <p className="text-[11px] text-gray-400 truncate max-w-[150px]">{trade.name}</p>
-                              </div>
-                              <span className="px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-extrabold text-[10px] flex items-center shadow-md">
-                                <ArrowUpRight className="w-3.5 h-3.5 mr-0.5 stroke-[3]" /> BULLISH SETUP
-                              </span>
-                            </div>
+                      {upList.map((rawTrade, tIdx) => {
+                        const trade = getLiveTradeData(rawTrade);
+                        const isUp = (trade.change || 0) >= 0;
 
-                            {/* Price Matrix */}
-                            <div className="bg-[#0D131F] rounded-lg p-2 border border-gray-800/80 mb-2.5 flex justify-between items-center text-xs">
-                              <div>
-                                <span className="text-[9px] uppercase text-gray-400 block">Current Price</span>
-                                <span className="text-sm font-extrabold text-white mono">PKR {trade.currentPrice}</span>
-                              </div>
-                              <div className="text-right">
-                                <span className="text-[9px] uppercase text-emerald-400 font-bold block">Target Sell Price</span>
-                                <span className="text-sm font-extrabold text-emerald-400 mono">
-                                  PKR {trade.targetSellPrice} (+{trade.expectedGainPct}%)
+                        return (
+                          <div
+                            key={tIdx}
+                            className="bg-[#070B12] border border-emerald-500/30 hover:border-emerald-500/60 rounded-xl p-4 shadow-xl flex flex-col justify-between transition-all"
+                          >
+                            <div>
+                              <div className="flex items-start justify-between mb-2">
+                                <div>
+                                  <span className="text-xl font-extrabold text-white mono">{trade.symbol}</span>
+                                  <p className="text-[11px] text-gray-400 truncate max-w-[150px]">{trade.name}</p>
+                                </div>
+                                <span className="px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-extrabold text-[10px] flex items-center shadow-md">
+                                  <ArrowUpRight className="w-3.5 h-3.5 mr-0.5 stroke-[3]" /> BULLISH SETUP
                                 </span>
                               </div>
+
+                              {/* Price Matrix */}
+                              <div className="bg-[#0D131F] rounded-lg p-2.5 border border-gray-800/80 mb-2.5 flex justify-between items-center text-xs">
+                                <div>
+                                  <span className="text-[9px] uppercase text-gray-400 block font-bold">Current Live Price</span>
+                                  <span className="text-sm font-extrabold text-white mono flex items-center">
+                                    PKR {trade.currentPrice}
+                                    <span className={`text-[10px] ml-1.5 font-bold ${isUp ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                      ({isUp ? '+' : ''}{trade.changePercent}%)
+                                    </span>
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-[9px] uppercase text-emerald-400 font-bold block">Target Sell Price</span>
+                                  <span className="text-sm font-extrabold text-emerald-400 mono">
+                                    PKR {trade.targetSellPrice} (+{trade.expectedGainPct}%)
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Buy Trigger & Stop Loss */}
+                              <div className="space-y-1 bg-[#0D131F]/60 p-2 rounded-lg border border-gray-800/60 mb-2.5 text-[11px]">
+                                <div className="flex justify-between text-cyan-300">
+                                  <span>Entry Buy Zone:</span>
+                                  <b className="mono">PKR {trade.entryPriceMin} - {trade.entryPriceMax}</b>
+                                </div>
+                                <div className="flex justify-between text-rose-400">
+                                  <span>Stop Loss:</span>
+                                  <b className="mono">PKR {trade.stopLoss}</b>
+                                </div>
+                              </div>
+
+                              <p className="text-[11px] text-gray-300 leading-tight bg-gray-900/40 p-2 rounded border border-gray-800/40 mb-3">
+                                💡 {trade.tradeReason}
+                              </p>
                             </div>
 
-                            {/* Buy Trigger & Stop Loss */}
-                            <div className="space-y-1 bg-[#0D131F]/60 p-2 rounded-lg border border-gray-800/60 mb-2.5 text-[11px]">
-                              <div className="flex justify-between text-cyan-300">
-                                <span>Entry Buy Zone:</span>
-                                <b className="mono">PKR {trade.entryPriceMin} - {trade.entryPriceMax}</b>
-                              </div>
-                              <div className="flex justify-between text-rose-400">
-                                <span>Stop Loss:</span>
-                                <b className="mono">PKR {trade.stopLoss}</b>
-                              </div>
+                            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800 text-xs">
+                              <button
+                                onClick={() => onOpenCalculator({
+                                  symbol: trade.symbol,
+                                  companyName: trade.name,
+                                  currentPrice: Number(trade.currentPrice),
+                                  stopLoss: Number(trade.stopLoss),
+                                  target1: Number(trade.targetSellPrice),
+                                  signal: 'BUY_NOW'
+                                })}
+                                className="py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-teal-500 text-black font-extrabold text-xs shadow cursor-pointer text-center"
+                              >
+                                Order Planner
+                              </button>
+                              <button
+                                onClick={() => onSelectStock(trade.symbol)}
+                                className="py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 font-bold text-xs cursor-pointer text-center"
+                              >
+                                Live Chart
+                              </button>
                             </div>
-
-                            <p className="text-[11px] text-gray-300 leading-tight bg-gray-900/40 p-2 rounded border border-gray-800/40 mb-3">
-                              💡 {trade.tradeReason}
-                            </p>
                           </div>
-
-                          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800 text-xs">
-                            <button
-                              onClick={() => onOpenCalculator({
-                                symbol: trade.symbol,
-                                companyName: trade.name,
-                                currentPrice: trade.currentPrice,
-                                stopLoss: trade.stopLoss,
-                                target1: trade.targetSellPrice,
-                                signal: 'BUY_NOW'
-                              })}
-                              className="py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-teal-500 text-black font-extrabold text-xs shadow cursor-pointer text-center"
-                            >
-                              Order Planner
-                            </button>
-                            <button
-                              onClick={() => onSelectStock(trade.symbol)}
-                              className="py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 font-bold text-xs cursor-pointer text-center"
-                            >
-                              Live Chart
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -291,75 +357,85 @@ export default function NewsCatalystTradeHub({ news = [], newsList = [], onSelec
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {downList.map((trade, tIdx) => (
-                        <div
-                          key={tIdx}
-                          className="bg-[#070B12] border border-rose-500/30 hover:border-rose-500/60 rounded-xl p-4 shadow-xl flex flex-col justify-between transition-all"
-                        >
-                          <div>
-                            <div className="flex items-start justify-between mb-2">
-                              <div>
-                                <span className="text-xl font-extrabold text-white mono">{trade.symbol}</span>
-                                <p className="text-[11px] text-gray-400 truncate max-w-[150px]">{trade.name}</p>
-                              </div>
-                              <span className="px-2.5 py-1 rounded-md bg-rose-500 text-white font-extrabold text-[10px] flex items-center shadow-md">
-                                <ArrowDownRight className="w-3.5 h-3.5 mr-0.5 stroke-[3]" /> SELL / EXIT
-                              </span>
-                            </div>
+                      {downList.map((rawTrade, tIdx) => {
+                        const trade = getLiveTradeData(rawTrade);
+                        const isUp = (trade.change || 0) >= 0;
 
-                            {/* Price Matrix */}
-                            <div className="bg-[#0D131F] rounded-lg p-2 border border-gray-800/80 mb-2.5 flex justify-between items-center text-xs">
-                              <div>
-                                <span className="text-[9px] uppercase text-gray-400 block">Current Price</span>
-                                <span className="text-sm font-extrabold text-white mono">PKR {trade.currentPrice}</span>
-                              </div>
-                              <div className="text-right">
-                                <span className="text-[9px] uppercase text-rose-400 font-bold block">Downside Risk Level</span>
-                                <span className="text-sm font-extrabold text-rose-400 mono">
-                                  PKR {trade.targetSellPrice} ({trade.expectedGainPct}%)
+                        return (
+                          <div
+                            key={tIdx}
+                            className="bg-[#070B12] border border-rose-500/30 hover:border-rose-500/60 rounded-xl p-4 shadow-xl flex flex-col justify-between transition-all"
+                          >
+                            <div>
+                              <div className="flex items-start justify-between mb-2">
+                                <div>
+                                  <span className="text-xl font-extrabold text-white mono">{trade.symbol}</span>
+                                  <p className="text-[11px] text-gray-400 truncate max-w-[150px]">{trade.name}</p>
+                                </div>
+                                <span className="px-2.5 py-1 rounded-md bg-rose-500 text-white font-extrabold text-[10px] flex items-center shadow-md">
+                                  <ArrowDownRight className="w-3.5 h-3.5 mr-0.5 stroke-[3]" /> SELL / EXIT
                                 </span>
                               </div>
+
+                              {/* Price Matrix */}
+                              <div className="bg-[#0D131F] rounded-lg p-2.5 border border-gray-800/80 mb-2.5 flex justify-between items-center text-xs">
+                                <div>
+                                  <span className="text-[9px] uppercase text-gray-400 block font-bold">Current Live Price</span>
+                                  <span className="text-sm font-extrabold text-white mono flex items-center">
+                                    PKR {trade.currentPrice}
+                                    <span className={`text-[10px] ml-1.5 font-bold ${isUp ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                      ({isUp ? '+' : ''}{trade.changePercent}%)
+                                    </span>
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-[9px] uppercase text-rose-400 font-bold block">Downside Risk Level</span>
+                                  <span className="text-sm font-extrabold text-rose-400 mono">
+                                    PKR {trade.targetSellPrice} (-{trade.expectedGainPct}%)
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="space-y-1 bg-[#0D131F]/60 p-2 rounded-lg border border-gray-800/60 mb-2.5 text-[11px]">
+                                <div className="flex justify-between text-rose-300">
+                                  <span>Strict Stop Loss:</span>
+                                  <b className="mono">PKR {trade.stopLoss}</b>
+                                </div>
+                                <div className="flex justify-between text-gray-400">
+                                  <span>Action Advice:</span>
+                                  <b className="text-rose-400">Take Profit / Avoid Entry</b>
+                                </div>
+                              </div>
+
+                              <p className="text-[11px] text-gray-300 leading-tight bg-gray-900/40 p-2 rounded border border-gray-800/40 mb-3">
+                                ⚠️ {trade.tradeReason}
+                              </p>
                             </div>
 
-                            <div className="space-y-1 bg-[#0D131F]/60 p-2 rounded-lg border border-gray-800/60 mb-2.5 text-[11px]">
-                              <div className="flex justify-between text-rose-300">
-                                <span>Strict Stop Loss:</span>
-                                <b className="mono">PKR {trade.stopLoss}</b>
-                              </div>
-                              <div className="flex justify-between text-gray-400">
-                                <span>Action Advice:</span>
-                                <b className="text-rose-400">Take Profit / Avoid Entry</b>
-                              </div>
+                            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800 text-xs">
+                              <button
+                                onClick={() => onOpenCalculator({
+                                  symbol: trade.symbol,
+                                  companyName: trade.name,
+                                  currentPrice: Number(trade.currentPrice),
+                                  stopLoss: Number(trade.stopLoss),
+                                  target1: Number(trade.targetSellPrice),
+                                  signal: 'SELL_EXIT'
+                                })}
+                                className="py-2 rounded-lg bg-gray-800 hover:bg-rose-500 hover:text-white text-gray-300 font-extrabold text-xs shadow cursor-pointer text-center"
+                              >
+                                Exit Planner
+                              </button>
+                              <button
+                                onClick={() => onSelectStock(trade.symbol)}
+                                className="py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 font-bold text-xs cursor-pointer text-center"
+                              >
+                                Live Chart
+                              </button>
                             </div>
-
-                            <p className="text-[11px] text-gray-300 leading-tight bg-gray-900/40 p-2 rounded border border-gray-800/40 mb-3">
-                              ⚠️ {trade.tradeReason}
-                            </p>
                           </div>
-
-                          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800 text-xs">
-                            <button
-                              onClick={() => onOpenCalculator({
-                                symbol: trade.symbol,
-                                companyName: trade.name,
-                                currentPrice: trade.currentPrice,
-                                stopLoss: trade.stopLoss,
-                                target1: trade.targetSellPrice,
-                                signal: 'SELL_EXIT'
-                              })}
-                              className="py-2 rounded-lg bg-gray-800 hover:bg-rose-500 hover:text-white text-gray-300 font-extrabold text-xs shadow cursor-pointer text-center"
-                            >
-                              Exit Planner
-                            </button>
-                            <button
-                              onClick={() => onSelectStock(trade.symbol)}
-                              className="py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 font-bold text-xs cursor-pointer text-center"
-                            >
-                              Live Chart
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
