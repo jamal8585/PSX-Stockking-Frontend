@@ -409,7 +409,7 @@ export default function App() {
 
   return (
     <div className={`min-h-screen flex flex-col font-['Calibri','Segoe_UI',system-ui,sans-serif] transition-colors duration-200 ${
-      theme === 'light' ? 'bg-[#F8FAFC] text-slate-900' : 'bg-[#070B12] text-gray-100'
+      theme === 'light' ? 'light-mode bg-[#F8FAFC] text-slate-900' : 'dark-mode bg-[#070B12] text-gray-100'
     }`}>
       {/* Toast Notification */}
       {toastMessage && (
