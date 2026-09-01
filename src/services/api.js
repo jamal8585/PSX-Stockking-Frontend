@@ -8,6 +8,82 @@ const API = axios.create({
   timeout: 15000
 });
 
+// Auto-attach JWT token to all requests
+API.interceptors.request.use((config) => {
+  const token = localStorage.getItem('psx_auth_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+}, (error) => Promise.reject(error));
+
+// Token helpers
+export const setAuthToken = (token) => {
+  if (token) {
+    localStorage.setItem('psx_auth_token', token);
+  } else {
+    localStorage.removeItem('psx_auth_token');
+  }
+};
+
+export const getAuthToken = () => localStorage.getItem('psx_auth_token');
+
+export const removeAuthToken = () => {
+  localStorage.removeItem('psx_auth_token');
+  localStorage.removeItem('psx_user_profile');
+};
+
+// ==========================================
+// AUTH ENDPOINTS
+// ==========================================
+export const signupUser = async (data) => {
+  const res = await API.post('/auth/signup', data);
+  if (res.data?.token) setAuthToken(res.data.token);
+  return res.data;
+};
+
+export const loginUser = async (data) => {
+  const res = await API.post('/auth/login', data);
+  if (res.data?.token) setAuthToken(res.data.token);
+  return res.data;
+};
+
+export const getCurrentUser = async () => {
+  const res = await API.get('/auth/me');
+  return res.data;
+};
+
+export const submitUpgradeProof = async (data) => {
+  const res = await API.post('/auth/upgrade-request', data);
+  return res.data;
+};
+
+// ==========================================
+// ADMIN ENDPOINTS
+// ==========================================
+export const getAdminUsers = async (params = {}) => {
+  const res = await API.get('/admin/users', { params });
+  return res.data;
+};
+
+export const updateAdminSubscription = async (userId, data) => {
+  const res = await API.post(`/admin/users/${userId}/subscription`, data);
+  return res.data;
+};
+
+export const deleteAdminUser = async (userId) => {
+  const res = await API.delete(`/admin/users/${userId}`);
+  return res.data;
+};
+
+export const getAdminAnalytics = async () => {
+  const res = await API.get('/admin/analytics');
+  return res.data;
+};
+
+// ==========================================
+// MARKET & STOCKS ENDPOINTS
+// ==========================================
 export const getMarketSummary = async () => {
   const res = await API.get('/market/summary');
   return res.data;

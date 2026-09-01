@@ -10,6 +10,9 @@ import StockDetailModal from './components/StockDetailModal';
 import DarsonOrderCalculatorModal from './components/DarsonOrderCalculatorModal';
 import WatchlistModal from './components/WatchlistModal';
 import DayTradeSuggestionModal from './components/DayTradeSuggestionModal';
+import AuthModal from './components/AuthModal';
+import ProUpgradeModal from './components/ProUpgradeModal';
+import AdminDashboard from './components/AdminDashboard';
 
 import {
   getMarketSummary,
@@ -23,7 +26,9 @@ import {
   getPortfolio,
   addPortfolioPosition,
   updatePortfolioPosition,
-  deletePortfolioPosition
+  deletePortfolioPosition,
+  getCurrentUser,
+  removeAuthToken
 } from './services/api';
 
 import officialQuotes from './data/official_quotes.json';
@@ -270,6 +275,69 @@ export default function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [countdown, setCountdown] = useState(AUTO_SYNC_SECONDS);
+
+  // Authentication & Subscription State
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('psx_user_profile');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('login');
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+
+  // Verify auth session with backend on load
+  useEffect(() => {
+    const verifySession = async () => {
+      const token = localStorage.getItem('psx_auth_token');
+      if (token) {
+        try {
+          const res = await getCurrentUser();
+          if (res?.success && res.user) {
+            setCurrentUser(res.user);
+            localStorage.setItem('psx_user_profile', JSON.stringify(res.user));
+          }
+        } catch (err) {
+          console.warn('Session verification failed:', err.message);
+        }
+      }
+    };
+    verifySession();
+  }, []);
+
+  const handleAuthSuccess = (user) => {
+    setCurrentUser(user);
+    showToast(`Welcome, ${user.name}!`);
+  };
+
+  const handleLogout = () => {
+    removeAuthToken();
+    setCurrentUser(null);
+    setIsAdminOpen(false);
+    showToast('You have been signed out.');
+  };
+
+  const handleOpenAuth = (mode = 'login') => {
+    setAuthModalMode(mode);
+    setIsAuthModalOpen(true);
+  };
+
+  const handleOpenUpgrade = () => {
+    setIsUpgradeModalOpen(true);
+  };
+
+  const handleOpenAdmin = () => {
+    if (currentUser?.role === 'ADMIN') {
+      setIsAdminOpen(true);
+    } else {
+      showToast('Administrator privileges required.');
+    }
+  };
 
   // Theme State (Dark / Light White Mode)
   const [theme, setTheme] = useState(() => {
@@ -538,6 +606,15 @@ export default function App() {
     }
   };
 
+  if (isAdminOpen && currentUser?.role === 'ADMIN') {
+    return (
+      <AdminDashboard
+        currentUser={currentUser}
+        onBackToPortal={() => setIsAdminOpen(false)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#070B12] text-gray-100 flex flex-col font-['Calibri','Segoe_UI',system-ui,sans-serif]">
       {/* Toast Notification */}
@@ -559,6 +636,11 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         countdown={countdown}
+        currentUser={currentUser}
+        onOpenAuth={handleOpenAuth}
+        onOpenUpgrade={handleOpenUpgrade}
+        onOpenAdmin={handleOpenAdmin}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Hub */}
@@ -596,6 +678,8 @@ export default function App() {
             stocks={stocks}
             onSelectStock={handleSelectStock}
             onOpenCalculator={setCalcStock}
+            currentUser={currentUser}
+            onOpenUpgrade={handleOpenUpgrade}
           />
         )}
 
@@ -618,6 +702,29 @@ export default function App() {
           <p>© 2026 PSX STOCKKING • Real-Time Financial Intelligence, Portfolio Tracker & Algorithmic Stock Screening Engine.</p>
         </div>
       </footer>
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthSuccess={handleAuthSuccess}
+        initialMode={authModalMode}
+      />
+
+      {/* Pro VIP Upgrade Modal */}
+      <ProUpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        user={currentUser}
+        onAuthRequired={() => {
+          setIsUpgradeModalOpen(false);
+          handleOpenAuth('login');
+        }}
+        onUpgradeSubmitted={(updatedUser) => {
+          setCurrentUser(updatedUser);
+          showToast('Upgrade proof submitted! Admin will verify shortly.');
+        }}
+      />
 
       {/* Modals */}
       {selectedStock && (

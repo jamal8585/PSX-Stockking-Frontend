@@ -12,7 +12,9 @@ import {
   CheckCircle2, 
   AlertTriangle,
   ArrowUpRight,
-  Filter
+  Filter,
+  Lock,
+  Crown
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 
@@ -20,10 +22,14 @@ export default function DailyRecommendations({
   recommendations, 
   stocks = [], 
   onSelectStock, 
-  onOpenCalculator 
+  onOpenCalculator,
+  currentUser,
+  onOpenUpgrade
 }) {
   const [filterSignal, setFilterSignal] = useState('ALL');
   const [filterSector, setFilterSector] = useState('ALL');
+
+  const isPro = currentUser?.plan === 'PRO' && currentUser?.subscriptionStatus === 'ACTIVE';
 
   if (!recommendations || !recommendations.all) return null;
 
@@ -197,6 +203,31 @@ export default function DailyRecommendations({
         </div>
       </div>
 
+      {/* Pro Tier Banner if Free */}
+      {!isPro && (
+        <div className="bg-gradient-to-r from-amber-950/60 via-[#111827] to-amber-950/40 border border-amber-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg shadow-amber-500/10">
+          <div className="flex items-center space-x-3 text-left">
+            <div className="p-2 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 shrink-0">
+              <Crown className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-xs font-black text-amber-300 block">
+                Free Tier Mode: Previewing 2 Top AI Signals
+              </span>
+              <span className="text-[11px] text-gray-400">
+                Upgrade to PSX Stockking Pro to unlock all 20+ algorithmic setups with exact entry zones and target calculations.
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={onOpenUpgrade}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-black font-black text-xs cursor-pointer hover:opacity-90 shadow-md shadow-amber-500/20 shrink-0"
+          >
+            Upgrade to Pro (PKR 1,499)
+          </button>
+        </div>
+      )}
+
       {/* Recommendations Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map((rawItem, idx) => {
@@ -205,6 +236,54 @@ export default function DailyRecommendations({
           const isBuy = item.signal === 'STRONG_BUY' || item.signal === 'ACCUMULATE';
           const isAvoid = item.signal === 'AVOID_SELL';
           const isUp = (item.change || 0) >= 0;
+          const isLocked = !isPro && idx >= 2;
+
+          if (isLocked) {
+            return (
+              <div
+                key={item.symbol || idx}
+                className="bg-[#111827]/80 border border-amber-500/30 rounded-2xl p-5 shadow-xl relative overflow-hidden flex flex-col justify-between"
+              >
+                <div className="filter blur-sm select-none pointer-events-none opacity-40">
+                  <div className="flex justify-between mb-3">
+                    <div>
+                      <h3 className="text-xl font-bold text-white mono">{item.symbol}</h3>
+                      <p className="text-xs text-gray-400">{item.sector}</p>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400">
+                      Strong Buy
+                    </span>
+                  </div>
+                  <div className="bg-gray-900 p-3 rounded-xl mb-3">
+                    <p className="text-lg font-bold text-white">PKR {item.currentPrice.toFixed(2)}</p>
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                      <div className="bg-gray-800 p-1 rounded text-center text-xs">Entry</div>
+                      <div className="bg-gray-800 p-1 rounded text-center text-xs">SL</div>
+                      <div className="bg-gray-800 p-1 rounded text-center text-xs">Target</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-5 bg-[#070B12]/85 backdrop-blur-xs text-center space-y-2.5">
+                  <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                    <Lock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-extrabold text-white">Pro VIP Signal Locked</h4>
+                    <p className="text-[11px] text-gray-400 max-w-[220px]">
+                      {item.symbol} algorithmic setup & target plan is reserved for Pro subscribers.
+                    </p>
+                  </div>
+                  <button
+                    onClick={onOpenUpgrade}
+                    className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-black font-extrabold text-xs cursor-pointer hover:opacity-90 shadow-md shadow-amber-500/20"
+                  >
+                    Unlock with Pro
+                  </button>
+                </div>
+              </div>
+            );
+          }
 
           return (
             <div

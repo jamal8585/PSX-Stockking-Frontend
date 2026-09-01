@@ -32,7 +32,12 @@ export default function Navbar({
   onOpenWatchlist, 
   activeTab, 
   setActiveTab,
-  countdown = 5
+  countdown = 5,
+  currentUser,
+  onOpenAuth,
+  onOpenUpgrade,
+  onOpenAdmin,
+  onLogout
 }) {
   const kse = (marketSummary?.currentValue || marketSummary?.current) 
     ? Number(marketSummary.currentValue || marketSummary.current).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
@@ -77,6 +82,9 @@ export default function Navbar({
       };
     });
   }, [stocks]);
+
+  const isPro = currentUser?.plan === 'PRO' && currentUser?.subscriptionStatus === 'ACTIVE';
+  const isAdmin = currentUser?.role === 'ADMIN';
 
   return (
     <header className="sticky top-0 z-40 bg-[#070B12]/95 backdrop-blur-xl border-b border-cyan-950/60 shadow-2xl">
@@ -167,7 +175,7 @@ export default function Navbar({
           </div>
 
           {/* Navigation Tabs */}
-          <nav className="hidden md:flex items-center space-x-1 bg-[#0D131F]/90 p-1.5 rounded-xl border border-gray-800/80">
+          <nav className="hidden lg:flex items-center space-x-1 bg-[#0D131F]/90 p-1.5 rounded-xl border border-gray-800/80">
             <button
               onClick={() => setActiveTab('news')}
               className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
@@ -177,7 +185,7 @@ export default function Navbar({
               }`}
             >
               <Zap className="w-3.5 h-3.5" />
-              <span>⚡ All Sectors News & Catalysts</span>
+              <span>⚡ All Sectors News</span>
             </button>
 
             <button
@@ -201,7 +209,7 @@ export default function Navbar({
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>🎯 Daily AI Signals</span>
+              <span>🎯 AI Signals</span>
             </button>
 
             <button
@@ -216,11 +224,12 @@ export default function Navbar({
             </button>
           </nav>
 
-          {/* Right Actions */}
-          <div className="flex items-center space-x-3">
+          {/* Right Actions & User Profile */}
+          <div className="flex items-center space-x-2.5">
+            {/* Watchlist */}
             <button
               onClick={onOpenWatchlist}
-              className="relative p-2.5 rounded-xl bg-gray-900/90 border border-gray-800 hover:border-cyan-500/40 text-gray-300 hover:text-white transition-all cursor-pointer"
+              className="relative p-2 rounded-xl bg-gray-900/90 border border-gray-800 hover:border-cyan-500/40 text-gray-300 hover:text-white transition-all cursor-pointer"
               title="View Watchlist"
             >
               <Bookmark className="w-4 h-4" />
@@ -231,15 +240,73 @@ export default function Navbar({
               )}
             </button>
 
+            {/* Sync Now */}
             <button
               onClick={onRunScan}
               disabled={isScanning}
-              className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:opacity-90 text-black font-extrabold text-xs shadow-lg shadow-emerald-500/20 disabled:opacity-50 transition-all cursor-pointer"
+              className="hidden sm:flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:opacity-90 text-black font-extrabold text-xs shadow-lg shadow-emerald-500/20 disabled:opacity-50 transition-all cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin' : ''}`} />
-              <span>{isScanning ? 'Scanning PSX...' : 'Sync Now'}</span>
+              <span>{isScanning ? 'Syncing...' : 'Sync'}</span>
             </button>
+
+            {/* Admin Panel Button (If Admin) */}
+            {isAdmin && (
+              <button
+                onClick={onOpenAdmin}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 border border-purple-500/40 text-xs font-black cursor-pointer transition-all shadow-md shadow-purple-500/10"
+              >
+                <span>👑 Admin</span>
+              </button>
+            )}
+
+            {/* Upgrade to Pro Button (If Free or not logged in) */}
+            {!isPro && (
+              <button
+                onClick={onOpenUpgrade}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:opacity-90 text-black text-xs font-black cursor-pointer shadow-lg shadow-amber-500/25 transition-all"
+              >
+                <span>👑 Upgrade Pro</span>
+              </button>
+            )}
+
+            {/* Auth Profile / Login Button */}
+            {currentUser ? (
+              <div className="flex items-center space-x-2 bg-gray-900/90 pl-3 pr-1 py-1 rounded-xl border border-gray-800 text-xs">
+                <div className="flex flex-col text-right">
+                  <span className="font-bold text-white text-[11px] leading-tight truncate max-w-[100px]">
+                    {currentUser.name}
+                  </span>
+                  <span className={`text-[9px] font-black uppercase ${isPro ? 'text-amber-400' : 'text-gray-400'}`}>
+                    {isPro ? '⭐ PRO VIP' : 'FREE USER'}
+                  </span>
+                </div>
+                <button
+                  onClick={onLogout}
+                  className="px-2 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-rose-400 text-[10px] font-bold cursor-pointer transition-colors"
+                  title="Log Out"
+                >
+                  Exit
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-1.5">
+                <button
+                  onClick={() => onOpenAuth('login')}
+                  className="px-3 py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white text-xs font-bold cursor-pointer transition-all border border-gray-700"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => onOpenAuth('signup')}
+                  className="hidden sm:block px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-black cursor-pointer transition-all shadow-md shadow-cyan-500/20"
+                >
+                  Register
+                </button>
+              </div>
+            )}
           </div>
+        </div>
         </div>
 
         {/* Mobile Tab Bar */}
