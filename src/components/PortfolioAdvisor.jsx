@@ -21,7 +21,8 @@ import {
   ArrowDownRight,
   Search,
   Zap,
-  Info
+  Info,
+  Edit3
 } from 'lucide-react';
 
 const POPULAR_TICKERS = [
@@ -49,23 +50,34 @@ export default function PortfolioAdvisor({
 
   const { summary = {}, positions = [] } = portfolioData || {};
 
-  const handleSelectSymbol = (sym) => {
-    setSymbolInput(sym.toUpperCase());
-    const found = stocks.find(s => s.symbol.toUpperCase() === sym.toUpperCase());
-    if (found && !buyPrice) {
+  const handleSelectSymbol = (sym, overridePrice = false) => {
+    const sUpper = sym.toUpperCase();
+    setSymbolInput(sUpper);
+    const found = stocks.find(s => s.symbol.toUpperCase() === sUpper);
+    if (found && (overridePrice || !buyPrice || buyPrice === '0')) {
       setBuyPrice(found.currentPrice);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!symbolInput || !buyPrice || !quantity) return;
+    const sym = symbolInput.toUpperCase().trim();
+    if (!sym) return;
+
+    let finalPrice = Number(buyPrice);
+    if (!finalPrice || isNaN(finalPrice)) {
+      const found = stocks.find(s => s.symbol.toUpperCase() === sym);
+      finalPrice = found?.currentPrice || 100;
+    }
+
+    const finalQty = Number(quantity) || 1000;
+
     setIsSubmitting(true);
     try {
       await onAddPosition({
-        symbol: symbolInput.toUpperCase().trim(),
-        buyPrice: Number(buyPrice),
-        quantity: Number(quantity),
+        symbol: sym,
+        buyPrice: finalPrice,
+        quantity: finalQty,
         notes: notes.trim()
       });
       setIsModalOpen(false);
@@ -489,7 +501,7 @@ export default function PortfolioAdvisor({
                   <button
                     key={sym}
                     type="button"
-                    onClick={() => handleSelectSymbol(sym)}
+                    onClick={() => handleSelectSymbol(sym, true)}
                     className={`px-2.5 py-1 rounded-lg text-xs font-extrabold mono transition-all cursor-pointer ${
                       symbolInput.toUpperCase() === sym 
                         ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30' 
@@ -526,7 +538,7 @@ export default function PortfolioAdvisor({
                     {filteredOptions.map(opt => (
                       <div
                         key={opt.symbol}
-                        onClick={() => handleSelectSymbol(opt.symbol)}
+                        onClick={() => handleSelectSymbol(opt.symbol, true)}
                         className="p-1.5 rounded-lg hover:bg-cyan-500/10 cursor-pointer flex justify-between items-center text-[11px]"
                       >
                         <span className="font-extrabold text-white mono">{opt.symbol} - {opt.name}</span>
