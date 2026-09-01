@@ -183,15 +183,68 @@ const calculateClientPortfolio = (savedPositions = [], stocksList = []) => {
   };
 };
 
+const mergeWithOfficialQuotes = (serverStocks = []) => {
+  const stockMap = new Map();
+  // 1. Seed with 503 official DPS quotes
+  if (officialQuotes && typeof officialQuotes === 'object') {
+    Object.values(officialQuotes).forEach(q => {
+      if (q?.symbol) {
+        const symKey = q.symbol.toUpperCase().trim();
+        stockMap.set(symKey, {
+          ...q,
+          symbol: symKey,
+          name: q.name || symKey,
+          sector: q.sector || 'General Market',
+          currentPrice: Number(q.currentPrice || 0),
+          prevClose: Number(q.prevClose || q.currentPrice || 0),
+          change: Number(q.change || 0),
+          changePercent: Number(q.changePercent || 0),
+          volume: Number(q.volume || 0),
+          high: Number(q.high || q.currentPrice),
+          low: Number(q.low || q.currentPrice),
+          isOfficialDPS: true
+        });
+      }
+    });
+  }
+
+  // 2. Overlay server stocks for technicals, RSI, PE, Dividend Yield while keeping authoritative prices intact
+  if (Array.isArray(serverStocks)) {
+    serverStocks.forEach(s => {
+      if (s?.symbol) {
+        const symKey = s.symbol.toUpperCase().trim();
+        const existing = stockMap.get(symKey);
+        if (existing) {
+          const serverPrice = Number(s.currentPrice || 0);
+          stockMap.set(symKey, {
+            ...existing,
+            ...s,
+            symbol: symKey,
+            name: existing.name || s.name,
+            sector: existing.sector || s.sector,
+            currentPrice: serverPrice > 0 ? serverPrice : existing.currentPrice,
+            prevClose: Number(s.prevClose || existing.prevClose || (serverPrice * 0.99)),
+            change: s.change !== undefined ? Number(s.change) : existing.change,
+            changePercent: s.changePercent !== undefined ? Number(s.changePercent) : existing.changePercent,
+            volume: Number(s.volume || existing.volume || 0),
+            high: Number(s.high || existing.high || (serverPrice * 1.02)),
+            low: Number(s.low || existing.low || (serverPrice * 0.98)),
+            technicals: s.technicals || existing.technicals || { rsi14: 52, signal: 'NEUTRAL' }
+          });
+        } else {
+          stockMap.set(symKey, s);
+        }
+      }
+    });
+  }
+
+  return Array.from(stockMap.values());
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('news');
   const [marketSummary, setMarketSummary] = useState(null);
-  const [stocks, setStocks] = useState(() => {
-    if (officialQuotes && typeof officialQuotes === 'object') {
-      return Object.values(officialQuotes);
-    }
-    return [];
-  });
+  const [stocks, setStocks] = useState(() => mergeWithOfficialQuotes([]));
   const [recommendations, setRecommendations] = useState(null);
   const [news, setNews] = useState([]);
   const [watchlist, setWatchlist] = useState([]);
@@ -246,12 +299,41 @@ export default function App() {
     setPortfolioData(calculated);
   }, [rawPositions, stocks]);
 
-  // Fast 5-second lightweight polling for KSE-100 & market status
+  // Fast 5-second lightweight polling for KSE-100 & live market telemetry
   const syncQuickData = async () => {
     try {
       const m = await getMarketSummary();
       if (m?.success && m.data) {
         setMarketSummary(m.data);
+
+        // Real-time overlay of active gainers, losers, and volume leaders directly into stocks state
+        const leaders = [
+          ...(m.data.topGainers || []),
+          ...(m.data.topLosers || []),
+          ...(m.data.volumeLeaders || [])
+        ];
+
+        if (leaders.length > 0) {
+          setStocks(prev => {
+            const map = new Map(prev.map(item => [item.symbol.toUpperCase().trim(), item]));
+            leaders.forEach(l => {
+              if (l?.symbol && Number(l.price) > 0) {
+                const key = l.symbol.toUpperCase().trim();
+                const existing = map.get(key);
+                if (existing) {
+                  map.set(key, {
+                    ...existing,
+                    currentPrice: Number(l.price),
+                    change: l.change !== undefined ? Number(l.change) : existing.change,
+                    changePercent: l.changePercent !== undefined ? Number(l.changePercent) : existing.changePercent,
+                    volume: Number(l.volume || existing.volume)
+                  });
+                }
+              }
+            });
+            return Array.from(map.values());
+          });
+        }
       }
     } catch (err) {
       console.warn('Quick Sync note:', err.message);
@@ -273,7 +355,7 @@ export default function App() {
 
       if (m.status === 'fulfilled' && m.value?.success) setMarketSummary(m.value.data);
       if (s.status === 'fulfilled' && s.value?.success && Array.isArray(s.value.data) && s.value.data.length > 0) {
-        setStocks(s.value.data);
+        setStocks(mergeWithOfficialQuotes(s.value.data));
       }
       if (r.status === 'fulfilled' && r.value?.success) setRecommendations(r.value);
       if (n.status === 'fulfilled' && n.value?.success) setNews(n.value.data);
