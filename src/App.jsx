@@ -25,36 +25,10 @@ import {
   deletePortfolioPosition
 } from './services/api';
 
+import officialQuotes from './data/official_quotes.json';
+
 const AUTO_SYNC_SECONDS = 5;
 const STORAGE_KEY = 'psx_user_portfolio_positions_v1';
-
-const DEFAULT_PSX_PRICES = {
-  'PRL': 104.42,
-  'OGDC': 328.70,
-  'PPL': 234.50,
-  'MARI': 663.26,
-  'SYS': 124.54,
-  'LUCK': 437.33,
-  'FFC': 552.70,
-  'PSO': 363.84,
-  'CNERGY': 15.46,
-  'BOP': 34.99,
-  'WTL': 1.16,
-  'MEBL': 573.99,
-  'HUBC': 210.71,
-  'HBL': 154.50,
-  'MCB': 285.00,
-  'UBL': 345.00,
-  'EFERT': 172.50,
-  'ENGRO': 385.00,
-  'DGKC': 212.00,
-  'MLCF': 100.00,
-  'CHCC': 194.00,
-  'FCCL': 38.50,
-  'ATRL': 385.00,
-  'NRL': 295.00,
-  'TRG': 68.20
-};
 
 // Client-side instant recalculation helper for portfolio
 const calculateClientPortfolio = (savedPositions = [], stocksList = []) => {
@@ -64,26 +38,30 @@ const calculateClientPortfolio = (savedPositions = [], stocksList = []) => {
   let totalTodayPnl = 0;
 
   const stockMap = new Map();
+  // 1. Preload from bundled official 503 dataset
+  if (officialQuotes && typeof officialQuotes === 'object') {
+    Object.values(officialQuotes).forEach(q => {
+      if (q?.symbol) stockMap.set(q.symbol.toUpperCase().trim(), q);
+    });
+  }
+
+  // 2. Overlay live ticks from active stocks array
   if (Array.isArray(stocksList)) {
     stocksList.forEach(s => {
-      if (s?.symbol) stockMap.set(s.symbol.toUpperCase(), s);
+      if (s?.symbol) stockMap.set(s.symbol.toUpperCase().trim(), s);
     });
   }
 
   const enriched = savedPositions.map((pos, idx) => {
     const sym = pos.symbol ? pos.symbol.toUpperCase().trim() : 'STOCK';
-    const fallbackPrice = DEFAULT_PSX_PRICES[sym] || pos.buyPrice;
-    const stock = stockMap.get(sym) || {
-      name: pos.name || sym,
-      sector: pos.sector || 'General Market',
-      currentPrice: fallbackPrice,
-      prevClose: fallbackPrice,
-      change: 0,
-      changePercent: 0,
-      technicals: { rsi14: 50, trend: 'NEUTRAL' }
-    };
+    const official = stockMap.get(sym);
+    const currentPrice = Number(official?.currentPrice || pos.buyPrice);
+    const prevClose = Number(official?.prevClose || currentPrice);
+    const dayChangePerShare = official?.change !== undefined ? Number(official.change) : Number((currentPrice - prevClose).toFixed(2));
+    const dayChangePercent = official?.changePercent !== undefined 
+      ? Number(official.changePercent) 
+      : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0);
 
-    const currentPrice = Number(stock.currentPrice || fallbackPrice);
     const buyPrice = Number(pos.buyPrice);
     const quantity = Number(pos.quantity || 1);
 
@@ -92,9 +70,8 @@ const calculateClientPortfolio = (savedPositions = [], stocksList = []) => {
     const pnlAmount = Number((currentValue - invested).toFixed(2));
     const pnlPercent = invested > 0 ? Number(((pnlAmount / invested) * 100).toFixed(2)) : 0;
 
-    const dayChangePerShare = Number(stock.change || 0);
     const todayPnlAmount = Number((dayChangePerShare * quantity).toFixed(2));
-    const todayPnlPercent = Number(stock.changePercent || 0);
+    const todayPnlPercent = Number(dayChangePercent.toFixed(2));
 
     totalInvested += invested;
     totalCurrentValue += currentValue;
@@ -125,15 +102,15 @@ const calculateClientPortfolio = (savedPositions = [], stocksList = []) => {
     return {
       _id: pos._id || ('port_' + sym + '_' + idx),
       symbol: sym,
-      name: stock.name || pos.name || sym,
-      sector: stock.sector || pos.sector || 'General Market',
+      name: official?.name || pos.name || sym,
+      sector: official?.sector || pos.sector || 'General Market',
       buyPrice,
       quantity,
       notes: pos.notes || '',
       currentPrice,
-      prevClose: stock.prevClose || currentPrice,
+      prevClose,
       dayChange: dayChangePerShare,
-      dayChangePercent: todayPnlPercent,
+      dayChangePercent,
       todayPnlAmount,
       todayPnlPercent,
       invested,

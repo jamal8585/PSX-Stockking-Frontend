@@ -156,6 +156,7 @@ export default function PortfolioAdvisor({
   };
 
   const isTotalPos = (summary.totalUnrealizedPnl || 0) >= 0;
+  const isTodayPos = (summary.totalTodayPnl || 0) >= 0;
 
   // Filtered stocks for autocomplete in modal
   const filteredOptions = stocks.filter(s => {
@@ -181,11 +182,11 @@ export default function PortfolioAdvisor({
                   My Portfolio & Live AI Exit Advisor
                 </h2>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-                  <Radio className="w-3 h-3 mr-1 inline animate-pulse" /> LIVE TRACKING
+                  <Radio className="w-3 h-3 mr-1 inline animate-pulse" /> LIVE 5s SYNC
                 </span>
               </div>
               <p className="text-xs text-gray-400 mt-0.5">
-                Record your manual buy/sell trades to track real-time P&L with instant AI tips on <b>when to sell</b>, <b>when to buy more</b>, and <b>market news impact</b>.
+                Record your manual trade positions to track <b>Real-Time Live P&L</b>, <b>Aaj Ka Day Move</b>, and instant <b>AI Target / Stop Loss Guidance</b>.
               </p>
             </div>
           </div>
@@ -199,31 +200,47 @@ export default function PortfolioAdvisor({
           </button>
         </div>
 
-        {/* Portfolio Summary Metrics */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-gray-800/80">
+        {/* Portfolio Summary Metrics (5 Cards) */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-6 pt-5 border-t border-gray-800/80">
           <div className="bg-[#070B12] rounded-xl p-3.5 border border-gray-800">
             <span className="text-[10px] uppercase text-gray-400 font-bold block">Total Capital Invested</span>
-            <span className="text-xl font-extrabold text-white mono">
+            <span className="text-lg font-extrabold text-white mono">
               PKR {(summary.totalInvested || 0).toLocaleString()}
             </span>
           </div>
 
           <div className="bg-[#070B12] rounded-xl p-3.5 border border-gray-800">
             <span className="text-[10px] uppercase text-gray-400 font-bold block">Current Market Value</span>
-            <span className="text-xl font-extrabold text-cyan-400 mono">
+            <span className="text-lg font-extrabold text-cyan-400 mono">
               PKR {(summary.totalCurrentValue || 0).toLocaleString()}
             </span>
           </div>
 
+          {/* Today's Day Move P&L Card */}
+          <div className={`rounded-xl p-3.5 border ${
+            isTodayPos ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-rose-500/10 border-rose-500/30'
+          }`}>
+            <span className={`text-[10px] uppercase font-bold block ${isTodayPos ? 'text-emerald-400' : 'text-rose-400'}`}>
+              Aaj Ka Day P&L (Today)
+            </span>
+            <span className={`text-lg font-extrabold mono flex items-center ${isTodayPos ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {isTodayPos ? '+' : ''}PKR {(summary.totalTodayPnl || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <span className="text-[10px] ml-1 font-bold">
+                ({isTodayPos ? '+' : ''}{summary.totalTodayPnlPercent || 0}%)
+              </span>
+            </span>
+          </div>
+
+          {/* Overall Total Unrealized P&L Card */}
           <div className={`rounded-xl p-3.5 border ${
             isTotalPos ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-rose-500/10 border-rose-500/30'
           }`}>
             <span className={`text-[10px] uppercase font-bold block ${isTotalPos ? 'text-emerald-400' : 'text-rose-400'}`}>
-              Unrealized Profit / Loss
+              Total Overall P&L
             </span>
-            <span className={`text-xl font-extrabold mono flex items-center ${isTotalPos ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {isTotalPos ? '+' : ''}PKR {(summary.totalUnrealizedPnl || 0).toLocaleString()}
-              <span className="text-xs ml-1.5 font-bold">
+            <span className={`text-lg font-extrabold mono flex items-center ${isTotalPos ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {isTotalPos ? '+' : ''}PKR {(summary.totalUnrealizedPnl || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <span className="text-[10px] ml-1 font-bold">
                 ({isTotalPos ? '+' : ''}{summary.totalPnlPercent || 0}%)
               </span>
             </span>
@@ -231,8 +248,8 @@ export default function PortfolioAdvisor({
 
           <div className="bg-[#070B12] rounded-xl p-3.5 border border-gray-800">
             <span className="text-[10px] uppercase text-gray-400 font-bold block">Active Positions</span>
-            <span className="text-xl font-extrabold text-white mono">
-              {summary.totalPositions || 0} <span className="text-xs text-gray-400 font-normal">Stocks (Win Rate: {summary.winRate || 0}%)</span>
+            <span className="text-lg font-extrabold text-white mono">
+              {summary.totalPositions || 0} <span className="text-xs text-gray-400 font-normal">Stocks (Win: {summary.winRate || 0}%)</span>
             </span>
           </div>
         </div>
@@ -284,7 +301,7 @@ export default function PortfolioAdvisor({
                       </span>
                     </div>
 
-                    {/* Rates Matrix: Buy vs Current vs Target vs Stop Loss */}
+                    {/* Rates Matrix: Buy vs Current vs Today's Move vs Target vs Stop Loss */}
                     <div className="grid grid-cols-2 gap-2 bg-[#0D131F] p-2.5 rounded-lg border border-gray-800 text-[11px] mb-2.5">
                       <div>
                         <span className="text-[9px] uppercase text-gray-400 font-bold block">Aapka Buy Rate</span>
@@ -293,6 +310,18 @@ export default function PortfolioAdvisor({
                       <div>
                         <span className="text-[9px] uppercase text-cyan-400 font-bold block">Current Live Price</span>
                         <span className="font-extrabold text-cyan-400 mono">PKR {Number(pos.currentPrice).toFixed(2)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase text-gray-400 font-bold block">Aaj Ka Day P&L</span>
+                        <span className={`font-extrabold mono ${((pos.dayChange || 0) >= 0) ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {((pos.dayChange || 0) >= 0) ? '+' : ''}PKR {pos.todayPnlAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({((pos.dayChange || 0) >= 0) ? '+' : ''}{pos.dayChangePercent}%)
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase text-gray-400 font-bold block">Total Profit / Loss</span>
+                        <span className={`font-extrabold mono ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {isProfit ? '+' : ''}PKR {pos.pnlAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
                       </div>
                       <div>
                         <span className="text-[9px] uppercase text-emerald-400 font-bold block flex items-center">
