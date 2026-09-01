@@ -9,17 +9,24 @@ export default {
   theme: {
     extend: {
       colors: {
-        psx: {
-          bg: '#0B0F19',
-          card: '#111827',
-          cardBorder: '#1F2937',
-          bull: '#10B981',
-          bullLight: '#D1FAE5',
-          bear: '#EF4444',
-          bearLight: '#FEE2E2',
-          accent: '#3B82F6',
-          gold: '#F59E0B'
+        theme: {
+          app: 'var(--color-bg-app)',
+          surface: 'var(--color-bg-surface)',
+          hover: 'var(--color-bg-hover)',
+          text: 'var(--color-text-primary)',
+          muted: 'var(--color-text-secondary)',
+          border: 'var(--color-border)',
+          accent: 'var(--color-accent-primary)',
+          accentHover: 'var(--color-accent-hover)',
+          success: 'var(--color-success)',
+          warning: 'var(--color-warning)',
+          danger: 'var(--color-danger)'
         }
+      },
+      borderRadius: {
+        'input': '8px',
+        'btn': '8px',
+        'card': '12px'
       }
     },
   },

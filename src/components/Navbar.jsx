@@ -27,22 +27,22 @@ const POPULAR_SYMBOLS = [
 
 export default function Navbar({ 
   marketSummary, 
-  stocks = [],
+  stocks = [], 
   onRunScan, 
   isScanning, 
   watchlistCount, 
-  portfolioCount = 0,
+  portfolioCount = 0, 
   onOpenWatchlist, 
   activeTab, 
-  setActiveTab,
-  countdown = 5,
-  currentUser,
-  onOpenAuth,
-  onOpenUpgrade,
-  onOpenAdmin,
-  onLogout,
-  theme = 'dark',
-  onToggleTheme
+  setActiveTab, 
+  countdown = 5, 
+  currentUser, 
+  onOpenAuth, 
+  onOpenUpgrade, 
+  onOpenAdmin, 
+  onLogout, 
+  theme = 'dark', 
+  onToggleTheme 
 }) {
   const kse = (marketSummary?.currentValue || marketSummary?.current) 
     ? Number(marketSummary.currentValue || marketSummary.current).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
@@ -95,22 +95,26 @@ export default function Navbar({
   return (
     <header className={`sticky top-0 z-40 transition-colors ${
       isLight 
-        ? 'bg-white/95 text-slate-900 border-b border-slate-200 shadow-md' 
-        : 'bg-[#070B12]/95 text-gray-100 border-b border-cyan-950/60 shadow-2xl backdrop-blur-xl'
+        ? 'bg-[#FFFFFF] text-[#0F172A] border-b border-[#E2E8F0] shadow-sm' 
+        : 'bg-[#151E2E] text-[#F8FAFC] border-b border-[#243044] shadow-lg'
     }`}>
       {/* 1. Infinitely Scrolling Live Moving Ticker Tape */}
       <div className={`px-4 py-1.5 flex items-center justify-between text-[11px] overflow-hidden border-b ${
-        isLight ? 'bg-slate-100 text-slate-600 border-slate-200' : 'bg-[#04070D] text-gray-400 border-gray-900/90'
+        isLight 
+          ? 'bg-[#F8FAFC] text-[#64748B] border-[#E2E8F0]' 
+          : 'bg-[#0B0F19] text-[#94A3B8] border-[#243044]'
       }`}>
         {/* Status Indicator */}
         <div className="flex items-center space-x-2 shrink-0 z-10 pr-2">
           {marketStatus.isOpen ? (
-            <span className="flex items-center text-emerald-500 font-extrabold text-[10px] uppercase tracking-wider bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-              <Radio className="w-3 h-3 mr-1 text-emerald-500 animate-pulse" /> LIVE SESSION (09:30 - 15:30 PKT)
+            <span className={`flex items-center font-bold text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+              isLight ? 'bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/20' : 'bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/20'
+            }`}>
+              <Radio className="w-3 h-3 mr-1 animate-pulse" /> LIVE SESSION (09:30 - 15:30 PKT)
             </span>
           ) : (
-            <span className={`flex items-center font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
-              isLight ? 'text-blue-600 bg-blue-50 border-blue-200' : 'text-cyan-400 bg-cyan-950/60 border-cyan-800/60'
+            <span className={`flex items-center font-bold text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+              isLight ? 'text-[#2563EB] bg-[#2563EB]/10 border-[#2563EB]/20' : 'text-[#3B82F6] bg-[#3B82F6]/10 border-[#3B82F6]/20'
             }`}>
               <Lock className="w-3 h-3 mr-1" /> {marketStatus.statusText} • CLOSING RATES
             </span>
@@ -122,17 +126,17 @@ export default function Navbar({
           <div className="animate-marquee flex items-center space-x-8 text-[11px]">
             {/* Set 1 */}
             <span className="mono font-bold whitespace-nowrap">
-              KSE-100: <b className={isLight ? 'text-slate-900' : 'text-white'}>{kse}</b>{' '}
-              <span className={isPositive ? 'text-emerald-500 font-bold' : 'text-rose-500 font-bold'}>
+              KSE-100: <b className={isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'}>{kse}</b>{' '}
+              <span className={isPositive ? (isLight ? 'text-[#16A34A]' : 'text-[#22C55E]') : (isLight ? 'text-[#DC2626]' : 'text-[#EF4444]')}>
                 {isPositive ? '+' : ''}{changePct}%
               </span>
             </span>
 
             {tickerItems.map((item) => (
               <span key={`t1-${item.symbol}`} className="mono font-bold flex items-center space-x-1 whitespace-nowrap">
-                <span className={isLight ? 'text-slate-600' : 'text-gray-400'}>{item.symbol}:</span>
-                <b className={isLight ? 'text-slate-900' : 'text-white'}>{item.price}</b>
-                <span className={item.isPos ? 'text-emerald-500 font-bold' : 'text-rose-500 font-bold'}>
+                <span className={isLight ? 'text-[#64748B]' : 'text-[#94A3B8]'}>{item.symbol}:</span>
+                <b className={isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'}>{item.price}</b>
+                <span className={item.isPos ? (isLight ? 'text-[#16A34A]' : 'text-[#22C55E]') : (isLight ? 'text-[#DC2626]' : 'text-[#EF4444]')}>
                   {item.change}
                 </span>
               </span>
@@ -140,17 +144,17 @@ export default function Navbar({
 
             {/* Set 2 (Duplicate for Seamless Marquee Loop) */}
             <span className="mono font-bold whitespace-nowrap">
-              KSE-100: <b className={isLight ? 'text-slate-900' : 'text-white'}>{kse}</b>{' '}
-              <span className={isPositive ? 'text-emerald-500 font-bold' : 'text-rose-500 font-bold'}>
+              KSE-100: <b className={isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'}>{kse}</b>{' '}
+              <span className={isPositive ? (isLight ? 'text-[#16A34A]' : 'text-[#22C55E]') : (isLight ? 'text-[#DC2626]' : 'text-[#EF4444]')}>
                 {isPositive ? '+' : ''}{changePct}%
               </span>
             </span>
 
             {tickerItems.map((item) => (
               <span key={`t2-${item.symbol}`} className="mono font-bold flex items-center space-x-1 whitespace-nowrap">
-                <span className={isLight ? 'text-slate-600' : 'text-gray-400'}>{item.symbol}:</span>
-                <b className={isLight ? 'text-slate-900' : 'text-white'}>{item.price}</b>
-                <span className={item.isPos ? 'text-emerald-500 font-bold' : 'text-rose-500 font-bold'}>
+                <span className={isLight ? 'text-[#64748B]' : 'text-[#94A3B8]'}>{item.symbol}:</span>
+                <b className={isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'}>{item.price}</b>
+                <span className={item.isPos ? (isLight ? 'text-[#16A34A]' : 'text-[#22C55E]') : (isLight ? 'text-[#DC2626]' : 'text-[#EF4444]')}>
                   {item.change}
                 </span>
               </span>
@@ -158,64 +162,61 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* Countdown / Live Indicator */}
-        {isAdmin ? (
-          <div className={`hidden sm:flex items-center space-x-1.5 shrink-0 px-2.5 py-0.5 rounded text-[10px] mono font-bold z-10 ml-2 border ${
-            isLight ? 'bg-slate-200 text-slate-700 border-slate-300' : 'bg-cyan-950/40 text-cyan-300 border-cyan-800/40'
-          }`}>
-            <Timer className="w-3 h-3 animate-pulse" />
-            <span>Auto-Sync: <b className={isLight ? 'text-slate-900' : 'text-white'}>{countdown}s</b></span>
-          </div>
-        ) : (
-          <div className="hidden sm:flex items-center space-x-1.5 text-[10px] text-emerald-500 font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mr-0.5" />
-            <span>Live Real-Time Sync</span>
-          </div>
-        )}
+        {/* Live Pulse Indicator for Users */}
+        <div className={`hidden sm:flex items-center space-x-1.5 text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+          isLight ? 'text-[#16A34A] bg-[#16A34A]/10 border-[#16A34A]/20' : 'text-[#22C55E] bg-[#22C55E]/10 border-[#22C55E]/20'
+        }`}>
+          <span className={`w-1.5 h-1.5 rounded-full animate-pulse mr-0.5 ${isLight ? 'bg-[#16A34A]' : 'bg-[#22C55E]'}`} />
+          <span>Live Telemetry</span>
+        </div>
       </div>
 
-      {/* 2. Main High-Spacious Navbar */}
+      {/* 2. Main Navigation Bar */}
       <div className="max-w-[1680px] w-full mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-3">
           
           {/* Brand Left */}
           <div className="flex items-center space-x-3 shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-teal-400 to-emerald-400 p-0.5 shadow-lg shadow-cyan-500/20">
+            <div className={`w-10 h-10 rounded-xl p-0.5 shadow-sm border ${
+              isLight ? 'bg-[#2563EB] border-[#1D4ED8]' : 'bg-[#3B82F6] border-[#60A5FA]/40'
+            }`}>
               <div className={`w-full h-full rounded-[10px] flex items-center justify-center ${
-                isLight ? 'bg-white' : 'bg-[#070B12]'
+                isLight ? 'bg-[#FFFFFF]' : 'bg-[#151E2E]'
               }`}>
-                <Terminal className="w-5 h-5 text-cyan-500" />
+                <Terminal className={`w-5 h-5 ${isLight ? 'text-[#2563EB]' : 'text-[#3B82F6]'}`} />
               </div>
             </div>
             <div>
               <div className="flex items-center space-x-2">
                 <span className={`font-black text-lg tracking-tight ${
-                  isLight ? 'text-slate-900' : 'bg-gradient-to-r from-white via-gray-100 to-cyan-200 bg-clip-text text-transparent'
+                  isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'
                 }`}>
                   PSX ALPHA TERMINAL
                 </span>
-                <span className="text-[9px] uppercase font-black px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-500 border border-cyan-500/30 tracking-wider">
+                <span className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded-md border tracking-wider ${
+                  isLight ? 'bg-[#2563EB]/10 text-[#2563EB] border-[#2563EB]/20' : 'bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/30'
+                }`}>
                   OFFICIAL DPS
                 </span>
               </div>
               <p className={`text-[11px] font-medium hidden sm:block ${
-                isLight ? 'text-slate-500' : 'text-gray-400'
+                isLight ? 'text-[#64748B]' : 'text-[#94A3B8]'
               }`}>
                 Pakistan Stock Exchange • Real-Time Market Intelligence & Signals
               </p>
             </div>
           </div>
 
-          {/* Center Navigation Tabs (Horizontal Single Line, Spacious) */}
-          <nav className={`hidden xl:flex items-center space-x-1.5 p-1.5 rounded-2xl border shrink-0 ${
-            isLight ? 'bg-slate-100 border-slate-200' : 'bg-[#0D131F]/90 border-gray-800/80'
+          {/* Center Navigation Tabs (Horizontal Single Line) */}
+          <nav className={`hidden xl:flex items-center space-x-1 p-1 rounded-xl border shrink-0 ${
+            isLight ? 'bg-[#F1F5F9] border-[#E2E8F0]' : 'bg-[#1E293B] border-[#243044]'
           }`}>
             <button
               onClick={() => setActiveTab('news')}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
                 activeTab === 'news' 
-                  ? 'bg-gradient-to-r from-cyan-500 to-teal-500 text-black shadow-lg shadow-cyan-500/25' 
-                  : (isLight ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70' : 'text-gray-400 hover:text-white hover:bg-gray-800/60')
+                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
+                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
               }`}
             >
               <Zap className="w-3.5 h-3.5" />
@@ -224,10 +225,10 @@ export default function Navbar({
 
             <button
               onClick={() => setActiveTab('portfolio')}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
                 activeTab === 'portfolio' 
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/25' 
-                  : (isLight ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70' : 'text-gray-400 hover:text-white hover:bg-gray-800/60')
+                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
+                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
               }`}
             >
               <Briefcase className="w-3.5 h-3.5" />
@@ -236,10 +237,10 @@ export default function Navbar({
 
             <button
               onClick={() => setActiveTab('recommendations')}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
                 activeTab === 'recommendations' 
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-black shadow-lg shadow-emerald-500/25' 
-                  : (isLight ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70' : 'text-gray-400 hover:text-white hover:bg-gray-800/60')
+                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
+                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
@@ -248,10 +249,10 @@ export default function Navbar({
 
             <button
               onClick={() => setActiveTab('dividends')}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
                 activeTab === 'dividends' 
-                  ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-lg shadow-amber-500/25' 
-                  : (isLight ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70' : 'text-gray-400 hover:text-white hover:bg-gray-800/60')
+                  ? (isLight ? 'bg-[#D97706] text-white shadow-sm' : 'bg-[#F59E0B] text-black shadow-sm font-black')
+                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
               }`}
             >
               <Coins className="w-3.5 h-3.5" />
@@ -260,10 +261,10 @@ export default function Navbar({
 
             <button
               onClick={() => setActiveTab('screener')}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
                 activeTab === 'screener' 
-                  ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/25' 
-                  : (isLight ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70' : 'text-gray-400 hover:text-white hover:bg-gray-800/60')
+                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
+                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
               }`}
             >
               <BarChart3 className="w-3.5 h-3.5" />
@@ -276,29 +277,31 @@ export default function Navbar({
             {/* Theme Toggle (Light / Dark) */}
             <button
               onClick={onToggleTheme}
-              className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center ${
+              className={`p-2 rounded-lg border transition-all cursor-pointer flex items-center justify-center ${
                 isLight 
-                  ? 'bg-slate-100 border-slate-200 text-amber-500 hover:bg-slate-200' 
-                  : 'bg-gray-900/90 border-gray-800 text-cyan-400 hover:bg-gray-800 hover:text-white'
+                  ? 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] hover:bg-[#F1F5F9]' 
+                  : 'bg-[#0B0F19] border-[#243044] text-[#F8FAFC] hover:bg-[#1E293B]'
               }`}
-              title={isLight ? 'Switch to Dark Cyber Mode' : 'Switch to Clean White Light Mode'}
+              title={isLight ? 'Switch to Dark Theme' : 'Switch to Light Theme'}
             >
-              {isLight ? <Moon className="w-4 h-4 text-indigo-600" /> : <Sun className="w-4 h-4 text-amber-400" />}
+              {isLight ? <Moon className="w-4 h-4 text-[#2563EB]" /> : <Sun className="w-4 h-4 text-[#F59E0B]" />}
             </button>
 
             {/* Watchlist */}
             <button
               onClick={onOpenWatchlist}
-              className={`relative p-2.5 rounded-xl border transition-all cursor-pointer ${
+              className={`relative p-2 rounded-lg border transition-all cursor-pointer ${
                 isLight 
-                  ? 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200' 
-                  : 'bg-gray-900/90 border-gray-800 hover:border-cyan-500/40 text-gray-300 hover:text-white'
+                  ? 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] hover:bg-[#F1F5F9]' 
+                  : 'bg-[#0B0F19] border-[#243044] text-[#F8FAFC] hover:bg-[#1E293B]'
               }`}
               title="View Saved Watchlist"
             >
               <Bookmark className="w-4 h-4" />
               {watchlistCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-cyan-500 text-black text-[10px] font-black rounded-full flex items-center justify-center shadow">
+                <span className={`absolute -top-1 -right-1 w-4 h-4 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow ${
+                  isLight ? 'bg-[#2563EB]' : 'bg-[#3B82F6]'
+                }`}>
                   {watchlistCount}
                 </span>
               )}
@@ -309,7 +312,9 @@ export default function Navbar({
               <button
                 onClick={onRunScan}
                 disabled={isScanning}
-                className="hidden sm:flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:opacity-90 text-black font-extrabold text-xs shadow-lg shadow-emerald-500/20 disabled:opacity-50 transition-all cursor-pointer whitespace-nowrap"
+                className={`hidden sm:flex items-center space-x-1.5 px-3 py-2 rounded-lg text-white font-bold text-xs disabled:opacity-50 transition-all cursor-pointer whitespace-nowrap ${
+                  isLight ? 'bg-[#2563EB] hover:bg-[#1D4ED8]' : 'bg-[#3B82F6] hover:bg-[#60A5FA]'
+                }`}
                 title="Force Live Market Scan (Admin Only)"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin' : ''}`} />
@@ -321,7 +326,11 @@ export default function Navbar({
             {isAdmin && (
               <button
                 onClick={onOpenAdmin}
-                className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/40 text-xs font-black cursor-pointer transition-all shadow-md shadow-purple-500/10 whitespace-nowrap"
+                className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all border whitespace-nowrap ${
+                  isLight 
+                    ? 'bg-[#F1F5F9] border-[#E2E8F0] text-[#0F172A] hover:bg-[#E2E8F0]' 
+                    : 'bg-[#1E293B] border-[#243044] text-[#F8FAFC] hover:bg-[#243044]'
+                }`}
               >
                 <span>👑 Admin</span>
               </button>
@@ -331,7 +340,11 @@ export default function Navbar({
             {!isPro && (
               <button
                 onClick={onOpenUpgrade}
-                className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:opacity-90 text-black text-xs font-black cursor-pointer shadow-lg shadow-amber-500/25 transition-all whitespace-nowrap"
+                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all whitespace-nowrap ${
+                  isLight 
+                    ? 'bg-[#D97706] hover:bg-[#B45309] text-white shadow-sm' 
+                    : 'bg-[#F59E0B] hover:bg-[#D97706] text-black font-black shadow-sm'
+                }`}
               >
                 <Crown className="w-3.5 h-3.5" />
                 <span>Go Pro</span>
@@ -340,23 +353,25 @@ export default function Navbar({
 
             {/* Auth Profile / Login Button */}
             {currentUser ? (
-              <div className={`flex items-center space-x-2 pl-3 pr-1 py-1 rounded-xl border text-xs ${
-                isLight ? 'bg-slate-100 border-slate-200' : 'bg-gray-900/90 border-gray-800'
+              <div className={`flex items-center space-x-2 pl-3 pr-1 py-1 rounded-lg border text-xs ${
+                isLight ? 'bg-[#F8FAFC] border-[#E2E8F0]' : 'bg-[#0B0F19] border-[#243044]'
               }`}>
                 <div className="flex flex-col text-right">
                   <span className={`font-bold text-[11px] leading-tight truncate max-w-[90px] ${
-                    isLight ? 'text-slate-900' : 'text-white'
+                    isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'
                   }`}>
                     {currentUser.name}
                   </span>
-                  <span className={`text-[9px] font-black uppercase ${isPro ? 'text-amber-500' : 'text-gray-400'}`}>
+                  <span className={`text-[9px] font-bold uppercase ${
+                    isPro ? (isLight ? 'text-[#D97706]' : 'text-[#F59E0B]') : (isLight ? 'text-[#64748B]' : 'text-[#94A3B8]')
+                  }`}>
                     {isPro ? '⭐ PRO VIP' : 'FREE'}
                   </span>
                 </div>
                 <button
                   onClick={onLogout}
                   className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
-                    isLight ? 'bg-slate-200 hover:bg-slate-300 text-slate-700' : 'bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-rose-400'
+                    isLight ? 'bg-[#E2E8F0] hover:bg-[#CBD5E1] text-[#0F172A]' : 'bg-[#1E293B] hover:bg-[#243044] text-[#94A3B8] hover:text-[#EF4444]'
                   }`}
                   title="Sign Out"
                 >
@@ -367,17 +382,19 @@ export default function Navbar({
               <div className="flex items-center space-x-1.5">
                 <button
                   onClick={() => onOpenAuth('login')}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all border whitespace-nowrap ${
+                  className={`px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all border whitespace-nowrap ${
                     isLight 
-                      ? 'bg-slate-100 border-slate-200 text-slate-800 hover:bg-slate-200' 
-                      : 'bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white border-gray-700'
+                      ? 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] hover:bg-[#F1F5F9]' 
+                      : 'bg-[#0B0F19] border-[#243044] text-[#F8FAFC] hover:bg-[#1E293B]'
                   }`}
                 >
                   Sign In
                 </button>
                 <button
                   onClick={() => onOpenAuth('signup')}
-                  className="hidden md:block px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-black cursor-pointer transition-all shadow-md shadow-cyan-500/20 whitespace-nowrap"
+                  className={`hidden md:block px-3.5 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all text-white whitespace-nowrap ${
+                    isLight ? 'bg-[#2563EB] hover:bg-[#1D4ED8]' : 'bg-[#3B82F6] hover:bg-[#60A5FA]'
+                  }`}
                 >
                   Register
                 </button>
@@ -389,35 +406,35 @@ export default function Navbar({
 
       {/* Mobile / Tablet Tab Bar */}
       <div className={`flex xl:hidden items-center justify-around py-2.5 px-2 border-t text-xs font-bold overflow-x-auto ${
-        isLight ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-[#04070D] border-gray-900 text-gray-400'
+        isLight ? 'bg-[#F8FAFC] border-[#E2E8F0] text-[#64748B]' : 'bg-[#0B0F19] border-[#243044] text-[#94A3B8]'
       }`}>
         <button
           onClick={() => setActiveTab('news')}
-          className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'news' ? 'bg-cyan-500 text-black shadow' : ''}`}
+          className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'news' ? (isLight ? 'bg-[#2563EB] text-white' : 'bg-[#3B82F6] text-white') : ''}`}
         >
           ⚡ News
         </button>
         <button
           onClick={() => setActiveTab('portfolio')}
-          className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'portfolio' ? 'bg-purple-500 text-white shadow' : ''}`}
+          className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'portfolio' ? (isLight ? 'bg-[#2563EB] text-white' : 'bg-[#3B82F6] text-white') : ''}`}
         >
           💼 Portfolio ({portfolioCount})
         </button>
         <button
           onClick={() => setActiveTab('recommendations')}
-          className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'recommendations' ? 'bg-emerald-500 text-black shadow' : ''}`}
+          className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'recommendations' ? (isLight ? 'bg-[#2563EB] text-white' : 'bg-[#3B82F6] text-white') : ''}`}
         >
           🎯 Signals
         </button>
         <button
           onClick={() => setActiveTab('dividends')}
-          className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'dividends' ? 'bg-amber-400 text-black shadow' : ''}`}
+          className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'dividends' ? (isLight ? 'bg-[#D97706] text-white' : 'bg-[#F59E0B] text-black font-black') : ''}`}
         >
           💰 Dividends
         </button>
         <button
           onClick={() => setActiveTab('screener')}
-          className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'screener' ? 'bg-blue-500 text-white shadow' : ''}`}
+          className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'screener' ? (isLight ? 'bg-[#2563EB] text-white' : 'bg-[#3B82F6] text-white') : ''}`}
         >
           📊 Screener
         </button>

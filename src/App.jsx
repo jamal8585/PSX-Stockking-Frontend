@@ -356,7 +356,6 @@ export default function App() {
     }
   };
 
-  // Theme State (Dark / Light White Mode)
   const [theme, setTheme] = useState(() => {
     try {
       return localStorage.getItem('psx_theme_preference') || 'dark';
@@ -365,13 +364,24 @@ export default function App() {
     }
   });
 
+  // Sync document root class with theme for Tailwind dark mode
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+    } else {
+      document.documentElement.classList.add('light');
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
   const handleToggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
     try {
       localStorage.setItem('psx_theme_preference', next);
     } catch (e) {}
-    showToast(next === 'light' ? '☀️ Switched to White (Light) Theme' : '🌙 Switched to Dark Theme');
+    showToast(next === 'light' ? '☀️ Switched to Light Theme' : '🌙 Switched to Dark Theme');
   };
 
   const showToast = (msg) => {
@@ -634,11 +644,11 @@ export default function App() {
 
   return (
     <div className={`min-h-screen transition-colors flex flex-col font-['Calibri','Segoe_UI',system-ui,sans-serif] ${
-      theme === 'light' ? 'bg-[#F8FAFC] text-slate-900' : 'bg-[#070B12] text-gray-100'
+      theme === 'light' ? 'bg-[#F8FAFC] text-[#0F172A]' : 'bg-[#0B0F19] text-[#F8FAFC]'
     }`}>
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-cyan-500 to-emerald-500 text-black font-extrabold text-xs px-5 py-3 rounded-2xl shadow-2xl animate-bounce flex items-center space-x-2">
+        <div className="fixed bottom-6 right-6 z-50 bg-[#2563EB] text-white font-bold text-xs px-5 py-3 rounded-lg shadow-2xl animate-bounce flex items-center space-x-2 border border-[#60A5FA]/30">
           <span>{toastMessage}</span>
         </div>
       )}
@@ -727,7 +737,9 @@ export default function App() {
 
       {/* Footer */}
       <footer className={`border-t py-4 text-center text-xs transition-colors ${
-        theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-500' : 'border-gray-900 text-gray-500 bg-[#04070D]'
+        theme === 'light' 
+          ? 'bg-[#FFFFFF] border-[#E2E8F0] text-[#64748B]' 
+          : 'bg-[#151E2E] border-[#243044] text-[#94A3B8]'
       }`}>
         <div className="max-w-[1680px] mx-auto px-4">
           <p>© 2026 PSX STOCKKING • Real-Time Financial Intelligence, Portfolio Tracker & Algorithmic Stock Screening Engine.</p>

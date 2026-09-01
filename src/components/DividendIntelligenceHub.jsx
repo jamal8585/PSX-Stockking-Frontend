@@ -1,23 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Coins, 
-  Calendar, 
-  TrendingUp, 
   Sparkles, 
   Calculator, 
   Clock, 
-  CheckCircle2, 
-  Info, 
   Search, 
-  Filter, 
   ShieldCheck, 
-  Layers, 
-  ArrowUpRight, 
-  Zap, 
-  HelpCircle,
-  Percent,
-  Banknote,
-  DollarSign
+  ArrowUpRight
 } from 'lucide-react';
 
 const UPCOMING_DIVIDEND_STOCKS = [
@@ -320,13 +309,11 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
   const [calcTaxRate, setCalcTaxRate] = useState(15); // 15% Filer, 30% Non-Filer
   const [calcBuyPrice, setCalcBuyPrice] = useState(155.00);
 
-  // Auto-populate price from live stocks state
   const getLivePrice = (sym, defaultPrice = 120) => {
     const found = stocks.find(s => s.symbol.toUpperCase() === sym.toUpperCase());
     return found ? Number(found.currentPrice) : defaultPrice;
   };
 
-  // Filtered List
   const filteredDividends = useMemo(() => {
     return UPCOMING_DIVIDEND_STOCKS.filter(item => {
       const matchMonth = selectedMonth === 'All Months' || item.month.toLowerCase() === selectedMonth.toLowerCase();
@@ -340,87 +327,82 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
     });
   }, [selectedMonth, selectedSector, searchQuery, onlyShariah]);
 
-  // Handle Loading Stock into Calculator
   const handleLoadCalculator = (item) => {
     const liveP = getLivePrice(item.symbol, 100);
     setCalcSymbol(item.symbol);
     setCalcDividendPerShare(item.expectedDividend);
     setCalcBuyPrice(liveP);
-    // Scroll smoothly to calculator
     const el = document.getElementById('dividend-calculator-box');
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Calculator Outputs
   const totalInvestment = Number(calcShares) * Number(calcBuyPrice);
   const grossDividend = Number(calcShares) * Number(calcDividendPerShare);
   const taxAmount = grossDividend * (Number(calcTaxRate) / 100);
   const netDividendInBank = grossDividend - taxAmount;
   const singlePayoutYield = totalInvestment > 0 ? (netDividendInBank / totalInvestment) * 100 : 0;
-  const estimatedAnnualYield = singlePayoutYield * 4; // Approx 4 quarterly payouts
+  const estimatedAnnualYield = singlePayoutYield * 4;
 
   return (
     <div className="space-y-6">
       {/* 1. Header Hero Banner */}
-      <div className="bg-gradient-to-b from-[#0F172A] via-[#0A0F1D] to-[#04070D] border border-amber-500/40 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-
+      <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-6 shadow-sm dark:shadow-md transition-all">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center space-x-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 flex items-center justify-center text-black shadow-lg shadow-amber-500/25 shrink-0">
+            <div className="w-12 h-12 rounded-lg bg-[#D97706]/10 dark:bg-[#F59E0B]/10 border border-[#D97706]/20 dark:border-[#F59E0B]/20 flex items-center justify-center text-[#D97706] dark:text-[#F59E0B] shrink-0">
               <Coins className="w-6 h-6 stroke-[2.5]" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="text-2xl font-black text-white tracking-tight">
+                <h2 className="text-2xl font-bold text-[#0F172A] dark:text-[#F8FAFC] tracking-tight">
                   PSX Upcoming Dividends Intelligence Hub
                 </h2>
-                <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-400 text-black shadow-sm">
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#D97706] dark:bg-[#F59E0B] text-white dark:text-black">
                   SEP – DEC 2026 CALENDAR
                 </span>
               </div>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
                 Explore month-wise & sector-wise dividend announcements, <b>2–3 din pehle buy karne ke timing rules</b>, fundamental profit rationales, aur interactive <b>Dividend Net Cash Calculator</b>.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-3 bg-[#070B12] px-4 py-2.5 rounded-2xl border border-gray-800 shrink-0 text-xs">
+          <div className="flex items-center space-x-3 bg-[#F8FAFC] dark:bg-[#0B0F19] px-4 py-2.5 rounded-lg border border-[#E2E8F0] dark:border-[#243044] shrink-0 text-xs">
             <div className="text-right">
-              <span className="text-[10px] uppercase font-bold text-gray-400 block">Current Dividend Season</span>
-              <span className="font-extrabold text-amber-400 mono">Sep–Oct Peak Payouts</span>
+              <span className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] block">Current Dividend Season</span>
+              <span className="font-bold text-[#D97706] dark:text-[#F59E0B] mono">Sep–Oct Peak Payouts</span>
             </div>
-            <Sparkles className="w-5 h-5 text-amber-400 animate-pulse" />
+            <Sparkles className="w-5 h-5 text-[#D97706] dark:text-[#F59E0B] animate-pulse" />
           </div>
         </div>
 
         {/* 3 Pro Tips Banner */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6 pt-5 border-t border-gray-800/80 text-xs">
-          <div className="bg-[#070B12] p-3.5 rounded-2xl border border-gray-800/80 flex items-start space-x-2.5">
-            <Clock className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6 pt-5 border-t border-[#E2E8F0] dark:border-[#243044] text-xs">
+          <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] p-3.5 rounded-lg border border-[#E2E8F0] dark:border-[#243044] flex items-start space-x-2.5">
+            <Clock className="w-4 h-4 text-[#2563EB] dark:text-[#3B82F6] shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold text-white block">T+2 Settlement Timing Rule:</span>
-              <p className="text-[11px] text-gray-400 mt-0.5">
+              <span className="font-bold text-[#0F172A] dark:text-[#F8FAFC] block">T+2 Settlement Timing Rule:</span>
+              <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] mt-0.5">
                 Dividend lene ke liye <b>Book Closure date se 2-3 din pehle</b> shares buy karein taake record date par holdings verify hon.
               </p>
             </div>
           </div>
 
-          <div className="bg-[#070B12] p-3.5 rounded-2xl border border-gray-800/80 flex items-start space-x-2.5">
-            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+          <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] p-3.5 rounded-lg border border-[#E2E8F0] dark:border-[#243044] flex items-start space-x-2.5">
+            <ShieldCheck className="w-4 h-4 text-[#16A34A] dark:text-[#22C55E] shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold text-white block">Kion Buy Karna Chaye?</span>
-              <p className="text-[11px] text-gray-400 mt-0.5">
+              <span className="font-bold text-[#0F172A] dark:text-[#F8FAFC] block">Kion Buy Karna Chaye?</span>
+              <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] mt-0.5">
                 Har company card ke andar detail likhi hai kion ye stock reliable cash generation aur dividend growth provide karta hai.
               </p>
             </div>
           </div>
 
-          <div className="bg-[#070B12] p-3.5 rounded-2xl border border-gray-800/80 flex items-start space-x-2.5">
-            <Calculator className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] p-3.5 rounded-lg border border-[#E2E8F0] dark:border-[#243044] flex items-start space-x-2.5">
+            <Calculator className="w-4 h-4 text-[#D97706] dark:text-[#F59E0B] shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold text-white block">Net Tax Calculation:</span>
-              <p className="text-[11px] text-gray-400 mt-0.5">
+              <span className="font-bold text-[#0F172A] dark:text-[#F8FAFC] block">Net Tax Calculation:</span>
+              <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] mt-0.5">
                 Filer par <b>15% WHT</b> aur Non-Filer par <b>30% WHT</b> deduct ho kar direct aapke CDC linked bank account mein credit hota hai.
               </p>
             </div>
@@ -429,10 +411,10 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
       </div>
 
       {/* 2. Month-Wise & Sector-Wise Dynamic Filters */}
-      <div className="bg-[#0D131F] border border-gray-800 rounded-3xl p-5 shadow-xl space-y-4">
+      <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-5 shadow-sm dark:shadow-md space-y-4">
         {/* Month Selector Tabs */}
         <div>
-          <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-2">
+          <span className="text-[10px] font-bold uppercase text-[#64748B] dark:text-[#94A3B8] tracking-wider block mb-2">
             📅 Select Target Month:
           </span>
           <div className="flex flex-wrap gap-2">
@@ -440,10 +422,10 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
               <button
                 key={m}
                 onClick={() => setSelectedMonth(m)}
-                className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   selectedMonth === m
-                    ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-md shadow-amber-500/20'
-                    : 'bg-[#070B12] text-gray-300 hover:text-white border border-gray-800 hover:border-gray-700'
+                    ? 'bg-[#D97706] dark:bg-[#F59E0B] text-white dark:text-black shadow-sm font-black'
+                    : 'bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] border border-[#E2E8F0] dark:border-[#243044]'
                 }`}
               >
                 {m === 'All Months' ? '🌐 All Months (Sep - Dec)' : `🗓️ ${m}`}
@@ -453,10 +435,10 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
         </div>
 
         {/* Sector & Search Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-2 border-t border-gray-800">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-2 border-t border-[#E2E8F0] dark:border-[#243044]">
           {/* Sector Buttons */}
           <div className="flex flex-wrap gap-1.5 items-center">
-            <span className="text-[10px] font-black uppercase text-gray-400 mr-1 hidden sm:inline">
+            <span className="text-[10px] font-bold uppercase text-[#64748B] dark:text-[#94A3B8] mr-1 hidden sm:inline">
               Sector:
             </span>
             {SECTOR_FILTERS.map(s => (
@@ -465,8 +447,8 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
                 onClick={() => setSelectedSector(s)}
                 className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
                   selectedSector === s
-                    ? 'bg-cyan-500 text-black shadow'
-                    : 'bg-[#070B12] text-gray-400 hover:text-white border border-gray-800'
+                    ? 'bg-[#2563EB] dark:bg-[#3B82F6] text-white shadow-sm'
+                    : 'bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] border border-[#E2E8F0] dark:border-[#243044]'
                 }`}
               >
                 {s}
@@ -477,24 +459,24 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
           {/* Search & Shariah Checkbox */}
           <div className="flex items-center space-x-2">
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-gray-500 absolute left-3 top-2.5" />
+              <Search className="w-3.5 h-3.5 text-[#64748B] dark:text-[#94A3B8] absolute left-3 top-2.5" />
               <input
                 type="text"
                 placeholder="Search stock symbol..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="bg-[#070B12] border border-gray-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white uppercase mono placeholder-gray-600 focus:outline-none focus:border-amber-400"
+                className="bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[#0F172A] dark:text-[#F8FAFC] uppercase mono focus:outline-none focus:border-[#2563EB] dark:focus:border-[#3B82F6]"
               />
             </div>
 
-            <label className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#070B12] border border-gray-800 text-xs font-bold text-gray-300 cursor-pointer">
+            <label className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] cursor-pointer">
               <input
                 type="checkbox"
                 checked={onlyShariah}
                 onChange={e => setOnlyShariah(e.target.checked)}
-                className="rounded accent-emerald-500 cursor-pointer"
+                className="rounded accent-[#16A34A] dark:accent-[#22C55E] cursor-pointer"
               />
-              <span className="text-emerald-400">🕌 Shariah Only</span>
+              <span className="text-[#16A34A] dark:text-[#22C55E]">🕌 Shariah Only</span>
             </label>
           </div>
         </div>
@@ -503,11 +485,11 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
       {/* 3. Upcoming Dividend Companies Grid */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center space-x-2">
-            <Coins className="w-4 h-4 text-amber-400" />
+          <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#F8FAFC] uppercase tracking-wider flex items-center space-x-2">
+            <Coins className="w-4 h-4 text-[#D97706] dark:text-[#F59E0B]" />
             <span>Eligible Dividend Opportunities ({filteredDividends.length} Companies)</span>
           </h3>
-          <span className="text-xs text-gray-400">Showing {selectedMonth} • {selectedSector}</span>
+          <span className="text-xs text-[#64748B] dark:text-[#94A3B8]">Showing {selectedMonth} • {selectedSector}</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -517,85 +499,85 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
             return (
               <div
                 key={`${item.month}-${item.symbol}`}
-                className="bg-[#0D131F] border border-gray-800 hover:border-amber-500/50 rounded-3xl p-5 shadow-xl transition-all flex flex-col justify-between space-y-4 relative overflow-hidden group"
+                className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] hover:border-[#2563EB] dark:hover:border-[#3B82F6] rounded-xl p-5 shadow-sm dark:shadow-md transition-all flex flex-col justify-between space-y-4 relative"
               >
                 <div className="space-y-3">
-                  {/* Top Row: Symbol, Name, Sector, Shariah Badge */}
+                  {/* Top Row */}
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="flex items-center space-x-2">
                         <span 
                           onClick={() => onSelectStock && onSelectStock(item.symbol)}
-                          className="text-2xl font-black text-white mono cursor-pointer hover:text-cyan-400 transition-colors"
+                          className="text-2xl font-black text-[#0F172A] dark:text-[#F8FAFC] mono cursor-pointer hover:text-[#2563EB] dark:hover:text-[#3B82F6] transition-colors"
                         >
                           {item.symbol}
                         </span>
-                        <span className="px-2.5 py-0.5 rounded-md bg-amber-400/10 text-amber-400 text-[10px] font-black border border-amber-500/20">
+                        <span className="px-2.5 py-0.5 rounded-md bg-[#D97706]/10 text-[#D97706] dark:bg-[#F59E0B]/10 dark:text-[#F59E0B] text-[10px] font-bold border border-[#D97706]/20 dark:border-[#F59E0B]/20">
                           {item.month}
                         </span>
                         {item.shariahCompliant && (
-                          <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 text-[10px] font-extrabold border border-emerald-500/20">
+                          <span className="px-2 py-0.5 rounded-md bg-[#16A34A]/10 text-[#16A34A] dark:bg-[#22C55E]/10 dark:text-[#22C55E] text-[10px] font-bold border border-[#16A34A]/20 dark:border-[#22C55E]/20">
                             KMI-30 Shariah
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[280px]">
-                        {item.name} • <b className="text-gray-300">{item.sector}</b>
+                      <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5 truncate max-w-[280px]">
+                        {item.name} • <b className="text-[#0F172A] dark:text-[#F8FAFC]">{item.sector}</b>
                       </p>
                     </div>
 
                     {/* Expected Dividend Badge */}
-                    <div className="text-right shrink-0 bg-[#070B12] px-3.5 py-2 rounded-2xl border border-amber-500/30">
-                      <span className="text-[9px] uppercase font-bold text-gray-400 block">Expected Payout</span>
-                      <span className="text-base font-black text-amber-400 mono">
+                    <div className="text-right shrink-0 bg-[#F8FAFC] dark:bg-[#0B0F19] px-3.5 py-2 rounded-lg border border-[#E2E8F0] dark:border-[#243044]">
+                      <span className="text-[9px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] block">Expected Payout</span>
+                      <span className="text-base font-black text-[#D97706] dark:text-[#F59E0B] mono">
                         PKR {item.expectedDividend.toFixed(2)}
                       </span>
-                      <span className="text-[10px] text-emerald-400 font-bold block">
+                      <span className="text-[10px] text-[#16A34A] dark:text-[#22C55E] font-bold block">
                         Yield: {item.expectedYield}
                       </span>
                     </div>
                   </div>
 
                   {/* Dividend Type & Live Price Matrix */}
-                  <div className="grid grid-cols-2 gap-2 bg-[#070B12] p-2.5 rounded-2xl border border-gray-800/80 text-xs">
+                  <div className="grid grid-cols-2 gap-2 bg-[#F8FAFC] dark:bg-[#0B0F19] p-2.5 rounded-lg border border-[#E2E8F0] dark:border-[#243044] text-xs">
                     <div>
-                      <span className="text-[9px] uppercase text-gray-400 font-bold block">Announcement Type</span>
-                      <span className="font-extrabold text-white text-[11px] truncate block">{item.dividendType}</span>
+                      <span className="text-[9px] uppercase text-[#64748B] dark:text-[#94A3B8] font-bold block">Announcement Type</span>
+                      <span className="font-bold text-[#0F172A] dark:text-[#F8FAFC] text-[11px] truncate block">{item.dividendType}</span>
                     </div>
                     <div>
-                      <span className="text-[9px] uppercase text-cyan-400 font-bold block">Live Market Rate</span>
-                      <span className="font-black text-cyan-400 mono text-sm">PKR {livePrice.toFixed(2)}</span>
+                      <span className="text-[9px] uppercase text-[#2563EB] dark:text-[#3B82F6] font-bold block">Live Market Rate</span>
+                      <span className="font-bold text-[#2563EB] dark:text-[#3B82F6] mono text-sm">PKR {livePrice.toFixed(2)}</span>
                     </div>
                   </div>
 
                   {/* 💡 "Kion Buy Karna Chaye?" Rationale */}
-                  <div className="bg-gradient-to-r from-blue-950/30 to-cyan-950/20 border border-blue-800/30 p-3 rounded-2xl space-y-1 text-xs">
-                    <div className="flex items-center space-x-1.5 text-cyan-300 font-black text-[11px]">
-                      <Sparkles className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                  <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] p-3 rounded-lg space-y-1 text-xs">
+                    <div className="flex items-center space-x-1.5 text-[#2563EB] dark:text-[#3B82F6] font-bold text-[11px]">
+                      <Sparkles className="w-3.5 h-3.5 shrink-0" />
                       <span>Kion Buy Karna Chaye? (Fundamental Reason)</span>
                     </div>
-                    <p className="text-[11px] text-gray-300 leading-relaxed">
+                    <p className="text-[11px] text-[#0F172A] dark:text-[#F8FAFC] leading-relaxed">
                       {item.whyBuyReason}
                     </p>
                   </div>
 
                   {/* ⏰ "2-3 Din Pehle Buy Karne Ka Tareeqa" Timing Tip */}
-                  <div className="bg-gradient-to-r from-amber-950/30 to-yellow-950/20 border border-amber-800/40 p-3 rounded-2xl space-y-1 text-xs">
-                    <div className="flex items-center space-x-1.5 text-amber-400 font-black text-[11px]">
-                      <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#D97706]/40 dark:border-[#F59E0B]/40 p-3 rounded-lg space-y-1 text-xs">
+                    <div className="flex items-center space-x-1.5 text-[#D97706] dark:text-[#F59E0B] font-bold text-[11px]">
+                      <Clock className="w-3.5 h-3.5 shrink-0" />
                       <span>Buy Timing Rule (Approx Ex-Date: {item.approxExDate}):</span>
                     </div>
-                    <p className="text-[11px] text-gray-300 leading-relaxed">
+                    <p className="text-[11px] text-[#0F172A] dark:text-[#F8FAFC] leading-relaxed">
                       {item.buyTimingTip}
                     </p>
                   </div>
                 </div>
 
-                {/* Bottom Card Actions: Calculate Net Profit & Technical Chart */}
-                <div className="flex items-center space-x-2 pt-2 border-t border-gray-800/80">
+                {/* Bottom Card Actions */}
+                <div className="flex items-center space-x-2 pt-2 border-t border-[#E2E8F0] dark:border-[#243044]">
                   <button
                     onClick={() => handleLoadCalculator(item)}
-                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:opacity-90 text-black font-black text-xs flex items-center justify-center space-x-1.5 shadow-md shadow-amber-500/20 cursor-pointer"
+                    className="flex-1 py-2.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-xs flex items-center justify-center space-x-1.5 shadow-sm cursor-pointer"
                   >
                     <Calculator className="w-3.5 h-3.5 stroke-[2.5]" />
                     <span>Calculate My Dividend</span>
@@ -603,7 +585,7 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
 
                   <button
                     onClick={() => onSelectStock && onSelectStock(item.symbol)}
-                    className="px-3.5 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold flex items-center space-x-1 cursor-pointer"
+                    className="px-3.5 py-2.5 rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] hover:bg-[#E2E8F0] dark:hover:bg-[#243044] text-[#0F172A] dark:text-[#F8FAFC] text-xs font-bold flex items-center space-x-1 border border-[#E2E8F0] dark:border-[#243044] cursor-pointer"
                     title="Open Technical Chart & Fundamentals"
                   >
                     <span>View Intel</span>
@@ -617,14 +599,14 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
       </div>
 
       {/* 4. Interactive Dividend Profit & Tax Calculator Tool */}
-      <div id="dividend-calculator-box" className="bg-gradient-to-b from-[#0F172A] via-[#0D131F] to-[#070B12] border border-cyan-500/40 rounded-3xl p-6 shadow-2xl space-y-6 relative">
+      <div id="dividend-calculator-box" className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-6 shadow-sm dark:shadow-md space-y-6 relative">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+          <div className="w-10 h-10 rounded-lg bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 border border-[#2563EB]/20 dark:border-[#3B82F6]/20 flex items-center justify-center text-[#2563EB] dark:text-[#3B82F6]">
             <Calculator className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-lg font-black text-white">Interactive PSX Dividend Profit & Net Cash Calculator</h3>
-            <p className="text-xs text-gray-400">Calculate exact cash dividends deposited into your bank account after 15% (Filer) or 30% (Non-Filer) Withholding Tax.</p>
+            <h3 className="text-lg font-bold text-[#0F172A] dark:text-[#F8FAFC]">Interactive PSX Dividend Profit & Net Cash Calculator</h3>
+            <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">Calculate exact cash dividends deposited into your bank account after 15% (Filer) or 30% (Non-Filer) Withholding Tax.</p>
           </div>
         </div>
 
@@ -632,59 +614,59 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
           {/* Inputs Column */}
           <div className="lg:col-span-5 space-y-4 text-xs">
             <div>
-              <label className="block text-gray-300 font-bold mb-1 uppercase text-[11px]">Selected Stock Symbol:</label>
+              <label className="block text-[#0F172A] dark:text-[#F8FAFC] font-bold mb-1 uppercase text-[11px]">Selected Stock Symbol:</label>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={calcSymbol}
                   onChange={e => setCalcSymbol(e.target.value.toUpperCase())}
-                  className="flex-1 bg-[#070B12] border border-gray-800 rounded-xl px-3 py-2 text-white font-black mono text-sm uppercase focus:outline-none focus:border-cyan-400"
+                  className="flex-1 bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg px-3 py-2 text-[#0F172A] dark:text-[#F8FAFC] font-bold mono text-sm uppercase focus:outline-none focus:border-[#2563EB] dark:focus:border-[#3B82F6]"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-gray-300 font-bold mb-1 uppercase text-[11px]">Quantity (Shares):</label>
+                <label className="block text-[#0F172A] dark:text-[#F8FAFC] font-bold mb-1 uppercase text-[11px]">Quantity (Shares):</label>
                 <input
                   type="number"
                   min="1"
                   value={calcShares}
                   onChange={e => setCalcShares(e.target.value)}
-                  className="w-full bg-[#070B12] border border-gray-800 rounded-xl px-3 py-2 text-white font-extrabold mono focus:outline-none focus:border-cyan-400"
+                  className="w-full bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg px-3 py-2 text-[#0F172A] dark:text-[#F8FAFC] font-bold mono focus:outline-none focus:border-[#2563EB] dark:focus:border-[#3B82F6]"
                 />
               </div>
 
               <div>
-                <label className="block text-gray-300 font-bold mb-1 uppercase text-[11px]">Expected Div/Share (PKR):</label>
+                <label className="block text-[#0F172A] dark:text-[#F8FAFC] font-bold mb-1 uppercase text-[11px]">Expected Div/Share (PKR):</label>
                 <input
                   type="number"
                   step="0.1"
                   value={calcDividendPerShare}
                   onChange={e => setCalcDividendPerShare(e.target.value)}
-                  className="w-full bg-[#070B12] border border-gray-800 rounded-xl px-3 py-2 text-amber-400 font-black mono focus:outline-none focus:border-cyan-400"
+                  className="w-full bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg px-3 py-2 text-[#D97706] dark:text-[#F59E0B] font-bold mono focus:outline-none focus:border-[#2563EB] dark:focus:border-[#3B82F6]"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-gray-300 font-bold mb-1 uppercase text-[11px]">Share Buy Price (PKR):</label>
+                <label className="block text-[#0F172A] dark:text-[#F8FAFC] font-bold mb-1 uppercase text-[11px]">Share Buy Price (PKR):</label>
                 <input
                   type="number"
                   step="0.01"
                   value={calcBuyPrice}
                   onChange={e => setCalcBuyPrice(e.target.value)}
-                  className="w-full bg-[#070B12] border border-gray-800 rounded-xl px-3 py-2 text-white font-extrabold mono focus:outline-none focus:border-cyan-400"
+                  className="w-full bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg px-3 py-2 text-[#0F172A] dark:text-[#F8FAFC] font-bold mono focus:outline-none focus:border-[#2563EB] dark:focus:border-[#3B82F6]"
                 />
               </div>
 
               <div>
-                <label className="block text-gray-300 font-bold mb-1 uppercase text-[11px]">Tax Status (FBR WHT):</label>
+                <label className="block text-[#0F172A] dark:text-[#F8FAFC] font-bold mb-1 uppercase text-[11px]">Tax Status (FBR WHT):</label>
                 <select
                   value={calcTaxRate}
                   onChange={e => setCalcTaxRate(Number(e.target.value))}
-                  className="w-full bg-[#070B12] border border-gray-800 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-cyan-400"
+                  className="w-full bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg px-3 py-2 text-[#0F172A] dark:text-[#F8FAFC] font-bold focus:outline-none focus:border-[#2563EB] dark:focus:border-[#3B82F6]"
                 >
                   <option value={15}>Active Filer (15% Tax)</option>
                   <option value={30}>Non-Filer (30% Tax)</option>
@@ -694,52 +676,52 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
           </div>
 
           {/* Outputs Column */}
-          <div className="lg:col-span-7 bg-[#070B12] p-5 rounded-3xl border border-gray-800/90 flex flex-col justify-between space-y-4">
+          <div className="lg:col-span-7 bg-[#F8FAFC] dark:bg-[#0B0F19] p-5 rounded-lg border border-[#E2E8F0] dark:border-[#243044] flex flex-col justify-between space-y-4">
             <div className="space-y-3 text-xs">
-              <div className="flex justify-between items-center text-gray-400">
+              <div className="flex justify-between items-center text-[#64748B] dark:text-[#94A3B8]">
                 <span>Total Capital Outlay ({calcShares} shares @ PKR {calcBuyPrice}):</span>
-                <span className="font-bold text-white mono text-sm">
+                <span className="font-bold text-[#0F172A] dark:text-[#F8FAFC] mono text-sm">
                   PKR {totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </span>
               </div>
 
-              <div className="flex justify-between items-center text-gray-400">
+              <div className="flex justify-between items-center text-[#64748B] dark:text-[#94A3B8]">
                 <span>Gross Expected Dividend ({calcShares} × PKR {calcDividendPerShare}):</span>
-                <span className="font-bold text-amber-400 mono text-sm">
+                <span className="font-bold text-[#D97706] dark:text-[#F59E0B] mono text-sm">
                   PKR {grossDividend.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </span>
               </div>
 
-              <div className="flex justify-between items-center text-gray-400">
+              <div className="flex justify-between items-center text-[#64748B] dark:text-[#94A3B8]">
                 <span>Withholding Tax Deduction ({calcTaxRate}%):</span>
-                <span className="font-bold text-rose-400 mono text-sm">
+                <span className="font-bold text-[#DC2626] dark:text-[#EF4444] mono text-sm">
                   - PKR {taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </span>
               </div>
 
-              <div className="pt-3 border-t border-gray-800 flex justify-between items-center">
+              <div className="pt-3 border-t border-[#E2E8F0] dark:border-[#243044] flex justify-between items-center">
                 <div>
-                  <span className="text-xs uppercase font-black text-emerald-400 block">Net Bank Account Credit 💰</span>
-                  <span className="text-[10px] text-gray-400">Directly transferred through CDC E-Dividend</span>
+                  <span className="text-xs uppercase font-bold text-[#16A34A] dark:text-[#22C55E] block">Net Bank Account Credit 💰</span>
+                  <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Directly transferred through CDC E-Dividend</span>
                 </div>
-                <span className="text-2xl font-black text-emerald-400 mono">
+                <span className="text-2xl font-bold text-[#16A34A] dark:text-[#22C55E] mono">
                   PKR {netDividendInBank.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
 
             {/* Yield Stats */}
-            <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-800/80">
-              <div className="bg-[#0D131F] p-3 rounded-2xl border border-gray-800">
-                <span className="text-[10px] uppercase text-gray-400 font-bold block">Single Payout Net Yield</span>
-                <span className="text-base font-black text-cyan-400 mono mt-0.5 block">
+            <div className="grid grid-cols-2 gap-3 pt-3 border-t border-[#E2E8F0] dark:border-[#243044]">
+              <div className="bg-[#FFFFFF] dark:bg-[#151E2E] p-3 rounded-lg border border-[#E2E8F0] dark:border-[#243044]">
+                <span className="text-[10px] uppercase text-[#64748B] dark:text-[#94A3B8] font-bold block">Single Payout Net Yield</span>
+                <span className="text-base font-bold text-[#2563EB] dark:text-[#3B82F6] mono mt-0.5 block">
                   {singlePayoutYield.toFixed(2)}%
                 </span>
               </div>
 
-              <div className="bg-[#0D131F] p-3 rounded-2xl border border-gray-800">
-                <span className="text-[10px] uppercase text-gray-400 font-bold block">Estimated Annualized Yield (4x)</span>
-                <span className="text-base font-black text-amber-400 mono mt-0.5 block">
+              <div className="bg-[#FFFFFF] dark:bg-[#151E2E] p-3 rounded-lg border border-[#E2E8F0] dark:border-[#243044]">
+                <span className="text-[10px] uppercase text-[#64748B] dark:text-[#94A3B8] font-bold block">Estimated Annualized Yield (4x)</span>
+                <span className="text-base font-bold text-[#D97706] dark:text-[#F59E0B] mono mt-0.5 block">
                   ~{estimatedAnnualYield.toFixed(2)}%
                 </span>
               </div>
