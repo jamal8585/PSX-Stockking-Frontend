@@ -56,6 +56,12 @@ export const loginUser = async (data) => {
   return res.data;
 };
 
+export const socialAuthLogin = async (socialData) => {
+  const res = await API.post('/auth/social-login', socialData);
+  if (res.data?.token) setAuthToken(res.data.token);
+  return res.data;
+};
+
 export const getCurrentUser = async () => {
   const res = await API.get('/auth/me');
   return res.data;
