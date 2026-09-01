@@ -408,9 +408,7 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col font-['Calibri','Segoe_UI',system-ui,sans-serif] transition-colors duration-200 ${
-      theme === 'light' ? 'light-mode bg-[#F8FAFC] text-slate-900' : 'dark-mode bg-[#070B12] text-gray-100'
-    }`}>
+    <div className="min-h-screen bg-[#070B12] text-gray-100 flex flex-col font-['Calibri','Segoe_UI',system-ui,sans-serif]">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-cyan-500 to-emerald-500 text-black font-extrabold text-xs px-5 py-3 rounded-2xl shadow-2xl animate-bounce flex items-center space-x-2">
@@ -429,8 +427,6 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         countdown={countdown}
-        theme={theme}
-        onToggleTheme={handleToggleTheme}
       />
 
       {/* Main Content Hub */}

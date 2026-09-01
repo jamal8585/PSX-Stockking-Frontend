@@ -53,10 +53,10 @@ export default function DayTradeSuggestionModal({
 
   // Determine Signal Type
   let signalBadge = {
-    action: 'STRONG INTRADAY BUY',
+    action: 'BULLISH INTRADAY SETUP',
     color: 'from-emerald-500 to-teal-500 text-black',
     border: 'border-emerald-500/40',
-    headline: 'High Institutional Buying Momentum & Volume Breakout'
+    headline: 'High Institutional Volume Momentum & Upward Trajectory'
   };
 
   if (rsi > 72 || changePercent > 6.5) {
@@ -77,12 +77,12 @@ export default function DayTradeSuggestionModal({
 
   // Plain-English Explanation
   const getPlainEnglishAdvice = () => {
-    if (signalBadge.action.includes('BUY')) {
-      return `${name} (${symbol}) is exhibiting robust bullish intraday structure above its 20-period moving average with RSI at ${rsi}. Buyer accumulation is strong. We recommend taking long entry between PKR ${entryMin} and PKR ${entryMax} with primary scalping target at PKR ${target1} and trailing towards PKR ${target2}. Protect your capital with strict stop loss at PKR ${stopLoss}.`;
+    if (signalBadge.action.includes('BULLISH')) {
+      return `${name} (${symbol}) is exhibiting robust bullish intraday structure above its 20-period moving average with RSI at ${rsi}. Momentum is positive. Safe entry range is between PKR ${entryMin} and PKR ${entryMax} with primary target at PKR ${target1} and secondary target at PKR ${target2}. Key risk level is stop loss at PKR ${stopLoss}.`;
     } else if (signalBadge.action.includes('PROFIT')) {
-      return `${name} (${symbol}) has gained rapidly today (+${changePercent}%) with RSI elevated at ${rsi}. While bullish momentum remains intact, short-term profit-taking by retail traders is likely. If already holding, book 50% profit at current rate and trail your stop loss to PKR ${stopLoss}. New buyers should wait for a pullback.`;
+      return `${name} (${symbol}) has gained rapidly today (+${changePercent}%) with RSI elevated at ${rsi}. While bullish momentum remains intact, short-term profit-taking by retail traders is likely. If already holding, book partial profit at current rate and trail your stop loss to PKR ${stopLoss}.`;
     } else {
-      return `${name} (${symbol}) is consolidating near support levels. The risk-to-reward ratio for new entry is attractive (${riskReward}:1). Accumulate gradually in small tranches between PKR ${entryMin} - PKR ${entryMax} for an upside rebound towards PKR ${target1}.`;
+      return `${name} (${symbol}) is consolidating near support levels. The risk-to-reward ratio is attractive (${riskReward}:1). Technical rebound zone is between PKR ${entryMin} - PKR ${entryMax} with resistance target at PKR ${target1}.`;
     }
   };
 
@@ -121,7 +121,7 @@ export default function DayTradeSuggestionModal({
         {/* Action Signal Banner */}
         <div className={`rounded-2xl p-4 mb-6 border bg-gradient-to-r ${signalBadge.color} shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3`}>
           <div>
-            <span className="text-[10px] uppercase font-black tracking-wider block opacity-85">Today's Recommended Action</span>
+            <span className="text-[10px] uppercase font-black tracking-wider block opacity-85">Today's Technical Signal</span>
             <span className="text-lg font-black tracking-tight">{signalBadge.action}</span>
           </div>
           <div className="sm:text-right">

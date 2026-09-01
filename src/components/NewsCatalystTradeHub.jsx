@@ -208,8 +208,8 @@ export default function NewsCatalystTradeHub({ news = [], newsList = [], onSelec
                                 <span className="text-xl font-extrabold text-white mono">{trade.symbol}</span>
                                 <p className="text-[11px] text-gray-400 truncate max-w-[150px]">{trade.name}</p>
                               </div>
-                              <span className="px-2.5 py-1 rounded-md bg-emerald-500 text-black font-extrabold text-[10px] flex items-center shadow-md">
-                                <ArrowUpRight className="w-3.5 h-3.5 mr-0.5 stroke-[3]" /> BUY NOW
+                              <span className="px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-extrabold text-[10px] flex items-center shadow-md">
+                                <ArrowUpRight className="w-3.5 h-3.5 mr-0.5 stroke-[3]" /> BULLISH SETUP
                               </span>
                             </div>
 
