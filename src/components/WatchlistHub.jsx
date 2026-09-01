@@ -1,11 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Bookmark, 
   Sparkles, 
   TrendingUp, 
   TrendingDown, 
-  Target, 
-  StopCircle, 
   Calculator, 
   LineChart, 
   Trash2, 
@@ -21,7 +19,11 @@ import {
   LayoutGrid,
   Plus,
   Zap,
-  Check
+  Check,
+  X,
+  SlidersHorizontal,
+  ChevronDown,
+  Building2
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 
@@ -37,11 +39,15 @@ export default function WatchlistHub({
   onOpenCalculator 
 }) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   const [selectedSignalFilter, setSelectedSignalFilter] = useState('ALL');
   const [browserNotificationsEnabled, setBrowserNotificationsEnabled] = useState(false);
-  const [batchInput, setBatchInput] = useState('');
-  const [showBatchModal, setShowBatchModal] = useState(false);
+  const [showCatalogModal, setShowCatalogModal] = useState(false);
+  const [catalogSector, setCatalogSector] = useState('ALL');
+  const [catalogSearch, setCatalogSearch] = useState('');
+
+  const searchContainerRef = useRef(null);
 
   // Check if browser notifications are already granted
   useEffect(() => {
@@ -50,6 +56,17 @@ export default function WatchlistHub({
         setBrowserNotificationsEnabled(true);
       }
     }
+  }, []);
+
+  // Close search dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const requestNotificationPermission = async () => {
@@ -76,33 +93,67 @@ export default function WatchlistHub({
     }
   };
 
-  // Safe symbol getter that works for both object and string
+  // Safe symbol getter
   const getSymKey = (item) => {
     if (!item) return '';
     if (typeof item === 'string') return item.toUpperCase().trim();
     return (item.symbol || '').toUpperCase().trim();
   };
 
-  // Build Comprehensive Live Watchlist Data
-  const watchlistedStocksData = useMemo(() => {
-    const stockMap = new Map();
+  // 1. Build Master Catalog of All 500+ Listed PSX Companies
+  const allPSXCompanies = useMemo(() => {
+    const map = new Map();
 
-    // 1. Base from official quotes
+    // From official quotes
     if (officialQuotes && typeof officialQuotes === 'object') {
       Object.values(officialQuotes).forEach(q => {
-        if (q?.symbol) stockMap.set(q.symbol.toUpperCase().trim(), q);
-      });
-    }
-
-    // 2. Overlay live polled stock ticks
-    if (Array.isArray(stocks)) {
-      stocks.forEach(s => {
-        if (s?.symbol && Number(s.currentPrice) > 0) {
-          const symKey = s.symbol.toUpperCase().trim();
-          stockMap.set(symKey, { ...stockMap.get(symKey), ...s });
+        if (q?.symbol) {
+          const sym = q.symbol.toUpperCase().trim();
+          map.set(sym, {
+            symbol: sym,
+            name: q.name || sym,
+            sector: q.sector || 'General Market',
+            currentPrice: Number(q.currentPrice || 100),
+            changePercent: Number(q.changePercent || 0)
+          });
         }
       });
     }
+
+    // Overlay live polled stocks
+    if (Array.isArray(stocks)) {
+      stocks.forEach(s => {
+        if (s?.symbol) {
+          const sym = s.symbol.toUpperCase().trim();
+          const existing = map.get(sym);
+          map.set(sym, {
+            ...existing,
+            symbol: sym,
+            name: s.name || existing?.name || sym,
+            sector: s.sector || existing?.sector || 'General Market',
+            currentPrice: Number(s.currentPrice || existing?.currentPrice || 100),
+            changePercent: Number(s.changePercent !== undefined ? s.changePercent : (existing?.changePercent || 0))
+          });
+        }
+      });
+    }
+
+    return Array.from(map.values()).sort((a, b) => a.symbol.localeCompare(b.symbol));
+  }, [stocks]);
+
+  // Sector list from master catalog
+  const allSectors = useMemo(() => {
+    const set = new Set();
+    allPSXCompanies.forEach(c => {
+      if (c.sector && c.sector !== 'General Market') set.add(c.sector);
+    });
+    return ['ALL', ...Array.from(set).sort()];
+  }, [allPSXCompanies]);
+
+  // Build Comprehensive Live Watchlist Data
+  const watchlistedStocksData = useMemo(() => {
+    const stockMap = new Map();
+    allPSXCompanies.forEach(c => stockMap.set(c.symbol, c));
 
     return watchlist.map(item => {
       const sym = getSymKey(item);
@@ -115,7 +166,7 @@ export default function WatchlistHub({
         : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0);
       const isPos = change >= 0;
 
-      // Smart AI Technical Calculations for Watchlisted Stock
+      // Smart AI Technical Calculations
       const rsi14 = live.technicals?.rsi14 || (isPos ? 56 : 44);
       let signal = 'ACCUMULATE';
       let signalColor = 'text-[#2563EB] dark:text-[#3B82F6] bg-[#2563EB]/10 border-[#2563EB]/20';
@@ -172,65 +223,29 @@ export default function WatchlistHub({
         addedAt: item?.addedAt || new Date().toISOString()
       };
     });
-  }, [watchlist, stocks]);
+  }, [watchlist, allPSXCompanies]);
 
-  // Generate Real-Time Alert Stream for Watchlist
-  const generatedAlerts = useMemo(() => {
-    const alerts = [];
-    watchlistedStocksData.forEach(s => {
-      if (s.signal === 'STRONG_BUY') {
-        alerts.push({
-          id: `alert_buy_${s.symbol}`,
-          symbol: s.symbol,
-          type: 'BUY',
-          title: `🟢 BUY ALERT: ${s.symbol} Bullish Breakout Triggered!`,
-          message: `${s.symbol} is trading at PKR ${s.currentPrice.toFixed(2)} (+${s.changePercent}%). Entry zone: PKR ${s.entryZoneMin} - ${s.entryZoneMax}. Target 1: PKR ${s.target1}.`,
-          time: 'Active Now'
-        });
-      } else if (s.signal === 'SELL_PROFIT') {
-        alerts.push({
-          id: `alert_sell_${s.symbol}`,
-          symbol: s.symbol,
-          type: 'SELL',
-          title: `🔴 SELL / PROFIT ALERT: ${s.symbol} Overbought Warning!`,
-          message: `${s.symbol} RSI reached ${s.rsi14}. Consider booking partial profits at PKR ${s.currentPrice.toFixed(2)} or tightening stop-loss to PKR ${s.stopLoss}.`,
-          time: 'Active Now'
-        });
-      } else {
-        alerts.push({
-          id: `alert_accum_${s.symbol}`,
-          symbol: s.symbol,
-          type: 'ACCUMULATE',
-          title: `💡 WATCHLIST RADAR: ${s.symbol} in Accumulation Zone`,
-          message: `${s.symbol} (PKR ${s.currentPrice.toFixed(2)}) is consolidating. Target: PKR ${s.target1} (+8.5%).`,
-          time: 'Live Monitored'
-        });
-      }
-    });
-    return alerts;
-  }, [watchlistedStocksData]);
-
-  // Search autocompletion list of available stocks to add
+  // Instant Auto-Populated Search Results (Shows ALL companies when clicked or typing)
   const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return [];
     const q = searchQuery.toUpperCase().trim();
-    const existingSet = new Set(watchlist.map(w => getSymKey(w)));
-
-    const candidates = [];
-    if (officialQuotes) {
-      Object.values(officialQuotes).forEach(stock => {
-        if (stock?.symbol) {
-          const symUpper = stock.symbol.toUpperCase();
-          if (!existingSet.has(symUpper)) {
-            if (symUpper.includes(q) || (stock.name && stock.name.toUpperCase().includes(q))) {
-              candidates.push(stock);
-            }
-          }
-        }
-      });
+    if (!q) {
+      // If empty, show first 40 top PSX companies automatically
+      return allPSXCompanies.slice(0, 40);
     }
-    return candidates.slice(0, 10);
-  }, [searchQuery, watchlist]);
+    return allPSXCompanies.filter(stock => {
+      return stock.symbol.toUpperCase().includes(q) || stock.name.toUpperCase().includes(q) || stock.sector.toUpperCase().includes(q);
+    }).slice(0, 50);
+  }, [searchQuery, allPSXCompanies]);
+
+  // Catalog Modal Filtered List
+  const catalogFilteredStocks = useMemo(() => {
+    const q = catalogSearch.toUpperCase().trim();
+    return allPSXCompanies.filter(stock => {
+      const matchSector = catalogSector === 'ALL' || stock.sector === catalogSector;
+      const matchQuery = !q || stock.symbol.toUpperCase().includes(q) || stock.name.toUpperCase().includes(q);
+      return matchSector && matchQuery;
+    });
+  }, [allPSXCompanies, catalogSector, catalogSearch]);
 
   const filteredWatchlist = useMemo(() => {
     if (selectedSignalFilter === 'ALL') return watchlistedStocksData;
@@ -238,26 +253,6 @@ export default function WatchlistHub({
     if (selectedSignalFilter === 'SELL') return watchlistedStocksData.filter(s => s.signal === 'SELL_PROFIT');
     return watchlistedStocksData;
   }, [watchlistedStocksData, selectedSignalFilter]);
-
-  // Handle Multi-Stock Batch Add
-  const handleBatchAdd = (e) => {
-    e.preventDefault();
-    if (!batchInput.trim()) return;
-
-    const rawSymbols = batchInput.split(/[,\s\n]+/).map(s => s.toUpperCase().trim()).filter(Boolean);
-    const existingSet = new Set(watchlist.map(w => getSymKey(w)));
-
-    let addedCount = 0;
-    rawSymbols.forEach(sym => {
-      if (!existingSet.has(sym)) {
-        onToggleWatchlist(sym);
-        addedCount++;
-      }
-    });
-
-    setBatchInput('');
-    setShowBatchModal(false);
-  };
 
   return (
     <div className="space-y-6">
@@ -283,14 +278,14 @@ export default function WatchlistHub({
             </div>
           </div>
 
-          {/* Action Group: Batch Add & Notification Switch */}
+          {/* Action Group: Browse 500+ PSX Catalog & Notification Switch */}
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <button
-              onClick={() => setShowBatchModal(true)}
-              className="px-3.5 py-2.5 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#243044] text-[#0F172A] dark:text-[#F8FAFC] font-bold text-xs flex items-center space-x-1.5 cursor-pointer shadow-xs transition-all"
+              onClick={() => setShowCatalogModal(true)}
+              className="px-4 py-2.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-xs flex items-center space-x-2 cursor-pointer shadow-sm transition-all"
             >
-              <Plus className="w-4 h-4 text-[#2563EB] dark:text-[#3B82F6]" />
-              <span>+ Add Multiple Stocks</span>
+              <Building2 className="w-4 h-4" />
+              <span>Browse All 500+ PSX Companies</span>
             </button>
 
             <button
@@ -298,7 +293,7 @@ export default function WatchlistHub({
               className={`p-2.5 rounded-lg border font-bold text-xs flex items-center space-x-1.5 cursor-pointer transition-all ${
                 browserNotificationsEnabled
                   ? 'bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/20 dark:bg-[#22C55E]/10 dark:text-[#22C55E]'
-                  : 'bg-[#2563EB] hover:bg-[#1D4ED8] text-white border-transparent'
+                  : 'bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#0F172A] dark:text-[#F8FAFC] border-[#E2E8F0] dark:border-[#243044]'
               }`}
               title="Enable Browser Push Notifications for Watchlist Alerts"
             >
@@ -308,47 +303,79 @@ export default function WatchlistHub({
           </div>
         </div>
 
-        {/* 2. Quick Stock Search & Popular Add Pill Bar */}
+        {/* 2. Quick Stock Search & Auto-Populated Full Dropdown */}
         <div className="mt-6 pt-5 border-t border-[#E2E8F0] dark:border-[#243044] space-y-3">
           <div className="flex flex-col sm:flex-row items-center gap-3">
-            <div className="relative flex-1 w-full">
+            <div ref={searchContainerRef} className="relative flex-1 w-full">
               <Search className="w-4 h-4 text-[#64748B] dark:text-[#94A3B8] absolute left-3.5 top-3" />
               <input
                 type="text"
-                placeholder="Search stock symbol or name to add (e.g. OGDC, PRL, SYS, MEBL, CNERGY, ATRL)..."
+                placeholder="Click here to view all PSX company symbols automatically or type to search (e.g. OGDC, PRL, SYS, MEBL)..."
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg pl-10 pr-4 py-2.5 text-xs text-[#0F172A] dark:text-[#F8FAFC] uppercase font-bold focus:outline-none focus:border-[#2563EB] dark:focus:border-[#3B82F6]"
+                onFocus={() => setIsSearchOpen(true)}
+                onChange={e => {
+                  setSearchQuery(e.target.value);
+                  setIsSearchOpen(true);
+                }}
+                className="w-full bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg pl-10 pr-10 py-2.5 text-xs text-[#0F172A] dark:text-[#F8FAFC] uppercase font-bold focus:outline-none focus:border-[#2563EB] dark:focus:border-[#3B82F6]"
+              />
+              <ChevronDown 
+                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                className="w-4 h-4 text-[#64748B] dark:text-[#94A3B8] absolute right-3.5 top-3 cursor-pointer" 
               />
 
-              {/* Autocomplete Dropdown */}
-              {searchResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1.5 bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl shadow-2xl z-30 max-h-64 overflow-y-auto divide-y divide-[#E2E8F0] dark:divide-[#243044]">
-                  {searchResults.map(stock => (
-                    <div
-                      key={stock.symbol}
-                      onClick={() => {
-                        onToggleWatchlist(stock.symbol);
-                        setSearchQuery('');
-                      }}
-                      className="p-3 hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] cursor-pointer flex items-center justify-between transition-colors text-xs"
+              {/* Instant Auto-Populated Dropdown for ALL 500+ PSX Companies */}
+              {isSearchOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1.5 bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl shadow-2xl z-40 max-h-80 overflow-y-auto divide-y divide-[#E2E8F0] dark:divide-[#243044]">
+                  <div className="p-2.5 bg-[#F8FAFC] dark:bg-[#0B0F19] text-[11px] font-bold text-[#64748B] dark:text-[#94A3B8] flex justify-between items-center sticky top-0 border-b border-[#E2E8F0] dark:border-[#243044]">
+                    <span>Select Any Listed Company ({searchResults.length} shown):</span>
+                    <button
+                      onClick={() => setIsSearchOpen(false)}
+                      className="text-[10px] text-[#2563EB] dark:text-[#3B82F6] hover:underline cursor-pointer"
                     >
-                      <div className="flex items-center space-x-2.5">
-                        <span className="font-black mono text-[#0F172A] dark:text-[#F8FAFC] text-sm">{stock.symbol}</span>
-                        <span className="text-[#64748B] dark:text-[#94A3B8] truncate max-w-xs">{stock.name}</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#64748B] dark:text-[#94A3B8] border border-[#E2E8F0] dark:border-[#243044]">
-                          {stock.sector}
-                        </span>
+                      Close Dropdown ✕
+                    </button>
+                  </div>
+
+                  {searchResults.map(stock => {
+                    const isAdded = watchlist.some(w => getSymKey(w) === stock.symbol);
+                    return (
+                      <div
+                        key={stock.symbol}
+                        onClick={() => onToggleWatchlist(stock.symbol)}
+                        className="p-3 hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] cursor-pointer flex items-center justify-between transition-colors text-xs"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <span className="font-black mono text-[#0F172A] dark:text-[#F8FAFC] text-sm w-16">{stock.symbol}</span>
+                          <div>
+                            <span className="text-[#0F172A] dark:text-[#F8FAFC] font-semibold block truncate max-w-xs">{stock.name}</span>
+                            <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">{stock.sector}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-3">
+                          <div className="text-right">
+                            <span className="font-bold mono text-[#2563EB] dark:text-[#3B82F6] block">PKR {stock.currentPrice.toFixed(2)}</span>
+                            <span className={`text-[10px] font-bold ${stock.changePercent >= 0 ? 'text-[#16A34A] dark:text-[#22C55E]' : 'text-[#DC2626] dark:text-[#EF4444]'}`}>
+                              {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            className={`p-1.5 px-3 rounded-md text-[11px] font-bold flex items-center space-x-1 transition-all ${
+                              isAdded
+                                ? 'bg-[#16A34A]/10 text-[#16A34A] border border-[#16A34A]/30 dark:bg-[#22C55E]/10 dark:text-[#22C55E]'
+                                : 'bg-[#2563EB] hover:bg-[#1D4ED8] text-white shadow-xs'
+                            }`}
+                          >
+                            {isAdded ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                            <span>{isAdded ? 'Added' : 'Add'}</span>
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="font-bold mono text-[#2563EB] dark:text-[#3B82F6]">PKR {Number(stock.currentPrice).toFixed(2)}</span>
-                        <span className="p-1 px-2.5 rounded-md bg-[#2563EB] text-white text-[11px] font-bold flex items-center space-x-1">
-                          <PlusCircle className="w-3.5 h-3.5" />
-                          <span>Add to List</span>
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -380,51 +407,7 @@ export default function WatchlistHub({
         </div>
       </div>
 
-      {/* 3. Live AI Signals & Notification Stream Banner */}
-      {generatedAlerts.length > 0 && (
-        <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-5 shadow-sm dark:shadow-md space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-[#E2E8F0] dark:border-[#243044]">
-            <div className="flex items-center space-x-2">
-              <Sparkles className="w-4 h-4 text-[#D97706] dark:text-[#F59E0B]" />
-              <h3 className="text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] uppercase tracking-wider">
-                Watchlist Buy/Sell Alert Notifications ({generatedAlerts.length})
-              </h3>
-            </div>
-            <span className="flex items-center text-[10px] font-bold text-[#16A34A] dark:text-[#22C55E]">
-              <Radio className="w-3 h-3 mr-1 animate-pulse" /> LIVE TELEMETRY
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-            {generatedAlerts.slice(0, 6).map(alert => (
-              <div
-                key={alert.id}
-                className={`p-3 rounded-lg border text-xs flex flex-col justify-between space-y-1.5 transition-all ${
-                  alert.type === 'BUY'
-                    ? 'bg-[#16A34A]/5 border-[#16A34A]/20 dark:bg-[#22C55E]/5 dark:border-[#22C55E]/20'
-                    : (alert.type === 'SELL'
-                        ? 'bg-[#DC2626]/5 border-[#DC2626]/20 dark:bg-[#EF4444]/5 dark:border-[#EF4444]/20'
-                        : 'bg-[#2563EB]/5 border-[#2563EB]/20 dark:bg-[#3B82F6]/5 dark:border-[#3B82F6]/20')
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <span className={`font-bold text-[11px] ${
-                    alert.type === 'BUY' ? 'text-[#16A34A] dark:text-[#22C55E]' : (alert.type === 'SELL' ? 'text-[#DC2626] dark:text-[#EF4444]' : 'text-[#2563EB] dark:text-[#3B82F6]')
-                  }`}>
-                    {alert.title}
-                  </span>
-                  <span className="text-[9px] text-[#64748B] dark:text-[#94A3B8] mono shrink-0 ml-1">{alert.time}</span>
-                </div>
-                <p className="text-[11px] text-[#0F172A] dark:text-[#F8FAFC] leading-relaxed">
-                  {alert.message}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 4. Controls Header: Filter Signals & List/Grid View Switcher */}
+      {/* 3. Controls Header: Filter Signals & List/Grid View Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center space-x-2">
           <Activity className="w-4 h-4 text-[#2563EB] dark:text-[#3B82F6]" />
@@ -498,7 +481,7 @@ export default function WatchlistHub({
         </div>
       </div>
 
-      {/* 5. Main Watchlist Display: LIST TABLE VIEW (Default) */}
+      {/* 4. Main Watchlist Display: LIST TABLE VIEW */}
       {filteredWatchlist.length === 0 ? (
         <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-12 text-center space-y-4 shadow-sm">
           <div className="w-16 h-16 rounded-xl bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 border border-[#2563EB]/20 dark:border-[#3B82F6]/20 flex items-center justify-center mx-auto text-[#2563EB] dark:text-[#3B82F6]">
@@ -507,14 +490,11 @@ export default function WatchlistHub({
           <div>
             <h3 className="text-lg font-bold text-[#0F172A] dark:text-[#F8FAFC]">Your Watchlist is Empty</h3>
             <p className="text-xs text-[#64748B] dark:text-[#94A3B8] max-w-md mx-auto mt-1">
-              Use the search bar above or click <b>"+ Quick Add"</b> to start monitoring multiple PSX companies for real-time buy/sell alerts.
+              Click <b>"Browse All 500+ PSX Companies"</b> or click into the search bar above to select multiple stocks to monitor.
             </p>
           </div>
         </div>
       ) : viewMode === 'list' ? (
-        /* ========================================================================= */
-        /* FORMAT 1: HIGH-DENSITY PROFESSIONAL FINANCIAL TABLE LIST VIEW             */
-        /* ========================================================================= */
         <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl shadow-sm dark:shadow-md overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -664,9 +644,6 @@ export default function WatchlistHub({
           </div>
         </div>
       ) : (
-        /* ========================================================================= */
-        /* FORMAT 2: GRID CARDS VIEW                                                 */
-        /* ========================================================================= */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredWatchlist.map(stock => (
             <div
@@ -761,53 +738,123 @@ export default function WatchlistHub({
         </div>
       )}
 
-      {/* 6. Batch Add Multiple Stocks Modal */}
-      {showBatchModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-          <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl w-full max-w-lg shadow-2xl p-6 relative text-[#0F172A] dark:text-[#F8FAFC] space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <PlusCircle className="w-5 h-5 text-[#2563EB] dark:text-[#3B82F6]" />
-                <h3 className="text-base font-bold">Add Multiple Stocks to Watchlist</h3>
+      {/* 5. Master 500+ PSX Companies Catalog Selector Modal */}
+      {showCatalogModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-2xl w-full max-w-4xl max-h-[90vh] shadow-2xl flex flex-col overflow-hidden text-[#0F172A] dark:text-[#F8FAFC]">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-[#E2E8F0] dark:border-[#243044] flex items-center justify-between bg-[#F8FAFC] dark:bg-[#0B0F19]">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 border border-[#2563EB]/20 dark:border-[#3B82F6]/20 flex items-center justify-center text-[#2563EB] dark:text-[#3B82F6]">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold tracking-tight">Complete Pakistan Stock Exchange (PSX) Company Directory</h3>
+                  <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
+                    Select any listed companies to add to your Watchlist • <b>{watchlistedStocksData.length} Selected</b>
+                  </p>
+                </div>
               </div>
+
               <button
-                onClick={() => setShowBatchModal(false)}
-                className="p-1 rounded-lg text-[#64748B] hover:text-[#0F172A] dark:hover:text-white cursor-pointer"
+                onClick={() => setShowCatalogModal(false)}
+                className="p-2 rounded-lg bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] text-[#64748B] hover:text-[#0F172A] dark:hover:text-white cursor-pointer"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleBatchAdd} className="space-y-3">
-              <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
-                Type or paste multiple stock symbols separated by comma or space (e.g. <code>OGDC, PRL, SYS, MEBL, CNERGY, ATRL, PSO, FFC</code>):
-              </p>
-
-              <textarea
-                rows={4}
-                required
-                placeholder="OGDC, PRL, SYS, MEBL, CNERGY, ATRL, PSO, FFC, MARI, LUCK..."
-                value={batchInput}
-                onChange={e => setBatchInput(e.target.value.toUpperCase())}
-                className="w-full bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg p-3 text-xs text-[#0F172A] dark:text-[#F8FAFC] font-bold mono focus:outline-none focus:border-[#2563EB] dark:focus:border-[#3B82F6]"
-              />
-
-              <div className="flex justify-end space-x-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowBatchModal(false)}
-                  className="px-4 py-2 rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] font-bold text-xs cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] text-white font-bold text-xs cursor-pointer shadow-sm"
-                >
-                  Add All to Watchlist List
-                </button>
+            {/* Modal Search & Sector Filter Bar */}
+            <div className="p-4 border-b border-[#E2E8F0] dark:border-[#243044] bg-[#FFFFFF] dark:bg-[#151E2E] space-y-3">
+              <div className="relative">
+                <Search className="w-4 h-4 text-[#64748B] dark:text-[#94A3B8] absolute left-3.5 top-3" />
+                <input
+                  type="text"
+                  placeholder="Filter 500+ stocks by Symbol, Company Name, or Industry..."
+                  value={catalogSearch}
+                  onChange={e => setCatalogSearch(e.target.value)}
+                  className="w-full bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg pl-10 pr-4 py-2.5 text-xs font-bold uppercase focus:outline-none focus:border-[#2563EB] dark:focus:border-[#3B82F6]"
+                />
               </div>
-            </form>
+
+              <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs">
+                <span className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] mr-1 shrink-0">
+                  Sector:
+                </span>
+                {allSectors.slice(0, 10).map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setCatalogSector(s)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                      catalogSector === s
+                        ? 'bg-[#2563EB] dark:bg-[#3B82F6] text-white shadow-xs'
+                        : 'bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#64748B] dark:text-[#94A3B8] border border-[#E2E8F0] dark:border-[#243044]'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Scrollable Stocks Table */}
+            <div className="flex-1 overflow-y-auto divide-y divide-[#E2E8F0] dark:divide-[#243044] bg-[#FFFFFF] dark:bg-[#151E2E]">
+              {catalogFilteredStocks.length === 0 ? (
+                <div className="p-8 text-center text-[#64748B] dark:text-[#94A3B8] text-xs">
+                  No companies found matching "{catalogSearch}".
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 p-4">
+                  {catalogFilteredStocks.map(stock => {
+                    const isAdded = watchlist.some(w => getSymKey(w) === stock.symbol);
+                    return (
+                      <div
+                        key={stock.symbol}
+                        onClick={() => onToggleWatchlist(stock.symbol)}
+                        className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                          isAdded
+                            ? 'bg-[#16A34A]/5 border-[#16A34A]/30 dark:bg-[#22C55E]/5 dark:border-[#22C55E]/30'
+                            : 'bg-[#F8FAFC] dark:bg-[#0B0F19] border-[#E2E8F0] dark:border-[#243044] hover:border-[#2563EB]'
+                        }`}
+                      >
+                        <div className="truncate mr-2">
+                          <span className="font-black mono text-sm block text-[#0F172A] dark:text-[#F8FAFC]">{stock.symbol}</span>
+                          <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8] truncate block">{stock.name}</span>
+                          <span className="text-[10px] text-[#2563EB] dark:text-[#3B82F6] font-medium block">{stock.sector}</span>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="font-bold mono text-xs block text-[#0F172A] dark:text-[#F8FAFC]">PKR {stock.currentPrice.toFixed(2)}</span>
+                          <span className={`text-[10px] font-bold block ${stock.changePercent >= 0 ? 'text-[#16A34A] dark:text-[#22C55E]' : 'text-[#DC2626] dark:text-[#EF4444]'}`}>
+                            {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
+                          </span>
+                          <span className={`mt-1 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                            isAdded 
+                              ? 'bg-[#16A34A] text-white dark:bg-[#22C55E] dark:text-black' 
+                              : 'bg-[#2563EB]/10 text-[#2563EB] dark:bg-[#3B82F6]/10 dark:text-[#3B82F6]'
+                          }`}>
+                            {isAdded ? '✓ Added' : '+ Add'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-[#E2E8F0] dark:border-[#243044] bg-[#F8FAFC] dark:bg-[#0B0F19] flex justify-between items-center text-xs">
+              <span className="text-[#64748B] dark:text-[#94A3B8]">
+                Showing <b>{catalogFilteredStocks.length}</b> listed companies in PSX
+              </span>
+              <button
+                onClick={() => setShowCatalogModal(false)}
+                className="px-6 py-2.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] text-white font-bold text-xs cursor-pointer shadow-sm"
+              >
+                Done Viewing Watchlist ({watchlistedStocksData.length})
+              </button>
+            </div>
           </div>
         </div>
       )}
