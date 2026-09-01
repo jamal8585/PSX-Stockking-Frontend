@@ -307,7 +307,6 @@ export default function Navbar({
             )}
           </div>
         </div>
-        </div>
 
         {/* Mobile Tab Bar */}
         <div className="flex md:hidden items-center justify-around py-2 border-t border-gray-800 text-[11px]">
