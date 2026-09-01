@@ -14,6 +14,7 @@ import AuthModal from './components/AuthModal';
 import ProUpgradeModal from './components/ProUpgradeModal';
 import AdminDashboard from './components/AdminDashboard';
 import DividendIntelligenceHub from './components/DividendIntelligenceHub';
+import WatchlistHub from './components/WatchlistHub';
 
 import {
   getMarketSummary,
@@ -740,7 +741,18 @@ export default function App() {
           />
         )}
 
-        {/* Tab 5: Full Market Screener */}
+        {/* Tab 5: My Watchlist & Real-Time Trade Radar */}
+        {activeTab === 'watchlist' && (
+          <WatchlistHub
+            watchlist={watchlist}
+            stocks={stocks}
+            onToggleWatchlist={handleToggleWatchlist}
+            onSelectStock={handleSelectStock}
+            onOpenCalculator={setCalcStock}
+          />
+        )}
+
+        {/* Tab 6: Full Market Screener */}
         {activeTab === 'screener' && (
           <StockScreenerTable
             stocks={stocks}

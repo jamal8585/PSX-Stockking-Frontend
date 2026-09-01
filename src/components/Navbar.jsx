@@ -260,6 +260,18 @@ export default function Navbar({
             </button>
 
             <button
+              onClick={() => setActiveTab('watchlist')}
+              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
+                activeTab === 'watchlist' 
+                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
+                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+              }`}
+            >
+              <Bookmark className="w-3.5 h-3.5" />
+              <span>Watchlist Radar ({watchlistCount})</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('screener')}
               className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
                 activeTab === 'screener' 
@@ -431,6 +443,12 @@ export default function Navbar({
           className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'dividends' ? (isLight ? 'bg-[#D97706] text-white' : 'bg-[#F59E0B] text-black font-black') : ''}`}
         >
           💰 Dividends
+        </button>
+        <button
+          onClick={() => setActiveTab('watchlist')}
+          className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'watchlist' ? (isLight ? 'bg-[#2563EB] text-white' : 'bg-[#3B82F6] text-white') : ''}`}
+        >
+          ⭐ Watchlist ({watchlistCount})
         </button>
         <button
           onClick={() => setActiveTab('screener')}
