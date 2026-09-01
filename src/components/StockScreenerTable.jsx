@@ -27,6 +27,7 @@ export default function StockScreenerTable({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSector, setSelectedSector] = useState('ALL');
   const [activeFilter, setActiveFilter] = useState('ALL');
+  const [marketView, setMarketView] = useState('ALL');
   const [sortField, setSortField] = useState('volume');
   const [sortOrder, setSortOrder] = useState('desc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -59,16 +60,48 @@ export default function StockScreenerTable({
       else if (activeFilter === 'STRONG_BUY') matchPreset = stock.technicals?.rsi14 < 45 && stock.currentPrice > (stock.technicals?.ema20 || 0);
       else if (activeFilter === 'HIGH_DIVIDEND') matchPreset = stock.dividendYield >= 8.0;
       else if (activeFilter === 'OVERSOLD') matchPreset = stock.technicals?.rsi14 < 35;
-      else if (activeFilter === 'GAINERS') matchPreset = stock.changePercent > 0;
-      else if (activeFilter === 'LOSERS') matchPreset = stock.changePercent < 0;
 
-      return matchQuery && matchSector && matchPreset;
+      // 4. Market View (High Volume / Gainers / Losers / Upper Lock / Lower Lock)
+      let matchMarketView = true;
+      const chgPct = Number(stock.changePercent || 0);
+      const vol = Number(stock.volume || 0);
+
+      if (marketView === 'HIGH_VOLUME') {
+        matchMarketView = vol > 10000;
+      } else if (marketView === 'TOP_GAINERS') {
+        matchMarketView = chgPct > 0;
+      } else if (marketView === 'TOP_LOSERS') {
+        matchMarketView = chgPct < 0;
+      } else if (marketView === 'UPPER_LOCK') {
+        matchMarketView = chgPct >= 7.45;
+      } else if (marketView === 'LOWER_LOCK') {
+        matchMarketView = chgPct <= -7.45;
+      }
+
+      return matchQuery && matchSector && matchPreset && matchMarketView;
     });
-  }, [stocks, searchTerm, selectedSector, activeFilter]);
+  }, [stocks, searchTerm, selectedSector, activeFilter, marketView]);
 
   // Sorting
   const sortedStocks = useMemo(() => {
     return [...filteredStocks].sort((a, b) => {
+      // If a specific marketView is active and sortField is default volume, prioritize view's natural sorting
+      if (marketView === 'HIGH_VOLUME' && sortField === 'volume') {
+        return (Number(b.volume) || 0) - (Number(a.volume) || 0);
+      }
+      if (marketView === 'TOP_GAINERS' && sortField === 'volume') {
+        return (Number(b.changePercent) || 0) - (Number(a.changePercent) || 0);
+      }
+      if (marketView === 'TOP_LOSERS' && sortField === 'volume') {
+        return (Number(a.changePercent) || 0) - (Number(b.changePercent) || 0);
+      }
+      if (marketView === 'UPPER_LOCK' && sortField === 'volume') {
+        return (Number(b.changePercent) || 0) - (Number(a.changePercent) || 0) || (Number(b.volume) || 0) - (Number(a.volume) || 0);
+      }
+      if (marketView === 'LOWER_LOCK' && sortField === 'volume') {
+        return (Number(a.changePercent) || 0) - (Number(b.changePercent) || 0) || (Number(b.volume) || 0) - (Number(a.volume) || 0);
+      }
+
       let aVal = a[sortField];
       let bVal = b[sortField];
 
@@ -85,7 +118,7 @@ export default function StockScreenerTable({
       bVal = bVal || 0;
       return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
     });
-  }, [filteredStocks, sortField, sortOrder]);
+  }, [filteredStocks, sortField, sortOrder, marketView]);
 
   // Pagination
   const totalPages = Math.ceil(sortedStocks.length / pageSize) || 1;
@@ -196,22 +229,45 @@ export default function StockScreenerTable({
           </button>
         </div>
 
-        {/* Sector Select Dropdown */}
-        <div className="flex items-center space-x-2">
-          <Filter className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-          <select
-            value={selectedSector}
-            onChange={(e) => {
-              setSelectedSector(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="bg-[#070B12] border border-cyan-900/60 rounded-xl px-3 py-1.5 text-white font-medium text-xs focus:outline-none focus:border-cyan-400 max-w-[240px]"
-          >
-            <option value="ALL">All Sectors (39 Sectors)</option>
-            {sectors.filter(s => s !== 'ALL').map(sec => (
-              <option key={sec} value={sec}>{sec}</option>
-            ))}
-          </select>
+        {/* Dropdowns Row: Market Movers & Sector */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Market Movers & Circuit Breakers Dropdown */}
+          <div className="flex items-center space-x-1.5 bg-[#070B12] border border-cyan-500/50 hover:border-cyan-400 rounded-xl px-2.5 py-1.5 text-xs shadow-lg shadow-cyan-500/5 transition-all">
+            <Zap className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            <select
+              value={marketView}
+              onChange={(e) => {
+                setMarketView(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="bg-transparent text-cyan-300 font-extrabold text-xs focus:outline-none cursor-pointer pr-1"
+            >
+              <option value="ALL" className="bg-[#070B12] text-white">📊 All Market Stocks</option>
+              <option value="HIGH_VOLUME" className="bg-[#070B12] text-cyan-400">🔥 High Volume Leaders</option>
+              <option value="TOP_GAINERS" className="bg-[#070B12] text-emerald-400">🚀 Top Gainers</option>
+              <option value="TOP_LOSERS" className="bg-[#070B12] text-rose-400">🔻 Top Losers</option>
+              <option value="UPPER_LOCK" className="bg-[#070B12] text-emerald-300 font-bold">🟢 Upper Lock (+7.5% to +10%)</option>
+              <option value="LOWER_LOCK" className="bg-[#070B12] text-rose-300 font-bold">🔴 Lower Lock (-7.5% to -10%)</option>
+            </select>
+          </div>
+
+          {/* Sector Select Dropdown */}
+          <div className="flex items-center space-x-1.5 bg-[#070B12] border border-gray-800 rounded-xl px-2.5 py-1.5 text-xs">
+            <Filter className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+            <select
+              value={selectedSector}
+              onChange={(e) => {
+                setSelectedSector(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="bg-transparent text-gray-200 font-medium text-xs focus:outline-none cursor-pointer max-w-[200px]"
+            >
+              <option value="ALL" className="bg-[#070B12] text-white">All Sectors (39 Sectors)</option>
+              {sectors.filter(s => s !== 'ALL').map(sec => (
+                <option key={sec} value={sec} className="bg-[#070B12] text-gray-200">{sec}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -326,17 +382,31 @@ export default function StockScreenerTable({
                       PKR {stock.currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
 
-                    {/* Change % */}
+                    {/* Change % & Lock Indicator */}
                     <td className="py-2.5 px-3 font-extrabold mono text-xs">
-                      <span className={`flex items-center ${isPos ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {isPos ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
-                        {isPos ? '+' : ''}{stock.changePercent.toFixed(2)}%
-                      </span>
+                      <div className="flex items-center space-x-1.5">
+                        <span className={`flex items-center ${isPos ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {isPos ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
+                          {isPos ? '+' : ''}{stock.changePercent.toFixed(2)}%
+                        </span>
+                        {stock.changePercent >= 7.45 && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-extrabold shrink-0">
+                            UPPER LOCK
+                          </span>
+                        )}
+                        {stock.changePercent <= -7.45 && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 font-extrabold shrink-0">
+                            LOWER LOCK
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Volume */}
-                    <td className="py-2.5 px-3 text-gray-300 mono text-xs">
-                      {(stock.volume / 1000000).toFixed(2)}M
+                    <td className="py-2.5 px-3 text-gray-300 mono text-xs font-semibold">
+                      {stock.volume >= 1000000 
+                        ? `${(stock.volume / 1000000).toFixed(2)}M` 
+                        : (stock.volume ? stock.volume.toLocaleString() : '0')}
                     </td>
 
                     {/* RSI */}
