@@ -289,9 +289,19 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(() => {
+    try {
+      return (
+        window.location.pathname.toLowerCase() === '/admin' || 
+        window.location.hash.toLowerCase() === '#admin' || 
+        window.location.search.includes('admin=true')
+      );
+    } catch (e) {
+      return false;
+    }
+  });
 
-  // Verify auth session with backend on load
+  // Verify auth session with backend on load & auto-open auth modal if visiting /admin as guest
   useEffect(() => {
     const verifySession = async () => {
       const token = localStorage.getItem('psx_auth_token');
@@ -305,14 +315,20 @@ export default function App() {
         } catch (err) {
           console.warn('Session verification failed:', err.message);
         }
+      } else if (isAdminOpen) {
+        setIsAuthModalOpen(true);
+        setAuthModalMode('login');
       }
     };
     verifySession();
-  }, []);
+  }, [isAdminOpen]);
 
   const handleAuthSuccess = (user) => {
     setCurrentUser(user);
     showToast(`Welcome, ${user.name}!`);
+    if (isAdminOpen && user.role !== 'ADMIN') {
+      showToast('You are logged in, but this account does not have Admin privileges.');
+    }
   };
 
   const handleLogout = () => {
