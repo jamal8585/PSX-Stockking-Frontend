@@ -473,6 +473,10 @@ export default function App() {
     localStorage.removeItem('psx_watchlist_guest_default');
     localStorage.removeItem('psx_portfolio_positions_guest_default');
     localStorage.removeItem('psx_closed_trades_guest');
+    localStorage.removeItem('psx_user_watchlist_v1');
+    localStorage.removeItem('psx_user_portfolio_positions_v1');
+    localStorage.removeItem('psx_user_watchlist');
+    localStorage.removeItem('psx_watchlist');
 
     setCurrentUser(null);
     setIsAdminOpen(false);
@@ -600,15 +604,6 @@ export default function App() {
       }
       if (r.status === 'fulfilled' && r.value?.success) setRecommendations(r.value);
       if (n.status === 'fulfilled' && n.value?.success) setNews(n.value.data);
-      // Only seed initial watchlist from server if user has no saved watchlist in localStorage
-      if (w.status === 'fulfilled' && w.value?.success && Array.isArray(w.value.data) && w.value.data.length > 0) {
-        const localSaved = localStorage.getItem(WATCHLIST_STORAGE_KEY);
-        if (!localSaved) {
-          setWatchlist(w.value.data);
-          setWatchlistSet(new Set(w.value.data.map(item => (item.symbol || item).toUpperCase())));
-          localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(w.value.data));
-        }
-      }
 
       if (!silent) {
         setCountdown(AUTO_SYNC_SECONDS);
@@ -704,7 +699,9 @@ export default function App() {
 
       setWatchlist(updated);
       setWatchlistSet(new Set(updated.map(w => (typeof w === 'string' ? w : w.symbol).toUpperCase())));
-      localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(updated));
+      
+      const key = getUserStorageKey('psx_watchlist', currentUser);
+      localStorage.setItem(key, JSON.stringify(updated));
 
       // Background sync with server
       toggleWatchlist(sym).catch(() => {});
