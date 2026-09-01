@@ -330,6 +330,15 @@ export default function App() {
 
   const [portfolioData, setPortfolioData] = useState({ summary: {}, positions: [] });
   
+  // Persistent Watchlist Storage Sync (Guarantees watchlist persists across page reloads)
+  useEffect(() => {
+    try {
+      if (Array.isArray(watchlist)) {
+        localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(watchlist));
+      }
+    } catch (e) {}
+  }, [watchlist]);
+
   const [selectedStock, setSelectedStock] = useState(null);
   const [calcStock, setCalcStock] = useState(null);
   const [dayTradeStock, setDayTradeStock] = useState(null);
@@ -515,10 +524,15 @@ export default function App() {
         setStocks(mergeWithOfficialQuotes(s.value.data));
       }
       if (r.status === 'fulfilled' && r.value?.success) setRecommendations(r.value);
+      if (n.status === 'fulfilled' && n.value?.success) setNews(n.value.data);
+      // Only seed initial watchlist from server if user has no saved watchlist in localStorage
       if (w.status === 'fulfilled' && w.value?.success && Array.isArray(w.value.data) && w.value.data.length > 0) {
-        setWatchlist(w.value.data);
-        setWatchlistSet(new Set(w.value.data.map(item => (item.symbol || item).toUpperCase())));
-        localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(w.value.data));
+        const localSaved = localStorage.getItem(WATCHLIST_STORAGE_KEY);
+        if (!localSaved) {
+          setWatchlist(w.value.data);
+          setWatchlistSet(new Set(w.value.data.map(item => (item.symbol || item).toUpperCase())));
+          localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(w.value.data));
+        }
       }
 
       if (!silent) {
