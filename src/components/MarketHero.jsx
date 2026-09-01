@@ -15,12 +15,12 @@ const DEFAULT_SECTORS = [
 export default function MarketHero({ marketSummary }) {
   const [viewAllSectors, setViewAllSectors] = useState(false);
 
-  const rawVal = marketSummary?.currentValue || marketSummary?.current || 177783.65;
+  const rawVal = marketSummary?.currentValue || marketSummary?.current || 176688.42;
   const currentValue = Number(rawVal);
-  const change = marketSummary?.change !== undefined ? Number(marketSummary.change) : 807.98;
-  const changePercent = marketSummary?.changePercent !== undefined ? Number(marketSummary.changePercent) : 0.46;
-  const high = Number(marketSummary?.high || 177783.65);
-  const low = Number(marketSummary?.low || 177353.62);
+  const change = marketSummary?.change !== undefined ? Number(marketSummary.change) : -287.25;
+  const changePercent = marketSummary?.changePercent !== undefined ? Number(marketSummary.changePercent) : -0.16;
+  const high = Number(marketSummary?.high || 177800.28);
+  const low = Number(marketSummary?.low || 176688.42);
   const indexName = marketSummary?.indexName || 'KSE-100';
   const advances = marketSummary?.advances !== undefined ? marketSummary.advances : 468;
   const declines = marketSummary?.declines !== undefined ? marketSummary.declines : 267;

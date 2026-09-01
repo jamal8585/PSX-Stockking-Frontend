@@ -1,7 +1,15 @@
 
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const getBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (typeof window !== 'undefined' && (window.location.hostname.includes('vercel.app') || window.location.hostname !== 'localhost')) {
+    return 'https://psx-stockking-backend.vercel.app/api';
+  }
+  return '/api';
+};
+
+const API_BASE_URL = getBaseUrl();
 
 const API = axios.create({
   baseURL: API_BASE_URL,
