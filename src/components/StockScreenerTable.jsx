@@ -12,13 +12,15 @@ import {
   ChevronRight,
   Sparkles,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Zap
 } from 'lucide-react';
 
 export default function StockScreenerTable({
   stocks = [],
   onSelectStock,
   onOpenCalculator,
+  onOpenDayTrade,
   onToggleWatchlist,
   watchlistSet = new Set()
 }) {
@@ -356,15 +358,22 @@ export default function StockScreenerTable({
                     <td className="py-2.5 px-3 text-center">
                       <div className="flex items-center justify-center space-x-1.5">
                         <button
+                          onClick={() => onOpenDayTrade && onOpenDayTrade(stock)}
+                          className="p-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500 hover:text-black text-cyan-400 transition-all cursor-pointer shadow-sm shadow-cyan-500/20"
+                          title="💡 Today's Live Day Trade Suggestion & Setup"
+                        >
+                          <Zap className="w-3.5 h-3.5" />
+                        </button>
+                        <button
                           onClick={() => onOpenCalculator(stock)}
-                          className="p-1.5 rounded-lg bg-gray-800 hover:bg-cyan-500 hover:text-black text-gray-300 transition-colors"
+                          className="p-1.5 rounded-lg bg-gray-800 hover:bg-cyan-500 hover:text-black text-gray-300 transition-colors cursor-pointer"
                           title="Open Position Sizer & Risk Calculator"
                         >
                           <Calculator className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => onSelectStock(stock.symbol)}
-                          className="p-1.5 rounded-lg bg-gray-800 hover:bg-cyan-500 hover:text-black text-gray-300 transition-colors"
+                          className="p-1.5 rounded-lg bg-gray-800 hover:bg-cyan-500 hover:text-black text-gray-300 transition-colors cursor-pointer"
                           title="Open Full Technical Chart"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />

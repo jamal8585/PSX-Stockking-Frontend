@@ -9,6 +9,7 @@ import StockScreenerTable from './components/StockScreenerTable';
 import StockDetailModal from './components/StockDetailModal';
 import DarsonOrderCalculatorModal from './components/DarsonOrderCalculatorModal';
 import WatchlistModal from './components/WatchlistModal';
+import DayTradeSuggestionModal from './components/DayTradeSuggestionModal';
 
 import {
   getMarketSummary,
@@ -191,6 +192,7 @@ export default function App() {
   
   const [selectedStock, setSelectedStock] = useState(null);
   const [calcStock, setCalcStock] = useState(null);
+  const [dayTradeStock, setDayTradeStock] = useState(null);
   const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
@@ -451,6 +453,7 @@ export default function App() {
             stocks={stocks}
             onSelectStock={handleSelectStock}
             onOpenCalculator={setCalcStock}
+            onOpenDayTrade={setDayTradeStock}
             onToggleWatchlist={handleToggleWatchlist}
             watchlistSet={watchlistSet}
           />
@@ -469,6 +472,15 @@ export default function App() {
         <StockDetailModal
           stock={selectedStock}
           onClose={() => setSelectedStock(null)}
+          onOpenCalculator={setCalcStock}
+        />
+      )}
+
+      {dayTradeStock && (
+        <DayTradeSuggestionModal
+          stock={dayTradeStock}
+          onClose={() => setDayTradeStock(null)}
+          onOpenChart={handleSelectStock}
           onOpenCalculator={setCalcStock}
         />
       )}
