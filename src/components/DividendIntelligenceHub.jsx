@@ -577,26 +577,32 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
                   </div>
                 </div>
 
-                {/* Sleek, Beautiful Redesigned Action Buttons */}
-                <div className="flex items-center space-x-2 pt-3 border-t border-[#E2E8F0] dark:border-[#243044]">
-                  {/* Primary Calculator Action: Stylish Amber/Gold Gradient Pill */}
-                  <button
-                    onClick={() => handleLoadCalculator(item)}
-                    className="flex-1 py-2.5 px-4 rounded-lg bg-gradient-to-r from-[#D97706] to-[#B45309] hover:from-[#B45309] hover:to-[#92400E] dark:from-[#F59E0B] dark:to-[#D97706] dark:hover:from-[#FBBF24] dark:hover:to-[#F59E0B] text-white dark:text-black font-bold text-xs flex items-center justify-center space-x-2 shadow-sm hover:shadow-md transition-all cursor-pointer"
-                  >
-                    <Calculator className="w-4 h-4 stroke-[2.5]" />
-                    <span>Calculate Net Dividend</span>
-                  </button>
+                {/* Compact, Sleek & Elegant Action Buttons */}
+                <div className="flex items-center justify-between pt-2.5 border-t border-[#E2E8F0] dark:border-[#243044]">
+                  <div className="text-[11px] text-[#64748B] dark:text-[#94A3B8] flex items-center space-x-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#16A34A] dark:bg-[#22C55E] inline-block animate-pulse"></span>
+                    <span className="font-medium">Active Announcement</span>
+                  </div>
 
-                  {/* Secondary Intel Action: Sleek Ghost Pill */}
-                  <button
-                    onClick={() => onSelectStock && onSelectStock(item.symbol)}
-                    className="py-2.5 px-4 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] hover:bg-[#2563EB] hover:text-white dark:hover:bg-[#3B82F6] dark:hover:text-white text-[#64748B] dark:text-[#94A3B8] text-xs font-bold flex items-center justify-center space-x-1.5 border border-[#E2E8F0] dark:border-[#243044] hover:border-transparent transition-all cursor-pointer shadow-xs"
-                    title="Open Technical Chart & Fundamentals"
-                  >
-                    <span>View Intel</span>
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => handleLoadCalculator(item)}
+                      className="py-1.5 px-3 rounded-lg bg-[#2563EB]/10 hover:bg-[#2563EB] text-[#2563EB] hover:text-white dark:bg-[#3B82F6]/10 dark:hover:bg-[#3B82F6] dark:text-[#3B82F6] dark:hover:text-white border border-[#2563EB]/25 dark:border-[#3B82F6]/25 font-bold text-xs flex items-center space-x-1.5 transition-all cursor-pointer shadow-xs"
+                      title="Calculate Net Cash Dividend"
+                    >
+                      <Calculator className="w-3.5 h-3.5" />
+                      <span>Calculate</span>
+                    </button>
+
+                    <button
+                      onClick={() => onSelectStock && onSelectStock(item.symbol)}
+                      className="py-1.5 px-2.5 rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] hover:bg-[#E2E8F0] dark:hover:bg-[#243044] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] text-xs font-semibold flex items-center space-x-1 border border-[#E2E8F0] dark:border-[#243044] transition-all cursor-pointer"
+                      title="Open Technical Chart & Intel"
+                    >
+                      <span>Intel</span>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             );
