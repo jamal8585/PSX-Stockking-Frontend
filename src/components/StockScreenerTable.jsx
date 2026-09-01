@@ -13,8 +13,33 @@ import {
   Sparkles,
   TrendingUp,
   TrendingDown,
-  Zap
+  Zap,
+  Layers
 } from 'lucide-react';
+
+const KMI30_SET = new Set([
+  'MEBL', 'HUBC', 'ENGRO', 'FFC', 'EFERT', 'LUCK', 'OGDC', 'PPL', 'MARI', 'POL', 
+  'PSO', 'SYS', 'MLCF', 'DGKC', 'SEARL', 'INDU', 'MTL', 'MUGHAL', 'ISL', 'INIL', 
+  'AGP', 'ABOT', 'CHCC', 'SNGP', 'ATRL', 'PRL', 'CNERGY', 'TOMCL', 'ILP', 'FATIMA'
+]);
+
+const KSE30_SET = new Set([
+  'OGDC', 'PPL', 'MARI', 'POL', 'PSO', 'ENGRO', 'FFC', 'EFERT', 'LUCK', 'MEBL', 
+  'MCB', 'HBL', 'UBL', 'HUBC', 'SYS', 'INDU', 'MTL', 'DGKC', 'MLCF', 'CHCC', 
+  'PRL', 'ATRL', 'BAFL', 'BAHL', 'NBP', 'KAPCO', 'SEARL', 'ABOT', 'INIL', 'TRG'
+]);
+
+const OGTI_SET = new Set([
+  'OGDC', 'PPL', 'MARI', 'POL', 'PSO', 'SNGP', 'SSGC', 'PRL', 'ATRL', 'NRL', 'CNERGY', 'HTL', 'SHEL'
+]);
+
+const BKTI_SET = new Set([
+  'MEBL', 'MCB', 'HBL', 'UBL', 'BAFL', 'BAHL', 'NBP', 'BOP', 'BIPL', 'AKBL', 'SNBL', 'JSBL', 'FABL', 'SCBPL'
+]);
+
+const NON_SHARIAH_SECTORS = new Set([
+  'commercial banks', 'investment banks/inv.cos./securities cos.', 'modarabas', 'leasing companies', 'insurance'
+]);
 
 export default function StockScreenerTable({
   stocks = [],
@@ -26,6 +51,7 @@ export default function StockScreenerTable({
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSector, setSelectedSector] = useState('ALL');
+  const [selectedIndex, setSelectedIndex] = useState('ALL');
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [marketView, setMarketView] = useState('ALL');
   const [sortField, setSortField] = useState('volume');
@@ -78,9 +104,28 @@ export default function StockScreenerTable({
         matchMarketView = chgPct <= -7.45;
       }
 
-      return matchQuery && matchSector && matchPreset && matchMarketView;
+      // 5. PSX Index Filter (KSE-100, KMI-30, KSE-30, KMI-All, OGTI, BKTI)
+      let matchIndex = true;
+      const symUpper = stock.symbol.toUpperCase().trim();
+      const secLower = (stock.sector || '').toLowerCase().trim();
+
+      if (selectedIndex === 'KSE100') {
+        matchIndex = stock.isKse100 || (stock.indices && stock.indices.includes('KSE100'));
+      } else if (selectedIndex === 'KMI30') {
+        matchIndex = KMI30_SET.has(symUpper) || (stock.indices && stock.indices.includes('KMI30'));
+      } else if (selectedIndex === 'KSE30') {
+        matchIndex = KSE30_SET.has(symUpper) || (stock.indices && stock.indices.includes('KSE30'));
+      } else if (selectedIndex === 'KMIALL') {
+        matchIndex = !NON_SHARIAH_SECTORS.has(secLower);
+      } else if (selectedIndex === 'OGTI') {
+        matchIndex = OGTI_SET.has(symUpper) || secLower.includes('oil') || secLower.includes('refinery');
+      } else if (selectedIndex === 'BKTI') {
+        matchIndex = BKTI_SET.has(symUpper) || secLower.includes('bank');
+      }
+
+      return matchQuery && matchSector && matchPreset && matchMarketView && matchIndex;
     });
-  }, [stocks, searchTerm, selectedSector, activeFilter, marketView]);
+  }, [stocks, searchTerm, selectedSector, activeFilter, marketView, selectedIndex]);
 
   // Sorting
   const sortedStocks = useMemo(() => {
@@ -229,9 +274,30 @@ export default function StockScreenerTable({
           </button>
         </div>
 
-        {/* Dropdowns Row: Market Movers & Sector */}
+        {/* Dropdowns Row: Index Filter, Market Movers & Sector */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Market Movers & Circuit Breakers Dropdown */}
+          {/* 1. PSX Index Filter Dropdown */}
+          <div className="flex items-center space-x-1.5 bg-[#070B12] border border-cyan-500/50 hover:border-cyan-400 rounded-xl px-2.5 py-1.5 text-xs shadow-lg shadow-cyan-500/5 transition-all">
+            <Layers className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            <select
+              value={selectedIndex}
+              onChange={(e) => {
+                setSelectedIndex(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="bg-transparent text-cyan-300 font-extrabold text-xs focus:outline-none cursor-pointer pr-1"
+            >
+              <option value="ALL" className="bg-[#070B12] text-white">🏛️ All PSX Indices</option>
+              <option value="KSE100" className="bg-[#070B12] text-cyan-400">📈 KSE-100 Benchmark</option>
+              <option value="KMI30" className="bg-[#070B12] text-emerald-400">🕌 KMI-30 Islamic Shariah</option>
+              <option value="KSE30" className="bg-[#070B12] text-teal-300">💎 KSE-30 Top 30 Bluechips</option>
+              <option value="KMIALL" className="bg-[#070B12] text-emerald-300">🌙 PSX KMI All-Shares</option>
+              <option value="OGTI" className="bg-[#070B12] text-amber-300">🛢️ OGTI Oil & Gas Index</option>
+              <option value="BKTI" className="bg-[#070B12] text-purple-300">🏦 BKTI Banking Sector Index</option>
+            </select>
+          </div>
+
+          {/* 2. Market Movers & Circuit Breakers Dropdown */}
           <div className="flex items-center space-x-1.5 bg-[#070B12] border border-cyan-500/50 hover:border-cyan-400 rounded-xl px-2.5 py-1.5 text-xs shadow-lg shadow-cyan-500/5 transition-all">
             <Zap className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
             <select
@@ -242,7 +308,7 @@ export default function StockScreenerTable({
               }}
               className="bg-transparent text-cyan-300 font-extrabold text-xs focus:outline-none cursor-pointer pr-1"
             >
-              <option value="ALL" className="bg-[#070B12] text-white">📊 All Market Stocks</option>
+              <option value="ALL" className="bg-[#070B12] text-white">📊 All Market Movers</option>
               <option value="HIGH_VOLUME" className="bg-[#070B12] text-cyan-400">🔥 High Volume Leaders</option>
               <option value="TOP_GAINERS" className="bg-[#070B12] text-emerald-400">🚀 Top Gainers</option>
               <option value="TOP_LOSERS" className="bg-[#070B12] text-rose-400">🔻 Top Losers</option>
@@ -251,7 +317,7 @@ export default function StockScreenerTable({
             </select>
           </div>
 
-          {/* Sector Select Dropdown */}
+          {/* 3. Sector Select Dropdown */}
           <div className="flex items-center space-x-1.5 bg-[#070B12] border border-gray-800 rounded-xl px-2.5 py-1.5 text-xs">
             <Filter className="w-3.5 h-3.5 text-gray-400 shrink-0" />
             <select
@@ -329,6 +395,7 @@ export default function StockScreenerTable({
                 const isPos = stock.changePercent >= 0;
                 const isWatch = watchlistSet.has(stock.symbol);
                 const rsi = stock.technicals?.rsi14 || 50;
+                const symUpper = (stock.symbol || '').toUpperCase().trim();
 
                 return (
                   <tr 
@@ -350,7 +417,7 @@ export default function StockScreenerTable({
                           )}
                         </button>
                         <div>
-                          <div className="flex items-center space-x-1.5">
+                          <div className="flex items-center space-x-1.5 flex-wrap gap-1">
                             <span 
                               onClick={() => onSelectStock(stock.symbol)}
                               className="font-extrabold text-white mono hover:text-cyan-400 cursor-pointer text-sm"
@@ -360,6 +427,11 @@ export default function StockScreenerTable({
                             {stock.isKse100 && (
                               <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-400 border border-cyan-800 font-bold">
                                 KSE-100
+                              </span>
+                            )}
+                            {KMI30_SET.has(symUpper) && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">
+                                KMI-30
                               </span>
                             )}
                           </div>
