@@ -1,5 +1,17 @@
-﻿import React, { useState } from 'react';
-import { X, Crown, CheckCircle2, Zap, ArrowRight, ShieldCheck, CreditCard, AlertCircle, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
+import { 
+  X, 
+  Crown, 
+  CheckCircle2, 
+  ArrowRight, 
+  ShieldCheck, 
+  CreditCard, 
+  AlertCircle, 
+  Sparkles,
+  Copy,
+  Check,
+  Smartphone
+} from 'lucide-react';
 import { submitUpgradeProof } from '../services/api';
 
 export default function ProUpgradeModal({ isOpen, onClose, user, onAuthRequired, onUpgradeSubmitted }) {
@@ -11,6 +23,7 @@ export default function ProUpgradeModal({ isOpen, onClose, user, onAuthRequired,
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(null);
 
   if (!isOpen) return null;
 
@@ -23,6 +36,12 @@ export default function ProUpgradeModal({ isOpen, onClose, user, onAuthRequired,
   const handlePlanSelect = (p) => {
     setSelectedPlan(p.id);
     setAmount(p.val);
+  };
+
+  const copyToClipboard = (text, key) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2500);
   };
 
   const handleSubmitProof = async (e) => {
@@ -61,64 +80,64 @@ export default function ProUpgradeModal({ isOpen, onClose, user, onAuthRequired,
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md overflow-y-auto">
-      <div className="bg-gradient-to-b from-[#0F172A] via-[#0A0F1D] to-[#04070D] border border-amber-500/40 rounded-3xl w-full max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl p-6 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl w-full max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl p-6 relative transition-all text-[#0F172A] dark:text-[#F8FAFC]">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-xl bg-gray-800/80 text-gray-400 hover:text-white hover:bg-gray-700 cursor-pointer transition-colors z-10"
+          className="absolute top-5 right-5 p-2 rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] cursor-pointer transition-colors z-10"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Modal Header */}
         <div className="text-center mb-6 pt-2">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-3xl bg-gradient-to-br from-amber-400 to-amber-600 text-black mb-3 shadow-lg shadow-amber-500/30">
-            <Crown className="w-8 h-8" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-[#D97706]/10 dark:bg-[#F59E0B]/10 border border-[#D97706]/20 dark:border-[#F59E0B]/20 text-[#D97706] dark:text-[#F59E0B] mb-3 shadow-sm">
+            <Crown className="w-8 h-8 stroke-[2.5]" />
           </div>
-          <h2 className="text-2xl font-black text-white tracking-tight">
-            Upgrade to <span className="bg-gradient-to-r from-amber-300 via-amber-400 to-yellow-500 bg-clip-text text-transparent">PSX Stockking PRO VIP</span>
+          <h2 className="text-2xl font-bold tracking-tight">
+            Upgrade to <span className="text-[#D97706] dark:text-[#F59E0B]">PSX Stockking PRO VIP</span>
           </h2>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
             Unlock algorithmic AI signals, live candlestick technicals, high-gain setups & automated risk position sizing
           </p>
         </div>
 
         {/* Pro Benefits Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-6">
-          <div className="flex items-start space-x-2.5 bg-[#070B12] p-3 rounded-2xl border border-gray-800/80">
-            <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <div className="flex items-start space-x-2.5 bg-[#F8FAFC] dark:bg-[#0B0F19] p-3 rounded-lg border border-[#E2E8F0] dark:border-[#243044]">
+            <CheckCircle2 className="w-4 h-4 text-[#16A34A] dark:text-[#22C55E] shrink-0 mt-0.5" />
             <div>
-              <span className="text-xs font-bold text-white block">🤖 Daily AI Buy/Sell Signals</span>
-              <span className="text-[11px] text-gray-400">High-confidence setups with exact entry zones, Target 1 & 2.</span>
+              <span className="text-xs font-bold block">🤖 Daily AI Buy/Sell Signals</span>
+              <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">High-confidence setups with exact entry zones, Target 1 & 2.</span>
             </div>
           </div>
-          <div className="flex items-start space-x-2.5 bg-[#070B12] p-3 rounded-2xl border border-gray-800/80">
-            <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <div className="flex items-start space-x-2.5 bg-[#F8FAFC] dark:bg-[#0B0F19] p-3 rounded-lg border border-[#E2E8F0] dark:border-[#243044]">
+            <CheckCircle2 className="w-4 h-4 text-[#16A34A] dark:text-[#22C55E] shrink-0 mt-0.5" />
             <div>
-              <span className="text-xs font-bold text-white block">🕯️ Japanese Candlestick (OHLC)</span>
-              <span className="text-[11px] text-gray-400">Real OHLC candles, Volume sub-chart & 20-Day EMA overlays.</span>
+              <span className="text-xs font-bold block">🕯️ Japanese Candlestick (OHLC)</span>
+              <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">Real OHLC candles, Volume sub-chart & 20-Day EMA overlays.</span>
             </div>
           </div>
-          <div className="flex items-start space-x-2.5 bg-[#070B12] p-3 rounded-2xl border border-gray-800/80">
-            <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <div className="flex items-start space-x-2.5 bg-[#F8FAFC] dark:bg-[#0B0F19] p-3 rounded-lg border border-[#E2E8F0] dark:border-[#243044]">
+            <CheckCircle2 className="w-4 h-4 text-[#16A34A] dark:text-[#22C55E] shrink-0 mt-0.5" />
             <div>
-              <span className="text-xs font-bold text-white block">💡 Day Trade Suggestions</span>
-              <span className="text-[11px] text-gray-400">Live news catalysts with "Why We Give This Advice (Easy English)".</span>
+              <span className="text-xs font-bold block">💡 Day Trade Suggestions</span>
+              <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">Live news catalysts with fundamental advice in easy English/Urdu.</span>
             </div>
           </div>
-          <div className="flex items-start space-x-2.5 bg-[#070B12] p-3 rounded-2xl border border-gray-800/80">
-            <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <div className="flex items-start space-x-2.5 bg-[#F8FAFC] dark:bg-[#0B0F19] p-3 rounded-lg border border-[#E2E8F0] dark:border-[#243044]">
+            <CheckCircle2 className="w-4 h-4 text-[#16A34A] dark:text-[#22C55E] shrink-0 mt-0.5" />
             <div>
-              <span className="text-xs font-bold text-white block">🧮 1-Click Broker Order Planner</span>
-              <span className="text-[11px] text-gray-400">Auto position sizing, risk/gain PKR & 1-click broker order copy.</span>
+              <span className="text-xs font-bold block">🧮 1-Click Broker Order Planner</span>
+              <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">Auto position sizing, risk/gain PKR & 1-click broker order copy.</span>
             </div>
           </div>
         </div>
 
         {/* Pricing Options */}
         <div className="mb-6">
-          <span className="text-[11px] uppercase font-bold text-gray-400 block mb-2">
+          <span className="text-[11px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] block mb-2">
             Select Subscription Plan:
           </span>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -126,129 +145,167 @@ export default function ProUpgradeModal({ isOpen, onClose, user, onAuthRequired,
               <div
                 key={p.id}
                 onClick={() => handlePlanSelect(p)}
-                className={`p-3.5 rounded-2xl border cursor-pointer transition-all text-center relative ${
+                className={`p-3.5 rounded-lg border cursor-pointer transition-all text-center relative ${
                   selectedPlan === p.id 
-                    ? 'bg-amber-500/10 border-amber-500 shadow-md shadow-amber-500/20' 
-                    : 'bg-[#070B12] border-gray-800 hover:border-gray-700'
+                    ? 'bg-[#D97706]/10 dark:bg-[#F59E0B]/10 border-[#D97706] dark:border-[#F59E0B] shadow-sm' 
+                    : 'bg-[#F8FAFC] dark:bg-[#0B0F19] border-[#E2E8F0] dark:border-[#243044] hover:border-[#D97706]/50'
                 }`}
               >
                 {selectedPlan === p.id && (
-                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-amber-400 text-black text-[9px] font-black px-2 py-0.5 rounded-full uppercase">
+                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-[#D97706] dark:bg-[#F59E0B] text-white dark:text-black text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
                     Selected
                   </span>
                 )}
-                <span className="text-xs font-bold text-white block mt-1">{p.name}</span>
-                <span className="text-base font-black text-amber-400 block mono my-1">{p.price}</span>
-                <span className="text-[10px] text-gray-400 block font-medium">{p.tag}</span>
+                <span className="text-xs font-bold block mt-1">{p.name}</span>
+                <span className="text-base font-black text-[#D97706] dark:text-[#F59E0B] block mono my-1">{p.price}</span>
+                <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] block font-medium">{p.tag}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Payment Account Details */}
-        <div className="bg-[#070B12] rounded-2xl p-4 border border-gray-800 mb-6 space-y-3">
-          <div className="flex items-center space-x-2 text-xs font-bold text-amber-400">
+        {/* Official Pakistan Payment Accounts Box */}
+        <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-4 border border-[#E2E8F0] dark:border-[#243044] mb-6 space-y-3">
+          <div className="flex items-center space-x-2 text-xs font-bold text-[#D97706] dark:text-[#F59E0B]">
             <CreditCard className="w-4 h-4" />
             <span>Official Pakistan Payment Accounts:</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-            <div className="bg-gray-900/80 p-3 rounded-xl border border-gray-800">
-              <span className="text-[10px] text-emerald-400 font-bold block">🟢 EasyPaisa</span>
-              <span className="font-extrabold text-white mono block">0300-1234567</span>
-              <span className="text-[10px] text-gray-400 block">Title: PSX Stockking</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            {/* 1. EasyPaisa Card */}
+            <div className="bg-[#FFFFFF] dark:bg-[#151E2E] p-3.5 rounded-lg border border-[#16A34A]/30 dark:border-[#22C55E]/30 flex flex-col justify-between space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#16A34A] dark:text-[#22C55E] flex items-center">
+                  <Smartphone className="w-3.5 h-3.5 mr-1" /> 🟢 EasyPaisa
+                </span>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard('03452831413', 'ep')}
+                  className="p-1 px-2 rounded-md bg-[#16A34A]/10 text-[#16A34A] dark:bg-[#22C55E]/10 dark:text-[#22C55E] hover:bg-[#16A34A] hover:text-white dark:hover:bg-[#22C55E] dark:hover:text-black text-[10px] font-bold flex items-center space-x-1 cursor-pointer transition-colors"
+                >
+                  {copiedKey === 'ep' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedKey === 'ep' ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
+              <div>
+                <span className="text-base font-black mono text-[#0F172A] dark:text-[#F8FAFC] block tracking-wide">
+                  0345-2831413
+                </span>
+                <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] block mt-0.5">
+                  Account / Mobile Wallet
+                </span>
+              </div>
             </div>
-            <div className="bg-gray-900/80 p-3 rounded-xl border border-gray-800">
-              <span className="text-[10px] text-rose-400 font-bold block">🔴 JazzCash</span>
-              <span className="font-extrabold text-white mono block">0300-1234567</span>
-              <span className="text-[10px] text-gray-400 block">Title: PSX Stockking</span>
+
+            {/* 2. JazzCash Card */}
+            <div className="bg-[#FFFFFF] dark:bg-[#151E2E] p-3.5 rounded-lg border border-[#DC2626]/30 dark:border-[#EF4444]/30 flex flex-col justify-between space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#DC2626] dark:text-[#EF4444] flex items-center">
+                  <Smartphone className="w-3.5 h-3.5 mr-1" /> 🔴 JazzCash
+                </span>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard('03413266381', 'jc')}
+                  className="p-1 px-2 rounded-md bg-[#DC2626]/10 text-[#DC2626] dark:bg-[#EF4444]/10 dark:text-[#EF4444] hover:bg-[#DC2626] hover:text-white text-[10px] font-bold flex items-center space-x-1 cursor-pointer transition-colors"
+                >
+                  {copiedKey === 'jc' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedKey === 'jc' ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
+              <div>
+                <span className="text-base font-black mono text-[#0F172A] dark:text-[#F8FAFC] block tracking-wide">
+                  0341-3266381
+                </span>
+                <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] block mt-0.5">
+                  Account / Mobile Wallet
+                </span>
+              </div>
             </div>
-            <div className="bg-gray-900/80 p-3 rounded-xl border border-gray-800">
-              <span className="text-[10px] text-cyan-400 font-bold block">🏦 Bank Transfer</span>
-              <span className="font-extrabold text-white mono block">PK98MEZN00001234</span>
-              <span className="text-[10px] text-gray-400 block">Meezan Bank Ltd</span>
-            </div>
+          </div>
+
+          <div className="bg-[#FFFFFF] dark:bg-[#151E2E] p-2.5 rounded-lg border border-[#E2E8F0] dark:border-[#243044] text-[11px] text-[#64748B] dark:text-[#94A3B8] flex items-center justify-between">
+            <span>💡 <b>Raast ID:</b> Aap kisi bhi Pakistani bank app se direct Raast par bhi transfer kar sakte hain.</span>
           </div>
         </div>
 
-        {/* Submit Proof Section */}
+        {/* Submit Proof Form */}
         {success ? (
-          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-5 text-center space-y-2">
-            <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
-            <h3 className="text-base font-bold text-white">Upgrade Request Received!</h3>
-            <p className="text-xs text-gray-300">
-              Thank you! Your payment reference has been submitted to the Admin. Your **Stockking Pro VIP** access will be activated within 15-30 minutes.
+          <div className="bg-[#16A34A]/10 border border-[#16A34A]/20 dark:bg-[#22C55E]/10 dark:border-[#22C55E]/20 rounded-lg p-5 text-center space-y-2">
+            <CheckCircle2 className="w-10 h-10 text-[#16A34A] dark:text-[#22C55E] mx-auto" />
+            <h3 className="text-base font-bold">Upgrade Request Received!</h3>
+            <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
+              Thank you! Your payment reference has been submitted to the Admin. Your <b>Stockking Pro VIP</b> access will be activated promptly.
             </p>
             <button
               type="button"
               onClick={onClose}
-              className="mt-3 px-6 py-2 rounded-xl bg-emerald-500 text-black font-bold text-xs cursor-pointer hover:bg-emerald-400"
+              className="mt-3 px-6 py-2 rounded-lg bg-[#16A34A] hover:bg-[#15803D] dark:bg-[#22C55E] dark:hover:bg-[#16A34A] text-white dark:text-black font-bold text-xs cursor-pointer shadow-sm"
             >
               Continue to Portal
             </button>
           </div>
         ) : (
           <form onSubmit={handleSubmitProof} className="space-y-3">
-            <span className="text-[11px] uppercase font-bold text-gray-400 block">
+            <span className="text-[11px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] block">
               Submit Payment Reference for Instant Verification:
             </span>
 
             {error && (
-              <div className="flex items-center space-x-2 bg-rose-500/10 border border-rose-500/30 text-rose-300 p-2.5 rounded-xl text-xs">
-                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+              <div className="flex items-center space-x-2 bg-[#DC2626]/10 border border-[#DC2626]/20 text-[#DC2626] dark:text-[#EF4444] p-2.5 rounded-lg text-xs">
+                <AlertCircle className="w-4 h-4 shrink-0 text-[#DC2626] dark:text-[#EF4444]" />
                 <span>{error}</span>
               </div>
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
+                <label className="block text-[10px] text-[#64748B] dark:text-[#94A3B8] uppercase font-bold mb-1">
                   Payment Method Used
                 </label>
                 <select
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full bg-[#070B12] border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  className="w-full bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg px-3 py-2 text-xs text-[#0F172A] dark:text-[#F8FAFC] font-bold focus:outline-none focus:border-[#2563EB] dark:focus:border-[#3B82F6]"
                 >
-                  <option value="EasyPaisa">EasyPaisa</option>
-                  <option value="JazzCash">JazzCash</option>
-                  <option value="Bank Transfer">Bank Transfer (Meezan/Alfalah)</option>
-                  <option value="Other">Other / Cash</option>
+                  <option value="EasyPaisa">EasyPaisa (0345-2831413)</option>
+                  <option value="JazzCash">JazzCash (0341-3266381)</option>
+                  <option value="Raast / Bank Transfer">Raast / Bank Transfer</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
-                  Transaction ID / Reference Number
+                <label className="block text-[10px] text-[#64748B] dark:text-[#94A3B8] uppercase font-bold mb-1">
+                  Transaction ID / Reference Number (TRX ID)
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. TRX-9821734"
+                  placeholder="e.g. 1029384756 / TRX ID"
                   value={transactionId}
                   onChange={(e) => setTransactionId(e.target.value)}
-                  className="w-full bg-[#070B12] border border-gray-800 rounded-xl px-3 py-2 text-xs text-white mono placeholder-gray-600 focus:outline-none focus:border-amber-500"
+                  className="w-full bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg px-3 py-2 text-xs text-[#0F172A] dark:text-[#F8FAFC] font-bold mono placeholder-[#64748B] dark:placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] dark:focus:border-[#3B82F6]"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
-                WhatsApp Number / Additional Notes (Optional)
+              <label className="block text-[10px] text-[#64748B] dark:text-[#94A3B8] uppercase font-bold mb-1">
+                Sender Mobile / WhatsApp Number (Optional)
               </label>
               <input
                 type="text"
-                placeholder="e.g. +92 300 1234567 - sent from Ali account"
+                placeholder="e.g. 0300-1234567 - sent from Ali"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className="w-full bg-[#070B12] border border-gray-800 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-amber-500"
+                className="w-full bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg px-3 py-2 text-xs text-[#0F172A] dark:text-[#F8FAFC] placeholder-[#64748B] dark:placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] dark:focus:border-[#3B82F6]"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:opacity-95 text-black font-black text-xs flex items-center justify-center space-x-2 cursor-pointer shadow-lg shadow-amber-500/25 transition-all mt-3 disabled:opacity-50"
+              className="w-full py-3.5 rounded-lg bg-[#D97706] hover:bg-[#B45309] dark:bg-[#F59E0B] dark:hover:bg-[#D97706] text-white dark:text-black font-bold text-xs flex items-center justify-center space-x-2 cursor-pointer shadow-sm transition-all mt-3 disabled:opacity-50"
             >
               <ShieldCheck className="w-4 h-4" />
               <span>{loading ? 'Submitting Reference...' : (!user ? 'Sign In & Submit Payment Proof' : `Submit Payment Proof (${planOptions.find(p => p.id === selectedPlan)?.price})`)}</span>
