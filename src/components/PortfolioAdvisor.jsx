@@ -288,35 +288,35 @@ export default function PortfolioAdvisor({
   return (
     <div className="space-y-6">
       {/* 1. Header & Live Portfolio Telemetry */}
-      <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-6 shadow-sm dark:shadow-md transition-all">
+      <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-4 sm:p-6 shadow-sm dark:shadow-md transition-all">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-lg bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 border border-[#2563EB]/20 dark:border-[#3B82F6]/20 text-[#2563EB] dark:text-[#3B82F6]">
-              <Briefcase className="w-6 h-6" />
+            <div className="p-2 rounded-lg bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 border border-[#2563EB]/20 dark:border-[#3B82F6]/20 text-[#2563EB] dark:text-[#3B82F6] shrink-0">
+              <Briefcase className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <div className="flex items-center space-x-2">
-                <h2 className="text-xl font-bold text-[#0F172A] dark:text-[#F8FAFC] tracking-tight">
-                  Portfolio Tracker, Sell Profit Booker & All-Time Trade Journal
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <h2 className="text-base sm:text-xl font-bold text-[#0F172A] dark:text-[#F8FAFC] tracking-tight">
+                  Portfolio Tracker & Trade Journal
                 </h2>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 text-[#2563EB] dark:text-[#3B82F6] border border-[#2563EB]/20 dark:border-[#3B82F6]/20">
                   <Radio className="w-3 h-3 mr-1 inline animate-pulse" /> REAL-TIME P&L
                 </span>
               </div>
               <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
-                Record your <b>BUY Holdings</b> to track live market moves, or <b>SELL & Book Profit</b> to maintain your permanent all-time trade journal.
+                Record your <b>BUY Holdings</b> to track live market moves, or <b>SELL & Book Profit</b> to maintain your trade journal.
               </p>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center space-x-2 shrink-0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 w-full sm:w-auto">
             <button
               onClick={() => {
                 setTradeMode('BUY');
                 setIsModalOpen(true);
               }}
-              className="flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+              className="flex items-center justify-center space-x-1.5 px-4 py-2 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-xs shadow-sm transition-all cursor-pointer w-full sm:w-auto"
             >
               <PlusCircle className="w-4 h-4 stroke-[2.5]" />
               <span>+ Record Buy Position</span>
@@ -327,7 +327,7 @@ export default function PortfolioAdvisor({
                 setTradeMode('SELL');
                 setIsModalOpen(true);
               }}
-              className="flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-[#D97706] hover:bg-[#B45309] dark:bg-[#F59E0B] dark:hover:bg-[#D97706] text-white dark:text-black font-bold text-xs shadow-sm transition-all cursor-pointer"
+              className="flex items-center justify-center space-x-1.5 px-4 py-2 rounded-lg bg-[#D97706] hover:bg-[#B45309] dark:bg-[#F59E0B] dark:hover:bg-[#D97706] text-white dark:text-black font-bold text-xs shadow-sm transition-all cursor-pointer w-full sm:w-auto"
             >
               <DollarSign className="w-4 h-4 stroke-[2.5]" />
               <span>+ Record Sell Trade</span>
@@ -336,7 +336,7 @@ export default function PortfolioAdvisor({
         </div>
 
         {/* Portfolio Summary Metrics */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-6 pt-5 border-t border-[#E2E8F0] dark:border-[#243044]">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3 mt-4 sm:mt-6 pt-4 sm:pt-5 border-t border-[#E2E8F0] dark:border-[#243044]">
           <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-3.5 border border-[#E2E8F0] dark:border-[#243044]">
             <span className="text-[10px] uppercase text-[#64748B] dark:text-[#94A3B8] font-bold block">Active Capital Invested</span>
             <span className="text-lg font-extrabold text-[#0F172A] dark:text-[#F8FAFC] mono mt-1 block">

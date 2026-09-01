@@ -172,34 +172,34 @@ export default function Navbar({
       </div>
 
       {/* 2. Main Navigation Bar */}
-      <div className="max-w-[1680px] w-full mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-3">
+      <div className="max-w-[1680px] w-full mx-auto px-2.5 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 gap-2 sm:gap-3">
           
           {/* Brand Left */}
-          <div className="flex items-center space-x-3 shrink-0">
-            <div className={`w-10 h-10 rounded-xl p-0.5 shadow-sm border ${
+          <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
+            <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl p-0.5 shadow-sm border ${
               isLight ? 'bg-[#2563EB] border-[#1D4ED8]' : 'bg-[#3B82F6] border-[#60A5FA]/40'
             }`}>
-              <div className={`w-full h-full rounded-[10px] flex items-center justify-center ${
+              <div className={`w-full h-full rounded-[8px] sm:rounded-[10px] flex items-center justify-center ${
                 isLight ? 'bg-[#FFFFFF]' : 'bg-[#151E2E]'
               }`}>
-                <Terminal className={`w-5 h-5 ${isLight ? 'text-[#2563EB]' : 'text-[#3B82F6]'}`} />
+                <Terminal className={`w-4 h-4 sm:w-5 sm:h-5 ${isLight ? 'text-[#2563EB]' : 'text-[#3B82F6]'}`} />
               </div>
             </div>
             <div>
-              <div className="flex items-center space-x-2">
-                <span className={`font-black text-lg tracking-tight ${
+              <div className="flex items-center space-x-1.5 sm:space-x-2">
+                <span className={`font-black text-xs sm:text-base md:text-lg tracking-tight ${
                   isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'
                 }`}>
                   PSX ALPHA TERMINAL
                 </span>
-                <span className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded-md border tracking-wider ${
+                <span className={`hidden xs:inline-block text-[8px] sm:text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-md border tracking-wider ${
                   isLight ? 'bg-[#2563EB]/10 text-[#2563EB] border-[#2563EB]/20' : 'bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/30'
                 }`}>
                   OFFICIAL DPS
                 </span>
               </div>
-              <p className={`text-[11px] font-medium hidden sm:block ${
+              <p className={`text-[10px] sm:text-[11px] font-medium hidden sm:block ${
                 isLight ? 'text-[#64748B]' : 'text-[#94A3B8]'
               }`}>
                 Pakistan Stock Exchange • Real-Time Market Intelligence & Signals
@@ -417,44 +417,62 @@ export default function Navbar({
       </div>
 
       {/* Mobile / Tablet Tab Bar */}
-      <div className={`flex xl:hidden items-center justify-around py-2.5 px-2 border-t text-xs font-bold overflow-x-auto ${
+      <div className={`flex xl:hidden items-center justify-start sm:justify-around py-2 px-2 border-t text-xs font-bold overflow-x-auto space-x-1.5 scrollbar-none touch-pan-x ${
         isLight ? 'bg-[#F8FAFC] border-[#E2E8F0] text-[#64748B]' : 'bg-[#0B0F19] border-[#243044] text-[#94A3B8]'
       }`}>
         <button
           onClick={() => setActiveTab('news')}
-          className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'news' ? (isLight ? 'bg-[#2563EB] text-white' : 'bg-[#3B82F6] text-white') : ''}`}
+          className={`px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all flex items-center space-x-1 cursor-pointer ${
+            activeTab === 'news' ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm') : 'hover:bg-black/5 dark:hover:bg-white/5'
+          }`}
         >
-          ⚡ News
+          <Zap className="w-3.5 h-3.5" />
+          <span>News</span>
         </button>
         <button
           onClick={() => setActiveTab('portfolio')}
-          className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'portfolio' ? (isLight ? 'bg-[#2563EB] text-white' : 'bg-[#3B82F6] text-white') : ''}`}
+          className={`px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all flex items-center space-x-1 cursor-pointer ${
+            activeTab === 'portfolio' ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm') : 'hover:bg-black/5 dark:hover:bg-white/5'
+          }`}
         >
-          💼 Portfolio ({portfolioCount})
+          <Briefcase className="w-3.5 h-3.5" />
+          <span>Portfolio ({portfolioCount})</span>
         </button>
         <button
           onClick={() => setActiveTab('recommendations')}
-          className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'recommendations' ? (isLight ? 'bg-[#2563EB] text-white' : 'bg-[#3B82F6] text-white') : ''}`}
+          className={`px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all flex items-center space-x-1 cursor-pointer ${
+            activeTab === 'recommendations' ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm') : 'hover:bg-black/5 dark:hover:bg-white/5'
+          }`}
         >
-          🎯 Signals
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Signals</span>
         </button>
         <button
           onClick={() => setActiveTab('dividends')}
-          className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'dividends' ? (isLight ? 'bg-[#D97706] text-white' : 'bg-[#F59E0B] text-black font-black') : ''}`}
+          className={`px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all flex items-center space-x-1 cursor-pointer ${
+            activeTab === 'dividends' ? (isLight ? 'bg-[#D97706] text-white shadow-sm' : 'bg-[#F59E0B] text-black font-black shadow-sm') : 'hover:bg-black/5 dark:hover:bg-white/5'
+          }`}
         >
-          💰 Dividends
+          <Coins className="w-3.5 h-3.5" />
+          <span>Dividends</span>
         </button>
         <button
           onClick={() => setActiveTab('watchlist')}
-          className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'watchlist' ? (isLight ? 'bg-[#2563EB] text-white' : 'bg-[#3B82F6] text-white') : ''}`}
+          className={`px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all flex items-center space-x-1 cursor-pointer ${
+            activeTab === 'watchlist' ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm') : 'hover:bg-black/5 dark:hover:bg-white/5'
+          }`}
         >
-          ⭐ Watchlist ({watchlistCount})
+          <Bookmark className="w-3.5 h-3.5" />
+          <span>Watchlist ({watchlistCount})</span>
         </button>
         <button
           onClick={() => setActiveTab('screener')}
-          className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${activeTab === 'screener' ? (isLight ? 'bg-[#2563EB] text-white' : 'bg-[#3B82F6] text-white') : ''}`}
+          className={`px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all flex items-center space-x-1 cursor-pointer ${
+            activeTab === 'screener' ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm') : 'hover:bg-black/5 dark:hover:bg-white/5'
+          }`}
         >
-          📊 Screener
+          <BarChart3 className="w-3.5 h-3.5" />
+          <span>Screener</span>
         </button>
       </div>
     </header>

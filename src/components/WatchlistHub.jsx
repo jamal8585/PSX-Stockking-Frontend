@@ -382,8 +382,8 @@ export default function WatchlistHub({
           </div>
 
           {/* Quick Add Popular Picks (1-Click Toggle) */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
-            <span className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] mr-1">
+          <div className="flex items-center overflow-x-auto scrollbar-none pb-1.5 gap-1.5 text-xs touch-pan-x">
+            <span className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] mr-1 shrink-0">
               ⚡ Quick 1-Tap Add:
             </span>
             {POPULAR_QUICK_PICKS.map(sym => {
@@ -392,7 +392,7 @@ export default function WatchlistHub({
                 <button
                   key={sym}
                   onClick={() => onToggleWatchlist(sym)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold mono transition-all cursor-pointer flex items-center space-x-1 ${
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold mono transition-all cursor-pointer flex items-center space-x-1 shrink-0 ${
                     isAdded
                       ? 'bg-[#16A34A]/10 text-[#16A34A] border border-[#16A34A]/20 dark:bg-[#22C55E]/10 dark:text-[#22C55E]'
                       : 'bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] border border-[#E2E8F0] dark:border-[#243044]'
@@ -411,17 +411,17 @@ export default function WatchlistHub({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center space-x-2">
           <Activity className="w-4 h-4 text-[#2563EB] dark:text-[#3B82F6]" />
-          <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#F8FAFC] uppercase tracking-wider">
+          <h3 className="text-xs sm:text-sm font-bold text-[#0F172A] dark:text-[#F8FAFC] uppercase tracking-wider">
             Monitored Stocks List ({filteredWatchlist.length})
           </h3>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Signal Filter Buttons */}
-          <div className="flex items-center space-x-1.5 bg-[#FFFFFF] dark:bg-[#151E2E] p-1 rounded-lg border border-[#E2E8F0] dark:border-[#243044] text-xs">
+          <div className="flex items-center space-x-1 sm:space-x-1.5 bg-[#FFFFFF] dark:bg-[#151E2E] p-1 rounded-lg border border-[#E2E8F0] dark:border-[#243044] text-xs overflow-x-auto scrollbar-none">
             <button
               onClick={() => setSelectedSignalFilter('ALL')}
-              className={`px-3 py-1.5 rounded-md font-bold transition-all cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-md font-bold transition-all cursor-pointer whitespace-nowrap ${
                 selectedSignalFilter === 'ALL'
                   ? 'bg-[#2563EB] dark:bg-[#3B82F6] text-white shadow-sm'
                   : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC]'
@@ -431,7 +431,7 @@ export default function WatchlistHub({
             </button>
             <button
               onClick={() => setSelectedSignalFilter('BUY')}
-              className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center space-x-1 cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-md font-bold transition-all flex items-center space-x-1 cursor-pointer whitespace-nowrap ${
                 selectedSignalFilter === 'BUY'
                   ? 'bg-[#16A34A] dark:bg-[#22C55E] text-white shadow-sm'
                   : 'text-[#16A34A] dark:text-[#22C55E] hover:bg-[#16A34A]/10'
@@ -442,7 +442,7 @@ export default function WatchlistHub({
             </button>
             <button
               onClick={() => setSelectedSignalFilter('SELL')}
-              className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center space-x-1 cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-md font-bold transition-all flex items-center space-x-1 cursor-pointer whitespace-nowrap ${
                 selectedSignalFilter === 'SELL'
                   ? 'bg-[#DC2626] dark:text-[#EF4444] text-white shadow-sm'
                   : 'text-[#DC2626] dark:text-[#EF4444] hover:bg-[#DC2626]/10'

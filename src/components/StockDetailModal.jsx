@@ -424,22 +424,22 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
   const aiVerdict = getExecutiveVerdict();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md overflow-y-auto">
-      <div className="bg-gradient-to-b from-[#0F172A] via-[#0A0F1D] to-[#04070D] border border-cyan-500/40 rounded-3xl w-full max-w-6xl max-h-[94vh] overflow-y-auto shadow-2xl p-6 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/90 backdrop-blur-md overflow-y-auto">
+      <div className="bg-gradient-to-b from-[#0F172A] via-[#0A0F1D] to-[#04070D] border border-cyan-500/40 rounded-2xl sm:rounded-3xl w-full max-w-6xl max-h-[94vh] overflow-y-auto shadow-2xl p-4 sm:p-6 relative">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-xl bg-gray-800/80 text-gray-400 hover:text-white hover:bg-gray-700 cursor-pointer transition-colors z-10"
+          className="absolute top-4 sm:top-5 right-4 sm:right-5 p-2 rounded-xl bg-gray-800/80 text-gray-400 hover:text-white hover:bg-gray-700 cursor-pointer transition-colors z-10"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* 1. Header with Sector, Symbol, & Indices Badges */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-gray-800/80 pr-12">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-gray-800/80 pr-10 sm:pr-12">
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-1">
-              <h2 className="text-2xl font-black text-white tracking-tight">{name}</h2>
-              <span className="px-3 py-1 rounded-lg bg-cyan-500 text-black font-black mono text-xs">
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">{name}</h2>
+              <span className="px-2.5 sm:px-3 py-1 rounded-lg bg-cyan-500 text-black font-black mono text-xs">
                 {sym}
               </span>
             </div>
@@ -464,17 +464,17 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
           </div>
 
           {/* Navigation Tabs: Chart, Fundamentals, Technicals */}
-          <div className="flex items-center space-x-1.5 bg-[#070B12] p-1.5 rounded-2xl border border-gray-800 shrink-0">
+          <div className="flex items-center space-x-1 sm:space-x-1.5 bg-[#070B12] p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border border-gray-800 shrink-0 overflow-x-auto scrollbar-none w-full sm:w-auto touch-pan-x">
             <button
               onClick={() => setActiveTab('chart')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+              className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 shrink-0 ${
                 activeTab === 'chart'
                   ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/20'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
               <BarChart3 className="w-3.5 h-3.5" />
-              <span>Candlestick Chart</span>
+              <span>Chart</span>
             </button>
             <button
               onClick={() => setActiveTab('fundamentals')}

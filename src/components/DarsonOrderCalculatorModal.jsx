@@ -101,40 +101,40 @@ Risk-to-Reward: 1 : ${riskRewardRatio}`;
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl w-full max-w-xl shadow-2xl p-6 relative transition-all text-[#0F172A] dark:text-[#F8FAFC]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl w-full max-w-xl shadow-2xl p-4 sm:p-6 relative transition-all text-[#0F172A] dark:text-[#F8FAFC] max-h-[92vh] overflow-y-auto">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] transition-all cursor-pointer"
+          className="absolute top-4 sm:top-5 right-4 sm:right-5 p-2 rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] transition-all cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Modal Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pr-8">
-          <div className="flex items-center space-x-3">
-            <div className="w-11 h-11 rounded-lg bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 border border-[#2563EB]/20 dark:border-[#3B82F6]/20 flex items-center justify-center text-[#2563EB] dark:text-[#3B82F6] shrink-0">
-              <Calculator className="w-6 h-6 stroke-[2.5]" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-5 pr-8">
+          <div className="flex items-center space-x-2.5 sm:space-x-3">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 border border-[#2563EB]/20 dark:border-[#3B82F6]/20 flex items-center justify-center text-[#2563EB] dark:text-[#3B82F6] shrink-0">
+              <Calculator className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]" />
             </div>
             <div>
-              <h2 className="text-lg font-bold tracking-tight">
+              <h2 className="text-base sm:text-lg font-bold tracking-tight">
                 Darson Securities Order Calculator
               </h2>
               <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
-                Position Sizing & Risk Management for <b className="text-[#0F172A] dark:text-[#F8FAFC] mono">{stock.symbol}</b> {stock.name ? `• ${stock.name}` : ''}
+                Position Sizing for <b className="text-[#0F172A] dark:text-[#F8FAFC] mono">{stock.symbol}</b> {stock.name ? `• ${stock.name}` : ''}
               </p>
             </div>
           </div>
 
           {/* Prominent Live CMP Header Pill */}
-          <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg px-3.5 py-2 shrink-0">
+          <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg px-3 py-1.5 sm:px-3.5 sm:py-2 shrink-0 self-start sm:self-auto">
             <span className="text-[9px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] block">Current Market Price (CMP)</span>
             <div className="flex items-center space-x-1.5 mt-0.5">
-              <span className="text-base font-black mono text-[#0F172A] dark:text-[#F8FAFC]">
+              <span className="text-sm sm:text-base font-black mono text-[#0F172A] dark:text-[#F8FAFC]">
                 PKR {livePrice.toFixed(2)}
               </span>
-              <span className={`text-[11px] font-bold mono flex items-center ${isPos ? 'text-[#16A34A] dark:text-[#22C55E]' : 'text-[#DC2626] dark:text-[#EF4444]'}`}>
+              <span className={`text-[10px] sm:text-[11px] font-bold mono flex items-center ${isPos ? 'text-[#16A34A] dark:text-[#22C55E]' : 'text-[#DC2626] dark:text-[#EF4444]'}`}>
                 {isPos ? <TrendingUp className="w-3 h-3 mr-0.5" /> : <TrendingDown className="w-3 h-3 mr-0.5" />}
                 {isPos ? '+' : ''}{changePercent.toFixed(2)}%
               </span>

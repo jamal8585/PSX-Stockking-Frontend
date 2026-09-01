@@ -118,15 +118,17 @@ export default function DailyRecommendations({
 
   return (
     <div className="space-y-4">
-      {/* Header & Filter Controls */}
-      <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-5 shadow-sm dark:shadow-md transition-all">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* 1. Header & Filters */}
+      <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-4 sm:p-6 shadow-sm dark:shadow-md transition-all">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center space-x-2">
-              <Sparkles className="w-5 h-5 text-[#2563EB] dark:text-[#3B82F6]" />
-              <h2 className="text-lg font-bold text-[#0F172A] dark:text-[#F8FAFC] tracking-tight">
-                Today's Evaluated PSX Recommendations (Darson Ready)
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <h2 className="text-base sm:text-xl font-bold text-[#0F172A] dark:text-[#F8FAFC] tracking-tight">
+                Daily Algorithmic Market Signals & Technical Trade Setups
               </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 text-[#2563EB] dark:text-[#3B82F6] border border-[#2563EB]/20 dark:border-[#3B82F6]/20">
+                PRO TRADE RADAR
+              </span>
             </div>
             <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
               AI technical analysis, volume surge detection, and automated Stop Loss & Profit Targets.
@@ -134,10 +136,10 @@ export default function DailyRecommendations({
           </div>
 
           {/* Quick Filter Tabs */}
-          <div className="flex flex-wrap items-center gap-1.5 bg-[#F8FAFC] dark:bg-[#0B0F19] p-1 rounded-lg border border-[#E2E8F0] dark:border-[#243044] text-xs">
+          <div className="flex items-center overflow-x-auto scrollbar-none gap-1 sm:gap-1.5 bg-[#F8FAFC] dark:bg-[#0B0F19] p-1 rounded-lg border border-[#E2E8F0] dark:border-[#243044] text-xs w-full sm:w-auto touch-pan-x">
             <button
               onClick={() => setFilterSignal('ALL')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 filterSignal === 'ALL' 
                   ? 'bg-[#2563EB] dark:bg-[#3B82F6] text-white shadow-sm' 
                   : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC]'

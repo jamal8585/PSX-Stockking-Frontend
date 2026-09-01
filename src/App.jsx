@@ -847,7 +847,7 @@ export default function App() {
       />
 
       {/* Main Content Hub (Wide Ultra-Dashboard Format) */}
-      <main className="max-w-[1680px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1">
+      <main className="max-w-[1680px] w-full mx-auto px-2.5 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 flex-1">
         {/* Global Market Ticker Cards */}
         <MarketHero marketSummary={marketSummary} />
 

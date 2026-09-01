@@ -42,9 +42,9 @@ export default function MarketHero({ marketSummary }) {
   const renderedSectors = viewAllSectors ? sortedSectors : sortedSectors.slice(0, 8);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
       {/* 1. Live KSE-100 Index Card */}
-      <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-5 shadow-sm dark:shadow-md transition-all relative overflow-hidden">
+      <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-4 sm:p-5 shadow-sm dark:shadow-md transition-all relative overflow-hidden">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2">
             <span className="px-2.5 py-1 rounded-lg bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 text-[#2563EB] dark:text-[#3B82F6] border border-[#2563EB]/20 dark:border-[#3B82F6]/20 text-xs font-bold">
@@ -64,11 +64,11 @@ export default function MarketHero({ marketSummary }) {
           </span>
         </div>
 
-        <div className="flex items-baseline space-x-3 mb-4">
-          <h2 className="text-3xl font-extrabold text-[#0F172A] dark:text-[#F8FAFC] mono tracking-tight">
+        <div className="flex flex-wrap items-baseline gap-2 sm:space-x-3 mb-4">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] dark:text-[#F8FAFC] mono tracking-tight">
             {currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </h2>
-          <span className={`text-sm font-bold mono flex items-center ${
+          <span className={`text-xs sm:text-sm font-bold mono flex items-center ${
             isPositive 
               ? 'text-[#16A34A] dark:text-[#22C55E]' 
               : 'text-[#DC2626] dark:text-[#EF4444]'
