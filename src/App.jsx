@@ -27,6 +27,34 @@ import {
 const AUTO_SYNC_SECONDS = 60;
 const STORAGE_KEY = 'psx_user_portfolio_positions_v1';
 
+const DEFAULT_PSX_PRICES = {
+  'PRL': 104.42,
+  'OGDC': 328.70,
+  'PPL': 234.50,
+  'MARI': 663.26,
+  'SYS': 124.54,
+  'LUCK': 437.33,
+  'FFC': 552.70,
+  'PSO': 363.84,
+  'CNERGY': 15.46,
+  'BOP': 34.99,
+  'WTL': 1.16,
+  'MEBL': 573.99,
+  'HUBC': 210.71,
+  'HBL': 154.50,
+  'MCB': 285.00,
+  'UBL': 345.00,
+  'EFERT': 172.50,
+  'ENGRO': 385.00,
+  'DGKC': 212.00,
+  'MLCF': 100.00,
+  'CHCC': 194.00,
+  'FCCL': 38.50,
+  'ATRL': 385.00,
+  'NRL': 295.00,
+  'TRG': 68.20
+};
+
 // Client-side instant recalculation helper for portfolio
 const calculateClientPortfolio = (savedPositions = [], stocksList = []) => {
   let totalInvested = 0;
@@ -43,17 +71,18 @@ const calculateClientPortfolio = (savedPositions = [], stocksList = []) => {
 
   const enriched = savedPositions.map((pos, idx) => {
     const sym = pos.symbol ? pos.symbol.toUpperCase().trim() : 'STOCK';
+    const fallbackPrice = DEFAULT_PSX_PRICES[sym] || pos.buyPrice;
     const stock = stockMap.get(sym) || {
       name: pos.name || sym,
       sector: pos.sector || 'General Market',
-      currentPrice: pos.buyPrice,
-      prevClose: pos.buyPrice,
+      currentPrice: fallbackPrice,
+      prevClose: fallbackPrice,
       change: 0,
       changePercent: 0,
       technicals: { rsi14: 50, trend: 'NEUTRAL' }
     };
 
-    const currentPrice = Number(stock.currentPrice || pos.buyPrice);
+    const currentPrice = Number(stock.currentPrice || fallbackPrice);
     const buyPrice = Number(pos.buyPrice);
     const quantity = Number(pos.quantity || 1);
 
