@@ -257,11 +257,29 @@ export default function App() {
   const [watchlist, setWatchlist] = useState([]);
   const [watchlistSet, setWatchlistSet] = useState(new Set());
   
-  // Persistent local portfolio state
+  // Persistent local portfolio state with multi-key fallback recovery
   const [rawPositions, setRawPositions] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
+      const candidateKeys = [
+        STORAGE_KEY,
+        'psx_user_portfolio_positions_v1',
+        'psx_user_portfolio_positions',
+        'user_portfolio_positions',
+        'portfolio_positions',
+        'psx_portfolio'
+      ];
+      for (const k of candidateKeys) {
+        const saved = localStorage.getItem(k);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            // Auto-migrate to current STORAGE_KEY
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+            return parsed;
+          }
+        }
+      }
+      return [];
     } catch (e) {
       return [];
     }

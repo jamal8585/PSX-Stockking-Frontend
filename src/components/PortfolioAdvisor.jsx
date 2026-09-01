@@ -58,11 +58,27 @@ export default function PortfolioAdvisor({
   const [sellHoldingComm, setSellHoldingComm] = useState('0.05');
   const [sellHoldingNotes, setSellHoldingNotes] = useState('');
 
-  // All-Time Closed Trades History (Persistent)
+  // All-Time Closed Trades History (Persistent with multi-key recovery)
   const [closedTrades, setClosedTrades] = useState(() => {
     try {
-      const saved = localStorage.getItem(CLOSED_TRADES_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
+      const candidateKeys = [
+        CLOSED_TRADES_STORAGE_KEY,
+        'psx_closed_trades_history_v1',
+        'psx_closed_trades_history',
+        'closed_trades_history',
+        'psx_closed_trades'
+      ];
+      for (const k of candidateKeys) {
+        const saved = localStorage.getItem(k);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            localStorage.setItem(CLOSED_TRADES_STORAGE_KEY, JSON.stringify(parsed));
+            return parsed;
+          }
+        }
+      }
+      return [];
     } catch (e) {
       return [];
     }
