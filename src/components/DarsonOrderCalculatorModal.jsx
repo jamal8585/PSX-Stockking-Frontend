@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Calculator, 
@@ -9,45 +9,58 @@ import {
   TrendingUp, 
   TrendingDown, 
   RotateCcw,
-  Sparkles
+  Sparkles,
+  Radio
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 
-export default function DarsonOrderCalculatorModal({ stock, onClose }) {
+export default function DarsonOrderCalculatorModal({ stock, stocks = [], onClose }) {
   if (!stock) return null;
 
   const sym = (stock.symbol || '').toUpperCase().trim();
+  const foundInStocks = Array.isArray(stocks) ? stocks.find(s => s.symbol?.toUpperCase() === sym) : null;
   const official = officialQuotes ? officialQuotes[sym] : null;
 
   const livePrice = Number(
+    foundInStocks?.currentPrice ||
     stock.currentPrice || 
     official?.currentPrice || 
     100
   );
 
   const prevClose = Number(
+    foundInStocks?.prevClose ||
     stock.prevClose || 
     official?.prevClose || 
     (livePrice * 0.99)
   );
 
-  const change = stock.change !== undefined 
-    ? Number(stock.change) 
-    : (official?.change !== undefined 
-        ? Number(official.change) 
-        : Number((livePrice - prevClose).toFixed(2)));
+  const change = foundInStocks?.change !== undefined
+    ? Number(foundInStocks.change)
+    : (stock.change !== undefined 
+        ? Number(stock.change) 
+        : (official?.change !== undefined 
+            ? Number(official.change) 
+            : Number((livePrice - prevClose).toFixed(2))));
 
-  const changePercent = stock.changePercent !== undefined 
-    ? Number(stock.changePercent) 
-    : (official?.changePercent !== undefined 
-        ? Number(official.changePercent) 
-        : (prevClose > 0 ? Number((((livePrice - prevClose) / prevClose) * 100).toFixed(2)) : 0));
+  const changePercent = foundInStocks?.changePercent !== undefined
+    ? Number(foundInStocks.changePercent)
+    : (stock.changePercent !== undefined 
+        ? Number(stock.changePercent) 
+        : (official?.changePercent !== undefined 
+            ? Number(official.changePercent) 
+            : (prevClose > 0 ? Number((((livePrice - prevClose) / prevClose) * 100).toFixed(2)) : 0)));
 
   const isPos = change >= 0;
 
   const [capital, setCapital] = useState(100000);
   const [entryPrice, setEntryPrice] = useState(livePrice);
   const [copied, setCopied] = useState(false);
+
+  // Synchronize entry price when stock or livePrice changes
+  useEffect(() => {
+    setEntryPrice(livePrice);
+  }, [sym, livePrice]);
 
   const stopLoss = Number(stock.stopLoss || (entryPrice * 0.95));
   const target1 = Number(stock.target1 || (entryPrice * 1.08));

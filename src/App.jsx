@@ -808,7 +808,9 @@ export default function App() {
 
       {calcStock && (
         <DarsonOrderCalculatorModal
+          key={calcStock?.symbol || 'calc'}
           stock={calcStock}
+          stocks={stocks}
           onClose={() => setCalcStock(null)}
         />
       )}
