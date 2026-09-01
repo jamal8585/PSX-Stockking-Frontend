@@ -14,6 +14,7 @@ import DayTradeSuggestionModal from './components/DayTradeSuggestionModal';
 import {
   getMarketSummary,
   getStocks,
+  getStockDetail,
   getRecommendations,
   getNews,
   getWatchlist,
@@ -397,11 +398,29 @@ export default function App() {
     };
   }, []);
 
-  const handleSelectStock = async (symbol) => {
+  const handleSelectStock = async (symbolOrStock) => {
     try {
-      const res = await getStockDetail(symbol);
-      if (res.success) {
-        setSelectedStock(res.data);
+      const sym = typeof symbolOrStock === 'string' ? symbolOrStock : (symbolOrStock?.symbol || '');
+      if (!sym) return;
+
+      const symKey = sym.toUpperCase().trim();
+
+      // Instant responsive open with current stock quote data (0ms lag)
+      const localStock = (stocks && stocks.find(s => s.symbol?.toUpperCase() === symKey)) || 
+        (officialQuotes ? officialQuotes[symKey] : null) || 
+        (typeof symbolOrStock === 'object' ? symbolOrStock : { symbol: symKey });
+      
+      if (localStock) {
+        setSelectedStock(localStock);
+      }
+
+      // Fetch deep technicals and historical series from API
+      const res = await getStockDetail(symKey);
+      if (res?.success && res.data) {
+        setSelectedStock(prev => ({
+          ...(localStock || {}),
+          ...res.data
+        }));
       }
     } catch (err) {
       console.error('Failed to fetch stock detail:', err);

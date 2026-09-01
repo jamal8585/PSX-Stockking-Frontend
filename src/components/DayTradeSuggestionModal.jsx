@@ -379,9 +379,9 @@ export default function DayTradeSuggestionModal({
           <button
             onClick={() => {
               onClose();
-              if (onOpenChart) onOpenChart(symbol);
+              if (onOpenChart) onOpenChart(stock);
             }}
-            className="w-full sm:flex-1 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-extrabold text-xs flex items-center justify-center space-x-2 cursor-pointer transition-all border border-gray-700"
+            className="w-full sm:flex-1 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 hover:border-cyan-500/50 text-white font-extrabold text-xs flex items-center justify-center space-x-2 cursor-pointer transition-all border border-gray-700 shadow-md"
           >
             <LineChart className="w-4 h-4 text-cyan-400" />
             <span>Open Full Technical Chart</span>
