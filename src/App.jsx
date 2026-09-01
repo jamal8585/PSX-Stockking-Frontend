@@ -33,7 +33,7 @@ import {
 
 import officialQuotes from './data/official_quotes.json';
 
-const AUTO_SYNC_SECONDS = 5;
+const AUTO_SYNC_SECONDS = 3;
 const STORAGE_KEY = 'psx_user_portfolio_positions_v1';
 
 // Client-side instant recalculation helper for portfolio

@@ -157,13 +157,20 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* Countdown */}
-        <div className={`hidden sm:flex items-center space-x-1.5 shrink-0 px-2.5 py-0.5 rounded text-[10px] mono font-bold z-10 ml-2 border ${
-          isLight ? 'bg-slate-200 text-slate-700 border-slate-300' : 'bg-cyan-950/40 text-cyan-300 border-cyan-800/40'
-        }`}>
-          <Timer className="w-3 h-3 animate-pulse" />
-          <span>Auto-Sync: <b className={isLight ? 'text-slate-900' : 'text-white'}>{countdown}s</b></span>
-        </div>
+        {/* Countdown / Live Indicator */}
+        {isAdmin ? (
+          <div className={`hidden sm:flex items-center space-x-1.5 shrink-0 px-2.5 py-0.5 rounded text-[10px] mono font-bold z-10 ml-2 border ${
+            isLight ? 'bg-slate-200 text-slate-700 border-slate-300' : 'bg-cyan-950/40 text-cyan-300 border-cyan-800/40'
+          }`}>
+            <Timer className="w-3 h-3 animate-pulse" />
+            <span>Auto-Sync: <b className={isLight ? 'text-slate-900' : 'text-white'}>{countdown}s</b></span>
+          </div>
+        ) : (
+          <div className="hidden sm:flex items-center space-x-1.5 text-[10px] text-emerald-500 font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mr-0.5" />
+            <span>Live Real-Time Sync</span>
+          </div>
+        )}
       </div>
 
       {/* 2. Main High-Spacious Navbar */}
@@ -284,15 +291,18 @@ export default function Navbar({
               )}
             </button>
 
-            {/* Sync Now */}
-            <button
-              onClick={onRunScan}
-              disabled={isScanning}
-              className="hidden sm:flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:opacity-90 text-black font-extrabold text-xs shadow-lg shadow-emerald-500/20 disabled:opacity-50 transition-all cursor-pointer whitespace-nowrap"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin' : ''}`} />
-              <span>{isScanning ? 'Syncing...' : 'Sync'}</span>
-            </button>
+            {/* Sync Button (Admin Only) */}
+            {isAdmin && (
+              <button
+                onClick={onRunScan}
+                disabled={isScanning}
+                className="hidden sm:flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:opacity-90 text-black font-extrabold text-xs shadow-lg shadow-emerald-500/20 disabled:opacity-50 transition-all cursor-pointer whitespace-nowrap"
+                title="Force Live Market Scan (Admin Only)"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin' : ''}`} />
+                <span>{isScanning ? 'Syncing...' : 'Sync'}</span>
+              </button>
+            )}
 
             {/* Admin Panel Button (If Admin) */}
             {isAdmin && (
