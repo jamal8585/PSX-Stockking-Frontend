@@ -36,8 +36,93 @@ import {
 import officialQuotes from './data/official_quotes.json';
 
 const AUTO_SYNC_SECONDS = 3;
-const STORAGE_KEY = 'psx_user_portfolio_positions_v1';
-const WATCHLIST_STORAGE_KEY = 'psx_user_watchlist_v1';
+
+// Scoped storage helper to guarantee complete per-user isolation
+export const getUserStorageKey = (prefix, user) => {
+  if (user && (user.email || user.id)) {
+    const identifier = (user.email || user.id).toLowerCase().trim().replace(/[^a-z0-9_]/g, '_');
+    return `${prefix}_usr_${identifier}`;
+  }
+  return `${prefix}_guest_default`;
+};
+
+// User-scoped Positions Loader
+export const loadUserPositions = (user) => {
+  try {
+    const key = getUserStorageKey('psx_portfolio_positions', user);
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) return parsed;
+    }
+    // Migration check for primary admin or first user
+    if (user && (user.email === 'jamal.ahmedrumi@gmail.com' || user.role === 'ADMIN')) {
+      const legacyKeys = [
+        'psx_user_portfolio_positions_v1',
+        'psx_user_portfolio_positions',
+        'user_portfolio_positions',
+        'portfolio_positions',
+        'psx_portfolio'
+      ];
+      for (const k of legacyKeys) {
+        const legacy = localStorage.getItem(k);
+        if (legacy) {
+          const parsed = JSON.parse(legacy);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            localStorage.setItem(key, JSON.stringify(parsed));
+            return parsed;
+          }
+        }
+      }
+    }
+    return [];
+  } catch (e) {
+    return [];
+  }
+};
+
+// User-scoped Watchlist Loader
+export const loadUserWatchlist = (user) => {
+  try {
+    const key = getUserStorageKey('psx_watchlist', user);
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+    // Migration check for primary admin
+    if (user && (user.email === 'jamal.ahmedrumi@gmail.com' || user.role === 'ADMIN')) {
+      const legacyKeys = [
+        'psx_user_watchlist_v1',
+        'psx_user_watchlist',
+        'psx_watchlist',
+        'user_watchlist'
+      ];
+      for (const k of legacyKeys) {
+        const legacy = localStorage.getItem(k);
+        if (legacy) {
+          const parsed = JSON.parse(legacy);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            localStorage.setItem(key, JSON.stringify(parsed));
+            return parsed;
+          }
+        }
+      }
+    }
+    // Default starter watchlist for guests
+    if (!user) {
+      return [
+        { symbol: 'OGDC', name: 'Oil & Gas Development Company', sector: 'Oil & Gas (E&P)' },
+        { symbol: 'PRL', name: 'Pakistan Refinery Limited', sector: 'Refinery' },
+        { symbol: 'MEBL', name: 'Meezan Bank Limited', sector: 'Commercial Banks' },
+        { symbol: 'FFC', name: 'Fauji Fertilizer Company', sector: 'Fertilizer' }
+      ];
+    }
+    return [];
+  } catch (e) {
+    return [];
+  }
+};
 
 // Client-side instant recalculation helper for portfolio
 const calculateClientPortfolio = (savedPositions = [], stocksList = []) => {
@@ -256,97 +341,6 @@ export default function App() {
   const [stocks, setStocks] = useState(() => mergeWithOfficialQuotes([]));
   const [recommendations, setRecommendations] = useState(null);
   const [news, setNews] = useState([]);
-  // Persistent local watchlist with instant multi-key recovery
-  const [watchlist, setWatchlist] = useState(() => {
-    try {
-      const candidateKeys = [
-        WATCHLIST_STORAGE_KEY,
-        'psx_user_watchlist_v1',
-        'psx_user_watchlist',
-        'psx_watchlist',
-        'user_watchlist'
-      ];
-      for (const k of candidateKeys) {
-        const saved = localStorage.getItem(k);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(parsed));
-            return parsed;
-          }
-        }
-      }
-      return [
-        { symbol: 'OGDC', name: 'Oil & Gas Development Company', sector: 'Oil & Gas (E&P)' },
-        { symbol: 'PRL', name: 'Pakistan Refinery Limited', sector: 'Refinery' },
-        { symbol: 'MEBL', name: 'Meezan Bank Limited', sector: 'Commercial Banks' },
-        { symbol: 'FFC', name: 'Fauji Fertilizer Company', sector: 'Fertilizer' }
-      ];
-    } catch (e) {
-      return [];
-    }
-  });
-
-  const [watchlistSet, setWatchlistSet] = useState(() => {
-    try {
-      const saved = localStorage.getItem(WATCHLIST_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return new Set(parsed.map(w => (typeof w === 'string' ? w : w.symbol).toUpperCase()));
-        }
-      }
-    } catch (e) {}
-    return new Set(['OGDC', 'PRL', 'MEBL', 'FFC']);
-  });
-  
-  // Persistent local portfolio state with multi-key fallback recovery
-  const [rawPositions, setRawPositions] = useState(() => {
-    try {
-      const candidateKeys = [
-        STORAGE_KEY,
-        'psx_user_portfolio_positions_v1',
-        'psx_user_portfolio_positions',
-        'user_portfolio_positions',
-        'portfolio_positions',
-        'psx_portfolio'
-      ];
-      for (const k of candidateKeys) {
-        const saved = localStorage.getItem(k);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            // Auto-migrate to current STORAGE_KEY
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-            return parsed;
-          }
-        }
-      }
-      return [];
-    } catch (e) {
-      return [];
-    }
-  });
-
-  const [portfolioData, setPortfolioData] = useState({ summary: {}, positions: [] });
-  
-  // Persistent Watchlist Storage Sync (Guarantees watchlist persists across page reloads)
-  useEffect(() => {
-    try {
-      if (Array.isArray(watchlist)) {
-        localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(watchlist));
-      }
-    } catch (e) {}
-  }, [watchlist]);
-
-  const [selectedStock, setSelectedStock] = useState(null);
-  const [calcStock, setCalcStock] = useState(null);
-  const [dayTradeStock, setDayTradeStock] = useState(null);
-  const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
-  const [toastMessage, setToastMessage] = useState(null);
-  const [countdown, setCountdown] = useState(AUTO_SYNC_SECONDS);
-
   // Authentication & Subscription State
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -356,6 +350,78 @@ export default function App() {
       return null;
     }
   });
+
+  // Isolated Watchlist State initialized for active user
+  const [watchlist, setWatchlist] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('psx_user_profile');
+      const u = savedUser ? JSON.parse(savedUser) : null;
+      return loadUserWatchlist(u);
+    } catch (e) {
+      return loadUserWatchlist(null);
+    }
+  });
+
+  const [watchlistSet, setWatchlistSet] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('psx_user_profile');
+      const u = savedUser ? JSON.parse(savedUser) : null;
+      const list = loadUserWatchlist(u);
+      return new Set(list.map(w => (typeof w === 'string' ? w : w.symbol).toUpperCase()));
+    } catch (e) {
+      return new Set(['OGDC', 'PRL', 'MEBL', 'FFC']);
+    }
+  });
+  
+  // Isolated Portfolio Positions State initialized for active user
+  const [rawPositions, setRawPositions] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('psx_user_profile');
+      const u = savedUser ? JSON.parse(savedUser) : null;
+      return loadUserPositions(u);
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const [portfolioData, setPortfolioData] = useState({ summary: {}, positions: [] });
+
+  // Dynamic Workspace Isolation: When user logs in / logs out, swap state to their personal workspace
+  useEffect(() => {
+    const activePositions = loadUserPositions(currentUser);
+    const activeWatchlist = loadUserWatchlist(currentUser);
+    setRawPositions(activePositions);
+    setWatchlist(activeWatchlist);
+    setWatchlistSet(new Set(activeWatchlist.map(w => (typeof w === 'string' ? w : w.symbol).toUpperCase())));
+  }, [currentUser?.email]);
+
+  // Persist Positions to active user's dedicated key
+  useEffect(() => {
+    try {
+      if (Array.isArray(rawPositions)) {
+        const key = getUserStorageKey('psx_portfolio_positions', currentUser);
+        localStorage.setItem(key, JSON.stringify(rawPositions));
+      }
+    } catch (e) {}
+  }, [rawPositions, currentUser?.email]);
+
+  // Persist Watchlist to active user's dedicated key
+  useEffect(() => {
+    try {
+      if (Array.isArray(watchlist)) {
+        const key = getUserStorageKey('psx_watchlist', currentUser);
+        localStorage.setItem(key, JSON.stringify(watchlist));
+      }
+    } catch (e) {}
+  }, [watchlist, currentUser?.email]);
+
+  const [selectedStock, setSelectedStock] = useState(null);
+  const [calcStock, setCalcStock] = useState(null);
+  const [dayTradeStock, setDayTradeStock] = useState(null);
+  const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
+  const [countdown, setCountdown] = useState(AUTO_SYNC_SECONDS);
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
@@ -396,7 +462,12 @@ export default function App() {
 
   const handleAuthSuccess = (user) => {
     setCurrentUser(user);
-    showToast(`Welcome, ${user.name}!`);
+    const userPositions = loadUserPositions(user);
+    const userWatchlist = loadUserWatchlist(user);
+    setRawPositions(userPositions);
+    setWatchlist(userWatchlist);
+    setWatchlistSet(new Set(userWatchlist.map(w => (typeof w === 'string' ? w : w.symbol).toUpperCase())));
+    showToast(`Welcome, ${user.name}! Your personal portfolio & watchlist loaded.`);
     if (isAdminOpen && user.role !== 'ADMIN') {
       showToast('You are logged in, but this account does not have Admin privileges.');
     }
@@ -404,9 +475,17 @@ export default function App() {
 
   const handleLogout = () => {
     removeAuthToken();
+    localStorage.removeItem('psx_user_profile');
     setCurrentUser(null);
     setIsAdminOpen(false);
-    showToast('You have been signed out.');
+    
+    // Clear out private data from active state and switch to clean guest workspace
+    const guestPositions = loadUserPositions(null);
+    const guestWatchlist = loadUserWatchlist(null);
+    setRawPositions(guestPositions);
+    setWatchlist(guestWatchlist);
+    setWatchlistSet(new Set(guestWatchlist.map(w => (typeof w === 'string' ? w : w.symbol).toUpperCase())));
+    showToast('Signed out successfully. Switched to guest workspace.');
   };
 
   const handleOpenAuth = (mode = 'login') => {
@@ -799,6 +878,7 @@ export default function App() {
             onUpdatePosition={handleUpdatePosition}
             onDeletePosition={handleDeletePosition}
             onSelectStock={handleSelectStock}
+            currentUser={currentUser}
           />
         )}
 

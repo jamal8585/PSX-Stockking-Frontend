@@ -19,7 +19,13 @@ const POPULAR_TICKERS = [
   'OGDC', 'PPL', 'MARI', 'SYS', 'LUCK', 'FFC', 'PSO', 'PRL', 'CNERGY', 'BOP', 'WTL', 'TELE', 'MEBL', 'HUBC'
 ];
 
-const CLOSED_TRADES_STORAGE_KEY = 'psx_closed_trades_history_v1';
+const getClosedTradesKey = (user) => {
+  if (user && (user.email || user.id)) {
+    const identifier = (user.email || user.id).toLowerCase().trim().replace(/[^a-z0-9_]/g, '_');
+    return `psx_closed_trades_usr_${identifier}`;
+  }
+  return 'psx_closed_trades_guest';
+};
 
 export default function PortfolioAdvisor({ 
   portfolioData, 
@@ -27,7 +33,8 @@ export default function PortfolioAdvisor({
   onAddPosition, 
   onUpdatePosition, 
   onDeletePosition, 
-  onSelectStock 
+  onSelectStock,
+  currentUser = null
 }) {
   // Navigation Sub-tab: 'active' | 'history'
   const [subTab, setSubTab] = useState('active');
@@ -58,25 +65,14 @@ export default function PortfolioAdvisor({
   const [sellHoldingComm, setSellHoldingComm] = useState('0.05');
   const [sellHoldingNotes, setSellHoldingNotes] = useState('');
 
-  // All-Time Closed Trades History (Persistent with multi-key recovery)
+  // All-Time Closed Trades History (User Scoped with multi-key recovery)
   const [closedTrades, setClosedTrades] = useState(() => {
     try {
-      const candidateKeys = [
-        CLOSED_TRADES_STORAGE_KEY,
-        'psx_closed_trades_history_v1',
-        'psx_closed_trades_history',
-        'closed_trades_history',
-        'psx_closed_trades'
-      ];
-      for (const k of candidateKeys) {
-        const saved = localStorage.getItem(k);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            localStorage.setItem(CLOSED_TRADES_STORAGE_KEY, JSON.stringify(parsed));
-            return parsed;
-          }
-        }
+      const userKey = getClosedTradesKey(currentUser);
+      const saved = localStorage.getItem(userKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
       return [];
     } catch (e) {
@@ -84,12 +80,31 @@ export default function PortfolioAdvisor({
     }
   });
 
-  // Sync closed trades to localStorage
+  // Switch closed trades when user logs in/out
   useEffect(() => {
     try {
-      localStorage.setItem(CLOSED_TRADES_STORAGE_KEY, JSON.stringify(closedTrades));
+      const userKey = getClosedTradesKey(currentUser);
+      const saved = localStorage.getItem(userKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setClosedTrades(parsed);
+          return;
+        }
+      }
+      setClosedTrades([]);
+    } catch (e) {
+      setClosedTrades([]);
+    }
+  }, [currentUser?.email]);
+
+  // Sync closed trades to active user's storage
+  useEffect(() => {
+    try {
+      const userKey = getClosedTradesKey(currentUser);
+      localStorage.setItem(userKey, JSON.stringify(closedTrades));
     } catch (e) {}
-  }, [closedTrades]);
+  }, [closedTrades, currentUser?.email]);
 
   const { summary = {}, positions = [] } = portfolioData || {};
 
