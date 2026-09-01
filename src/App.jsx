@@ -449,6 +449,7 @@ export default function App() {
       {/* Navigation */}
       <Navbar
         marketSummary={marketSummary}
+        stocks={stocks}
         onRunScan={handleRunScan}
         isScanning={isScanning}
         watchlistCount={watchlist.length}
@@ -491,6 +492,7 @@ export default function App() {
         {activeTab === 'recommendations' && (
           <DailyRecommendations
             recommendations={recommendations}
+            stocks={stocks}
             onSelectStock={handleSelectStock}
             onOpenCalculator={setCalcStock}
           />

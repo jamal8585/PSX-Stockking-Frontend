@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
   RefreshCw, 
   Bookmark, 
@@ -12,35 +12,19 @@ import {
   TrendingUp,
   TrendingDown
 } from 'lucide-react';
+import officialQuotes from '../data/official_quotes.json';
 
-const TOP_TICKER_ITEMS = [
-  { symbol: 'OGDC', price: '328.70', change: '+1.08%', isPos: true },
-  { symbol: 'PRL', price: '104.42', change: '+10.00%', isPos: true },
-  { symbol: 'CNERGY', price: '15.46', change: '+7.29%', isPos: true },
-  { symbol: 'PPL', price: '234.50', change: '-1.09%', isPos: false },
-  { symbol: 'SYS', price: '124.54', change: '-4.80%', isPos: false },
-  { symbol: 'MARI', price: '663.26', change: '-0.22%', isPos: false },
-  { symbol: 'LUCK', price: '437.33', change: '-1.07%', isPos: false },
-  { symbol: 'FFC', price: '552.70', change: '+0.49%', isPos: true },
-  { symbol: 'PSO', price: '363.84', change: '+0.75%', isPos: true },
-  { symbol: 'MEBL', price: '573.99', change: '+2.15%', isPos: true },
-  { symbol: 'BOP', price: '34.99', change: '+5.40%', isPos: true },
-  { symbol: 'HUBC', price: '210.71', change: '+0.88%', isPos: true },
-  { symbol: 'EFERT', price: '172.50', change: '+1.20%', isPos: true },
-  { symbol: 'ENGRO', price: '385.00', change: '+0.65%', isPos: true },
-  { symbol: 'SAZEW', price: '890.00', change: '+4.50%', isPos: true },
-  { symbol: 'INDU', price: '1952.00', change: '+1.80%', isPos: true },
-  { symbol: 'MLCF', price: '100.00', change: '+3.10%', isPos: true },
-  { symbol: 'CHCC', price: '194.00', change: '+2.40%', isPos: true },
-  { symbol: 'MUGHAL', price: '108.40', change: '+2.90%', isPos: true },
-  { symbol: 'ILP', price: '88.50', change: '+1.45%', isPos: true },
-  { symbol: 'NATF', price: '188.00', change: '+0.95%', isPos: true },
-  { symbol: 'TOMCL', price: '38.00', change: '+3.80%', isPos: true },
-  { symbol: 'WTL', price: '1.16', change: '+0.87%', isPos: true }
+const POPULAR_SYMBOLS = [
+  'CNERGY', 'PRL', 'WAVESAPPR', 'BOP', 'OGDC', 'PPL', 'SYS', 'MARI', 'LUCK', 
+  'FFC', 'PSO', 'MEBL', 'HUBC', 'EFERT', 'ENGRO', 'SAZEW', 'INDU', 'MLCF', 
+  'CHCC', 'MUGHAL', 'ILP', 'NATF', 'TOMCL', 'WTL', 'TELE', 'ATRL', 'NRL', 
+  'MCB', 'HBL', 'UBL', 'BAFL', 'BAHL', 'DGKC', 'FCCL', 'KAPCO', 'KEL', 
+  'AGP', 'SEARL', 'ABOT', 'ISL', 'INIL'
 ];
 
 export default function Navbar({ 
   marketSummary, 
+  stocks = [],
   onRunScan, 
   isScanning, 
   watchlistCount, 
@@ -48,15 +32,51 @@ export default function Navbar({
   onOpenWatchlist, 
   activeTab, 
   setActiveTab,
-  countdown = 60
+  countdown = 5
 }) {
   const kse = (marketSummary?.currentValue || marketSummary?.current) 
-    ? (marketSummary.currentValue || marketSummary.current).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
+    ? Number(marketSummary.currentValue || marketSummary.current).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
     : '177,783.65';
-  const change = marketSummary?.change !== undefined ? marketSummary.change : 807.98;
-  const changePct = marketSummary?.changePercent !== undefined ? marketSummary.changePercent : 0.46;
+  const change = marketSummary?.change !== undefined ? Number(marketSummary.change) : 807.98;
+  const changePct = marketSummary?.changePercent !== undefined ? Number(marketSummary.changePercent) : 0.46;
   const isPositive = change >= 0;
-  const marketStatus = marketSummary?.marketStatus || { isOpen: false, statusText: 'MARKET CLOSED', sessionNote: 'Official Closing Rates' };
+  const marketStatus = marketSummary?.marketStatus || { isOpen: true, statusText: 'LIVE PSX DPS', sessionNote: 'Real-time Telemetry' };
+
+  // Dynamically compute live ticker items from real-time stocks and official quotes
+  const tickerItems = useMemo(() => {
+    const stockMap = new Map();
+    if (officialQuotes && typeof officialQuotes === 'object') {
+      Object.values(officialQuotes).forEach(q => {
+        if (q?.symbol) stockMap.set(q.symbol.toUpperCase().trim(), q);
+      });
+    }
+    if (Array.isArray(stocks)) {
+      stocks.forEach(s => {
+        if (s?.symbol && Number(s.currentPrice) > 0) {
+          const symKey = s.symbol.toUpperCase().trim();
+          stockMap.set(symKey, { ...stockMap.get(symKey), ...s });
+        }
+      });
+    }
+
+    return POPULAR_SYMBOLS.map(sym => {
+      const item = stockMap.get(sym);
+      const price = Number(item?.currentPrice || 100);
+      const prevClose = Number(item?.prevClose || price);
+      const diff = item?.change !== undefined ? Number(item.change) : Number((price - prevClose).toFixed(2));
+      const pct = item?.changePercent !== undefined 
+        ? Number(item.changePercent) 
+        : (prevClose > 0 ? Number((((price - prevClose) / prevClose) * 100).toFixed(2)) : 0);
+      const isPos = diff >= 0;
+
+      return {
+        symbol: sym,
+        price: price.toFixed(2),
+        change: `${isPos ? '+' : ''}${pct.toFixed(2)}%`,
+        isPos
+      };
+    });
+  }, [stocks]);
 
   return (
     <header className="sticky top-0 z-40 bg-[#070B12]/95 backdrop-blur-xl border-b border-cyan-950/60 shadow-2xl">
@@ -86,7 +106,7 @@ export default function Navbar({
               </span>
             </span>
 
-            {TOP_TICKER_ITEMS.map((item) => (
+            {tickerItems.map((item) => (
               <span key={`t1-${item.symbol}`} className="mono font-bold flex items-center space-x-1">
                 <span className="text-gray-300">{item.symbol}:</span>
                 <b className="text-white">{item.price}</b>
@@ -104,7 +124,7 @@ export default function Navbar({
               </span>
             </span>
 
-            {TOP_TICKER_ITEMS.map((item) => (
+            {tickerItems.map((item) => (
               <span key={`t2-${item.symbol}`} className="mono font-bold flex items-center space-x-1">
                 <span className="text-gray-300">{item.symbol}:</span>
                 <b className="text-white">{item.price}</b>

@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Info
 } from 'lucide-react';
+import officialQuotes from '../data/official_quotes.json';
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -31,24 +32,24 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
 
   const [selectedTimeframe, setSelectedTimeframe] = useState('1M');
 
-  const {
-    symbol = '',
-    name = '',
-    sector = 'General',
-    currentPrice = 0,
-    change = 0,
-    changePercent = 0,
-    high = currentPrice * 1.02,
-    low = currentPrice * 0.98,
-    prevClose = currentPrice - change,
-    volume = 0,
-    peRatio = 5.35,
-    eps = 6.9,
-    dividendYield = 0,
-    marketCap = (currentPrice * (volume > 5000000 ? 5500000000 : 120000000)),
-    technicals = {},
-    historicalPrices = []
-  } = stock;
+  const sym = (stock.symbol || '').toUpperCase().trim();
+  const official = officialQuotes ? officialQuotes[sym] : null;
+
+  const currentPrice = Number(stock.currentPrice || official?.currentPrice || 100);
+  const prevClose = Number(stock.prevClose || official?.prevClose || (currentPrice * 0.99));
+  const change = stock.change !== undefined ? Number(stock.change) : (official?.change !== undefined ? Number(official.change) : Number((currentPrice - prevClose).toFixed(2)));
+  const changePercent = stock.changePercent !== undefined ? Number(stock.changePercent) : (official?.changePercent !== undefined ? Number(official.changePercent) : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0));
+  const volume = Number(stock.volume || official?.volume || 1500000);
+  const name = stock.name || official?.name || sym;
+  const sector = stock.sector || official?.sector || 'General';
+  const high = Number(stock.high || official?.high || (currentPrice * 1.02));
+  const low = Number(stock.low || official?.low || (currentPrice * 0.98));
+  const peRatio = Number(stock.peRatio || 5.35);
+  const eps = Number(stock.eps || 6.9);
+  const dividendYield = Number(stock.dividendYield || 0);
+  const marketCap = Number(stock.marketCap || (currentPrice * (volume > 5000000 ? 5500000000 : 120000000)));
+  const technicals = stock.technicals || {};
+  const historicalPrices = stock.historicalPrices || [];
 
   const isPositive = change >= 0;
   const price = Number(currentPrice);

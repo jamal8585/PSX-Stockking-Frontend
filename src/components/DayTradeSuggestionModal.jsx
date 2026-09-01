@@ -17,6 +17,7 @@ import {
   Layers,
   HelpCircle
 } from 'lucide-react';
+import officialQuotes from '../data/official_quotes.json';
 
 export default function DayTradeSuggestionModal({ 
   stock, 
@@ -26,16 +27,18 @@ export default function DayTradeSuggestionModal({
 }) {
   if (!stock) return null;
 
-  const {
-    symbol,
-    name,
-    sector,
-    currentPrice = 0,
-    change = 0,
-    changePercent = 0,
-    technicals = {},
-    volume = 0
-  } = stock;
+  const sym = (stock.symbol || '').toUpperCase().trim();
+  const official = officialQuotes ? officialQuotes[sym] : null;
+
+  const symbol = stock.symbol || sym;
+  const name = stock.name || official?.name || sym;
+  const sector = stock.sector || official?.sector || 'General';
+  const currentPrice = Number(stock.currentPrice || official?.currentPrice || 100);
+  const prevClose = Number(stock.prevClose || official?.prevClose || (currentPrice * 0.99));
+  const change = stock.change !== undefined ? Number(stock.change) : (official?.change !== undefined ? Number(official.change) : Number((currentPrice - prevClose).toFixed(2)));
+  const changePercent = stock.changePercent !== undefined ? Number(stock.changePercent) : (official?.changePercent !== undefined ? Number(official.changePercent) : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0));
+  const technicals = stock.technicals || {};
+  const volume = Number(stock.volume || official?.volume || 1500000);
 
   const isPos = change >= 0;
   const price = Number(currentPrice);

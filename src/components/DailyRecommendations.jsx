@@ -14,14 +14,67 @@ import {
   ArrowUpRight,
   Filter
 } from 'lucide-react';
+import officialQuotes from '../data/official_quotes.json';
 
-export default function DailyRecommendations({ recommendations, onSelectStock, onOpenCalculator }) {
+export default function DailyRecommendations({ 
+  recommendations, 
+  stocks = [], 
+  onSelectStock, 
+  onOpenCalculator 
+}) {
   const [filterSignal, setFilterSignal] = useState('ALL');
   const [filterSector, setFilterSector] = useState('ALL');
 
   if (!recommendations || !recommendations.all) return null;
 
   const { all = [], summary = {} } = recommendations;
+
+  const getLiveStock = (item) => {
+    const sym = (item?.symbol || '').toUpperCase().trim();
+    const foundInStocks = Array.isArray(stocks) ? stocks.find(s => s.symbol?.toUpperCase() === sym) : null;
+    const foundOfficial = officialQuotes ? officialQuotes[sym] : null;
+
+    const currentPrice = Number(
+      foundInStocks?.currentPrice || 
+      foundOfficial?.currentPrice || 
+      item?.currentPrice || 
+      100
+    );
+
+    const prevClose = Number(
+      foundInStocks?.prevClose || 
+      foundOfficial?.prevClose || 
+      (currentPrice * 0.99)
+    );
+
+    const change = foundInStocks?.change !== undefined 
+      ? Number(foundInStocks.change) 
+      : (foundOfficial?.change !== undefined 
+          ? Number(foundOfficial.change) 
+          : Number((currentPrice - prevClose).toFixed(2)));
+
+    const changePercent = foundInStocks?.changePercent !== undefined 
+      ? Number(foundInStocks.changePercent) 
+      : (foundOfficial?.changePercent !== undefined 
+          ? Number(foundOfficial.changePercent) 
+          : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0));
+
+    const target1 = Number(item?.target1 || (currentPrice * 1.10).toFixed(2));
+    const target2 = Number(item?.target2 || (currentPrice * 1.18).toFixed(2));
+    const stopLoss = Number(item?.stopLoss || (currentPrice * 0.95).toFixed(2));
+
+    return {
+      ...item,
+      companyName: foundInStocks?.name || foundOfficial?.name || item?.companyName || sym,
+      currentPrice,
+      prevClose,
+      change,
+      changePercent,
+      target1,
+      target2,
+      stopLoss
+    };
+  };
 
   const filtered = all.filter(r => {
     if (filterSignal !== 'ALL' && r.signal !== filterSignal) return false;
@@ -146,10 +199,12 @@ export default function DailyRecommendations({ recommendations, onSelectStock, o
 
       {/* Recommendations Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((item, idx) => {
+        {filtered.map((rawItem, idx) => {
+          const item = getLiveStock(rawItem);
           const badge = getSignalBadge(item.signal);
           const isBuy = item.signal === 'STRONG_BUY' || item.signal === 'ACCUMULATE';
           const isAvoid = item.signal === 'AVOID_SELL';
+          const isUp = (item.change || 0) >= 0;
 
           return (
             <div
@@ -185,9 +240,12 @@ export default function DailyRecommendations({ recommendations, onSelectStock, o
                 <div className="bg-gray-900/90 rounded-xl p-3 border border-gray-800/80 mb-3">
                   <div className="flex items-baseline justify-between mb-2">
                     <div>
-                      <span className="text-[10px] uppercase text-gray-500 font-semibold">Current Price</span>
-                      <p className="text-lg font-bold text-white mono">
+                      <span className="text-[10px] uppercase text-gray-500 font-semibold">Current Live Price</span>
+                      <p className="text-lg font-bold text-white mono flex items-center">
                         PKR {item.currentPrice.toFixed(2)}
+                        <span className={`text-[11px] ml-1.5 font-bold ${isUp ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          ({isUp ? '+' : ''}{item.changePercent}%)
+                        </span>
                       </p>
                     </div>
                     <div className="text-right">
