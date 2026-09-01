@@ -612,6 +612,7 @@ export default function App() {
       {dayTradeStock && (
         <DayTradeSuggestionModal
           stock={dayTradeStock}
+          news={news}
           onClose={() => setDayTradeStock(null)}
           onOpenChart={handleSelectStock}
           onOpenCalculator={setCalcStock}
