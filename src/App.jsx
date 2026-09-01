@@ -83,6 +83,7 @@ export const loadUserPositions = (user) => {
 
 // User-scoped Watchlist Loader
 export const loadUserWatchlist = (user) => {
+  if (!user) return [];
   try {
     const key = getUserStorageKey('psx_watchlist', user);
     const saved = localStorage.getItem(key);
@@ -108,15 +109,6 @@ export const loadUserWatchlist = (user) => {
           }
         }
       }
-    }
-    // Default starter watchlist for guests
-    if (!user) {
-      return [
-        { symbol: 'OGDC', name: 'Oil & Gas Development Company', sector: 'Oil & Gas (E&P)' },
-        { symbol: 'PRL', name: 'Pakistan Refinery Limited', sector: 'Refinery' },
-        { symbol: 'MEBL', name: 'Meezan Bank Limited', sector: 'Commercial Banks' },
-        { symbol: 'FFC', name: 'Fauji Fertilizer Company', sector: 'Fertilizer' }
-      ];
     }
     return [];
   } catch (e) {
@@ -351,14 +343,15 @@ export default function App() {
     }
   });
 
-  // Isolated Watchlist State initialized for active user
+  // Isolated Watchlist State initialized for active user (Zero cache for guests)
   const [watchlist, setWatchlist] = useState(() => {
     try {
       const savedUser = localStorage.getItem('psx_user_profile');
       const u = savedUser ? JSON.parse(savedUser) : null;
+      if (!u) return [];
       return loadUserWatchlist(u);
     } catch (e) {
-      return loadUserWatchlist(null);
+      return [];
     }
   });
 
@@ -366,10 +359,11 @@ export default function App() {
     try {
       const savedUser = localStorage.getItem('psx_user_profile');
       const u = savedUser ? JSON.parse(savedUser) : null;
+      if (!u) return new Set();
       const list = loadUserWatchlist(u);
       return new Set(list.map(w => (typeof w === 'string' ? w : w.symbol).toUpperCase()));
     } catch (e) {
-      return new Set(['OGDC', 'PRL', 'MEBL', 'FFC']);
+      return new Set();
     }
   });
   
@@ -476,16 +470,18 @@ export default function App() {
   const handleLogout = () => {
     removeAuthToken();
     localStorage.removeItem('psx_user_profile');
+    localStorage.removeItem('psx_watchlist_guest_default');
+    localStorage.removeItem('psx_portfolio_positions_guest_default');
+    localStorage.removeItem('psx_closed_trades_guest');
+
     setCurrentUser(null);
     setIsAdminOpen(false);
     
-    // Clear out private data from active state and switch to clean guest workspace
-    const guestPositions = loadUserPositions(null);
-    const guestWatchlist = loadUserWatchlist(null);
-    setRawPositions(guestPositions);
-    setWatchlist(guestWatchlist);
-    setWatchlistSet(new Set(guestWatchlist.map(w => (typeof w === 'string' ? w : w.symbol).toUpperCase())));
-    showToast('Signed out successfully. Switched to guest workspace.');
+    // Clear out private data from active state (Zero residual cache)
+    setRawPositions([]);
+    setWatchlist([]);
+    setWatchlistSet(new Set());
+    showToast('Signed out successfully.');
   };
 
   const handleOpenAuth = (mode = 'login') => {
