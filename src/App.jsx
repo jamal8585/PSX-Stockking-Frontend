@@ -38,17 +38,43 @@ const calculateClientPortfolio = (savedPositions = [], stocksList = []) => {
   let totalTodayPnl = 0;
 
   const stockMap = new Map();
-  // 1. Preload from bundled official 503 dataset
+  // 1. Preload from bundled official authoritative 503 dataset
   if (officialQuotes && typeof officialQuotes === 'object') {
     Object.values(officialQuotes).forEach(q => {
-      if (q?.symbol) stockMap.set(q.symbol.toUpperCase().trim(), q);
+      if (q?.symbol) {
+        const symKey = q.symbol.toUpperCase().trim();
+        stockMap.set(symKey, {
+          symbol: symKey,
+          name: q.name || symKey,
+          sector: q.sector || 'General Market',
+          currentPrice: Number(q.currentPrice || 0),
+          prevClose: Number(q.prevClose || q.currentPrice || 0),
+          change: Number(q.change || 0),
+          changePercent: Number(q.changePercent || 0),
+          high: Number(q.high || q.currentPrice),
+          low: Number(q.low || q.currentPrice),
+          volume: Number(q.volume || 0)
+        });
+      }
     });
   }
 
-  // 2. Overlay live ticks from active stocks array
+  // 2. Overlay live ticks from active stocks array without corrupting official rates
   if (Array.isArray(stocksList)) {
     stocksList.forEach(s => {
-      if (s?.symbol) stockMap.set(s.symbol.toUpperCase().trim(), s);
+      if (s?.symbol && Number(s.currentPrice) > 0) {
+        const symKey = s.symbol.toUpperCase().trim();
+        const existing = stockMap.get(symKey);
+        stockMap.set(symKey, {
+          ...existing,
+          ...s,
+          symbol: symKey,
+          currentPrice: Number(s.currentPrice),
+          prevClose: Number(s.prevClose || existing?.prevClose || s.currentPrice),
+          change: Number(s.change !== undefined ? s.change : (existing?.change || 0)),
+          changePercent: Number(s.changePercent !== undefined ? s.changePercent : (existing?.changePercent || 0))
+        });
+      }
     });
   }
 
@@ -57,7 +83,9 @@ const calculateClientPortfolio = (savedPositions = [], stocksList = []) => {
     const official = stockMap.get(sym);
     const currentPrice = Number(official?.currentPrice || pos.buyPrice);
     const prevClose = Number(official?.prevClose || currentPrice);
-    const dayChangePerShare = official?.change !== undefined ? Number(official.change) : Number((currentPrice - prevClose).toFixed(2));
+    const dayChangePerShare = official?.change !== undefined 
+      ? Number(official.change) 
+      : Number((currentPrice - prevClose).toFixed(2));
     const dayChangePercent = official?.changePercent !== undefined 
       ? Number(official.changePercent) 
       : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0);
@@ -218,64 +246,73 @@ export default function App() {
     setPortfolioData(calculated);
   }, [rawPositions, stocks]);
 
-  const loadData = async (silent = false) => {
+  // Fast 5-second lightweight polling for KSE-100 & market status
+  const syncQuickData = async () => {
+    try {
+      const m = await getMarketSummary();
+      if (m?.success && m.data) {
+        setMarketSummary(m.data);
+      }
+    } catch (err) {
+      console.warn('Quick Sync note:', err.message);
+    }
+  };
+
+  // Complete background data loader
+  const loadFullData = async (silent = false) => {
     try {
       const results = await Promise.allSettled([
         getMarketSummary(),
         getStocks(),
         getRecommendations(),
         getNews(),
-        getWatchlist(),
-        getPortfolio()
+        getWatchlist()
       ]);
 
-      const [m, s, r, n, w, p] = results;
+      const [m, s, r, n, w] = results;
 
       if (m.status === 'fulfilled' && m.value?.success) setMarketSummary(m.value.data);
-      if (s.status === 'fulfilled' && s.value?.success) setStocks(s.value.data);
+      if (s.status === 'fulfilled' && s.value?.success && Array.isArray(s.value.data) && s.value.data.length > 0) {
+        setStocks(s.value.data);
+      }
       if (r.status === 'fulfilled' && r.value?.success) setRecommendations(r.value);
       if (n.status === 'fulfilled' && n.value?.success) setNews(n.value.data);
       if (w.status === 'fulfilled' && w.value?.success) {
         setWatchlist(w.value.data);
         setWatchlistSet(new Set(w.value.data.map(item => item.symbol)));
       }
-      
-      // If server returned portfolio positions, merge with local
-      if (p.status === 'fulfilled' && p.value?.positions?.length > 0) {
-        const serverPos = p.value.positions;
-        setRawPositions(prev => {
-          if (prev.length === 0) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(serverPos));
-            return serverPos;
-          }
-          return prev;
-        });
-      }
 
       if (!silent) {
         setCountdown(AUTO_SYNC_SECONDS);
       }
     } catch (err) {
-      console.error('Data Loading Error:', err);
+      console.error('Full Data Loading Error:', err);
     }
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadFullData();
 
-  useEffect(() => {
+    // Fast 5-second countdown timer for rapid live index sync
     const timer = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
-          loadData(true);
+          syncQuickData();
           return AUTO_SYNC_SECONDS;
         }
         return prev - 1;
       });
     }, 1000);
 
-    return () => clearInterval(timer);
+    // Full catalog refresh every 25 seconds
+    const fullTimer = setInterval(() => {
+      loadFullData(true);
+    }, 25000);
+
+    return () => {
+      clearInterval(timer);
+      clearInterval(fullTimer);
+    };
   }, []);
 
   const handleSelectStock = async (symbol) => {
@@ -389,7 +426,7 @@ export default function App() {
     try {
       const res = await runMarketScan();
       if (res.success) {
-        await loadData();
+        await loadFullData();
         setCountdown(AUTO_SYNC_SECONDS);
         showToast('✅ PSX Stockking Updated With Latest Market Signals!');
       }
