@@ -16,19 +16,19 @@ const DEFAULT_SECTORS = [
 export default function MarketHero({ marketSummary }) {
   const [viewAllSectors, setViewAllSectors] = useState(false);
 
-  const {
-    indexName = 'KSE-100',
-    currentValue = 177616.95,
-    change = 641.28,
-    changePercent = 0.36,
-    high = 178138.68,
-    low = 176944.91,
-    advances = 428,
-    declines = 285,
-    unchanged = 50,
-    sectorPerformance = [],
-    marketSentiment = 'BULLISH'
-  } = marketSummary || {};
+  const rawVal = marketSummary?.currentValue || marketSummary?.current || 177783.65;
+  const currentValue = Number(rawVal);
+  const change = marketSummary?.change !== undefined ? Number(marketSummary.change) : 807.98;
+  const changePercent = marketSummary?.changePercent !== undefined ? Number(marketSummary.changePercent) : 0.46;
+  const high = Number(marketSummary?.high || 177783.65);
+  const low = Number(marketSummary?.low || 177353.62);
+  const indexName = marketSummary?.indexName || 'KSE-100';
+  const advances = marketSummary?.advances !== undefined ? marketSummary.advances : 468;
+  const declines = marketSummary?.declines !== undefined ? marketSummary.declines : 267;
+  const unchanged = marketSummary?.unchanged !== undefined ? marketSummary.unchanged : 28;
+  const sectorPerformance = marketSummary?.sectorPerformance || [];
+  const marketSentiment = marketSummary?.marketSentiment || (change >= 0 ? 'BULLISH' : 'BEARISH');
+  const marketStatus = marketSummary?.marketStatus || { isOpen: true, statusText: 'LIVE PSX DPS' };
 
   const isPositive = change >= 0;
   const totalStocks = advances + declines + unchanged;
@@ -53,7 +53,9 @@ export default function MarketHero({ marketSummary }) {
             <span className="px-2.5 py-1 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-xs font-extrabold">
               {indexName}
             </span>
-            <span className="text-xs text-gray-400 font-medium">Official PSX DPS Closing</span>
+            <span className="text-xs text-gray-400 font-medium">
+              {marketStatus.statusText || 'Official PSX DPS'}
+            </span>
           </div>
           <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-full flex items-center space-x-1 ${
             isPositive ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
@@ -80,7 +82,7 @@ export default function MarketHero({ marketSummary }) {
           </div>
           <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
             <div 
-              className="h-full bg-gradient-to-r from-teal-500 to-cyan-400 rounded-full"
+              className="h-full bg-gradient-to-r from-teal-500 to-cyan-400 rounded-full transition-all duration-500"
               style={{ width: `${Math.min(100, Math.max(5, ((currentValue - low) / ((high - low) || 1)) * 100))}%` }}
             />
           </div>
