@@ -50,9 +50,11 @@ export default function Navbar({
   setActiveTab,
   countdown = 60
 }) {
-  const kse = marketSummary?.currentValue ? marketSummary.currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '177,616.95';
-  const change = marketSummary?.change || 641.28;
-  const changePct = marketSummary?.changePercent || 0.36;
+  const kse = (marketSummary?.currentValue || marketSummary?.current) 
+    ? (marketSummary.currentValue || marketSummary.current).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
+    : '177,783.65';
+  const change = marketSummary?.change !== undefined ? marketSummary.change : 807.98;
+  const changePct = marketSummary?.changePercent !== undefined ? marketSummary.changePercent : 0.46;
   const isPositive = change >= 0;
   const marketStatus = marketSummary?.marketStatus || { isOpen: false, statusText: 'MARKET CLOSED', sessionNote: 'Official Closing Rates' };
 

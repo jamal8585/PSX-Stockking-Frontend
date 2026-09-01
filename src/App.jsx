@@ -25,7 +25,7 @@ import {
   deletePortfolioPosition
 } from './services/api';
 
-const AUTO_SYNC_SECONDS = 60;
+const AUTO_SYNC_SECONDS = 5;
 const STORAGE_KEY = 'psx_user_portfolio_positions_v1';
 
 const DEFAULT_PSX_PRICES = {
