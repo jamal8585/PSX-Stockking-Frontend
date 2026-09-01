@@ -632,7 +632,9 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#070B12] text-gray-100 flex flex-col font-['Calibri','Segoe_UI',system-ui,sans-serif]">
+    <div className={`min-h-screen transition-colors flex flex-col font-['Calibri','Segoe_UI',system-ui,sans-serif] ${
+      theme === 'light' ? 'bg-[#F8FAFC] text-slate-900' : 'bg-[#070B12] text-gray-100'
+    }`}>
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-cyan-500 to-emerald-500 text-black font-extrabold text-xs px-5 py-3 rounded-2xl shadow-2xl animate-bounce flex items-center space-x-2">
@@ -657,10 +659,12 @@ export default function App() {
         onOpenUpgrade={handleOpenUpgrade}
         onOpenAdmin={handleOpenAdmin}
         onLogout={handleLogout}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
       />
 
-      {/* Main Content Hub */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1 w-full">
+      {/* Main Content Hub (Wide Ultra-Dashboard Format) */}
+      <main className="max-w-[1680px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1">
         {/* Global Market Ticker Cards */}
         <MarketHero marketSummary={marketSummary} />
 
@@ -713,8 +717,10 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-gray-900 py-4 text-center text-xs text-gray-500 bg-[#04070D]">
-        <div className="max-w-7xl mx-auto px-4">
+      <footer className={`border-t py-4 text-center text-xs transition-colors ${
+        theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-500' : 'border-gray-900 text-gray-500 bg-[#04070D]'
+      }`}>
+        <div className="max-w-[1680px] mx-auto px-4">
           <p>© 2026 PSX STOCKKING • Real-Time Financial Intelligence, Portfolio Tracker & Algorithmic Stock Screening Engine.</p>
         </div>
       </footer>
