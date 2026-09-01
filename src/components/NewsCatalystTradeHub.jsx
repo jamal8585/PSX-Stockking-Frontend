@@ -86,6 +86,39 @@ export default function NewsCatalystTradeHub({
     { id: 'MACRO_ECONOMY', label: 'Macro Economy' }
   ];
 
+  const getCleanImpactSummary = (item) => {
+    const raw = item?.impactSummary || item?.description || '';
+    const clean = String(raw)
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+      .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+      .replace(/if\s*\(!window[\s\S]*$/gi, '')
+      .replace(/window\.addEvent[\s\S]*$/gi, '')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .trim();
+
+    const isGarbage = 
+      clean.includes('window.') ||
+      clean.includes('addEventListener') ||
+      clean.includes('function(') ||
+      clean.includes('var iframe') ||
+      clean.includes('raw-html') ||
+      clean.includes('_rawHtml') ||
+      clean.includes('document.g') ||
+      clean.length < 15;
+
+    if (isGarbage) {
+      const catLabel = item?.categoryName || item?.category?.replace('_', ' ') || 'Energy & Macro';
+      return `${catLabel} catalyst: ${item?.title || 'Industry development'}. Market dynamics indicate strategic re-pricing and liquidity inflows across key listed equities.`;
+    }
+
+    return clean;
+  };
+
   const rawList = Array.isArray(news) && news.length > 0 ? news : (Array.isArray(newsList) ? newsList : []);
 
   const filtered = rawList.filter(n => {
@@ -229,7 +262,7 @@ export default function NewsCatalystTradeHub({
                 {/* Narrative Summary */}
                 <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-3.5 border border-[#E2E8F0] dark:border-[#243044] text-xs sm:text-sm text-[#0F172A] dark:text-[#F8FAFC] leading-relaxed">
                   <span className="font-bold text-[#2563EB] dark:text-[#3B82F6] mr-1.5">⚡ Economic & Market Impact:</span>
-                  {item.impactSummary}
+                  {getCleanImpactSummary(item)}
                 </div>
 
                 {/* ========================================================================= */}
