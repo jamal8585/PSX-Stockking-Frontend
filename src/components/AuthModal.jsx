@@ -60,17 +60,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
         setSuccessMsg(res.message || 'Authentication successful!');
         localStorage.setItem('psx_user_profile', JSON.stringify(res.user));
         
-        // Cache to local registered directory for admin sync
-        try {
-          const dir = JSON.parse(localStorage.getItem('psx_registered_directory') || '[]');
-          const idx = dir.findIndex(u => u.email?.toLowerCase() === res.user.email?.toLowerCase());
-          if (idx >= 0) dir[idx] = { ...dir[idx], ...res.user };
-          else dir.push(res.user);
-          localStorage.setItem('psx_registered_directory', JSON.stringify(dir));
-        } catch (e) {
-          console.warn('Directory cache error:', e);
-        }
-
         setTimeout(() => {
           onAuthSuccess(res.user);
           onClose();

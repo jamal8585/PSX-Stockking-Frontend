@@ -38,30 +38,16 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // First sync with any client-cached users to guarantee zero data loss
-      const localDirStr = localStorage.getItem('psx_registered_directory');
-      const localDir = localDirStr ? JSON.parse(localDirStr) : [];
+      // Clear obsolete local directory cache
+      try {
+        localStorage.removeItem('psx_registered_directory');
+      } catch (_) {}
 
-      let usersList = [];
-      if (localDir.length > 0) {
-        try {
-          const syncRes = await syncAdminUsers(localDir);
-          if (syncRes.success && Array.isArray(syncRes.users)) {
-            usersList = syncRes.users;
-          }
-        } catch (e) {
-          console.warn('Sync fallback note:', e.message);
-        }
+      // Always fetch real live users from the backend
+      const usersRes = await getAdminUsers({ q: searchQuery, plan: planFilter, status: statusFilter });
+      if (usersRes.success && Array.isArray(usersRes.users)) {
+        setUsers(usersRes.users);
       }
-
-      if (usersList.length === 0) {
-        const usersRes = await getAdminUsers({ q: searchQuery, plan: planFilter, status: statusFilter });
-        if (usersRes.success && Array.isArray(usersRes.users)) {
-          usersList = usersRes.users;
-        }
-      }
-
-      setUsers(usersList);
 
       const analyticsRes = await getAdminAnalytics();
       if (analyticsRes.success) setAnalytics(analyticsRes.stats);
