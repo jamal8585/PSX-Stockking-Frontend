@@ -77,6 +77,12 @@ export const updateUserProfile = async (profileData) => {
   return res.data;
 };
 
+export const forgotPassword = async (data) => {
+  const res = await API.post('/auth/forgot-password', data);
+  if (res.data?.token) setAuthToken(res.data.token);
+  return res.data;
+};
+
 // ==========================================
 // ADMIN ENDPOINTS
 // ==========================================
