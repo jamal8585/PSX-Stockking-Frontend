@@ -13,7 +13,9 @@ import {
   Sun,
   Moon,
   BarChart3,
-  Coins
+  Coins,
+  LogOut,
+  User as UserIcon
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 
@@ -208,7 +210,7 @@ export default function Navbar({
           </div>
 
           {/* Center Navigation Tabs (Horizontal Single Line) */}
-          <nav className={`hidden xl:flex items-center space-x-1 p-1 rounded-xl border shrink-0 ${
+          <nav className={`hidden 2xl:flex items-center space-x-1 p-1 rounded-xl border shrink-0 ${
             isLight ? 'bg-[#F1F5F9] border-[#E2E8F0]' : 'bg-[#1E293B] border-[#243044]'
           }`}>
             <button
@@ -285,7 +287,7 @@ export default function Navbar({
           </nav>
 
           {/* Right Actions & Controls Group */}
-          <div className="flex items-center space-x-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Theme Toggle (Light / Dark) */}
             <button
               onClick={onToggleTheme}
@@ -324,7 +326,7 @@ export default function Navbar({
               <button
                 onClick={onRunScan}
                 disabled={isScanning}
-                className={`hidden sm:flex items-center space-x-1.5 px-3 py-2 rounded-lg text-white font-bold text-xs disabled:opacity-50 transition-all cursor-pointer whitespace-nowrap ${
+                className={`hidden md:flex items-center space-x-1.5 px-3 py-2 rounded-lg text-white font-bold text-xs disabled:opacity-50 transition-all cursor-pointer whitespace-nowrap ${
                   isLight ? 'bg-[#2563EB] hover:bg-[#1D4ED8]' : 'bg-[#3B82F6] hover:bg-[#60A5FA]'
                 }`}
                 title="Force Live Market Scan (Admin Only)"
@@ -338,7 +340,7 @@ export default function Navbar({
             {isAdmin && (
               <button
                 onClick={onOpenAdmin}
-                className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all border whitespace-nowrap ${
+                className={`flex items-center space-x-1 px-2.5 sm:px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all border whitespace-nowrap ${
                   isLight 
                     ? 'bg-[#F1F5F9] border-[#E2E8F0] text-[#0F172A] hover:bg-[#E2E8F0]' 
                     : 'bg-[#1E293B] border-[#243044] text-[#F8FAFC] hover:bg-[#243044]'
@@ -352,7 +354,7 @@ export default function Navbar({
             {!isPro && (
               <button
                 onClick={onOpenUpgrade}
-                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all whitespace-nowrap ${
+                className={`flex items-center space-x-1 px-2.5 sm:px-3.5 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all whitespace-nowrap ${
                   isLight 
                     ? 'bg-[#D97706] hover:bg-[#B45309] text-white shadow-sm' 
                     : 'bg-[#F59E0B] hover:bg-[#D97706] text-black font-black shadow-sm'
@@ -365,29 +367,41 @@ export default function Navbar({
 
             {/* Auth Profile / Login Button */}
             {currentUser ? (
-              <div className={`flex items-center space-x-2 pl-3 pr-1 py-1 rounded-lg border text-xs ${
-                isLight ? 'bg-[#F8FAFC] border-[#E2E8F0]' : 'bg-[#0B0F19] border-[#243044]'
-              }`}>
-                <div className="flex flex-col text-right">
-                  <span className={`font-bold text-[11px] leading-tight truncate max-w-[90px] ${
-                    isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                {/* User Profile Card */}
+                <div className={`flex items-center space-x-1.5 sm:space-x-2 px-2 sm:px-2.5 py-1 rounded-xl border text-xs ${
+                  isLight ? 'bg-[#F8FAFC] border-[#E2E8F0]' : 'bg-[#0B0F19] border-[#243044]'
+                }`}>
+                  <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
+                    isPro 
+                      ? (isLight ? 'bg-[#D97706]/10 text-[#D97706] border border-[#D97706]/30' : 'bg-[#F59E0B]/10 text-[#F59E0B] border border-[#F59E0B]/30') 
+                      : (isLight ? 'bg-[#2563EB]/10 text-[#2563EB]' : 'bg-[#3B82F6]/10 text-[#3B82F6]')
                   }`}>
-                    {currentUser.name}
-                  </span>
-                  <span className={`text-[9px] font-bold uppercase ${
-                    isPro ? (isLight ? 'text-[#D97706]' : 'text-[#F59E0B]') : (isLight ? 'text-[#64748B]' : 'text-[#94A3B8]')
-                  }`}>
-                    {isPro ? '⭐ PRO VIP' : 'FREE'}
-                  </span>
+                    {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+
+                  <div className="flex flex-col text-left max-w-[80px] sm:max-w-[120px] md:max-w-[150px]">
+                    <span className={`font-bold text-[11px] leading-tight truncate ${
+                      isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'
+                    }`} title={currentUser.name}>
+                      {currentUser.name}
+                    </span>
+                    <span className={`text-[9px] font-bold uppercase tracking-wider truncate ${
+                      isPro ? (isLight ? 'text-[#D97706]' : 'text-[#F59E0B]') : (isLight ? 'text-[#64748B]' : 'text-[#94A3B8]')
+                    }`}>
+                      {isPro ? '⭐ PRO VIP' : 'FREE TIER'}
+                    </span>
+                  </div>
                 </div>
+
+                {/* Sign Out Button */}
                 <button
                   onClick={onLogout}
-                  className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
-                    isLight ? 'bg-[#E2E8F0] hover:bg-[#CBD5E1] text-[#0F172A]' : 'bg-[#1E293B] hover:bg-[#243044] text-[#94A3B8] hover:text-[#EF4444]'
-                  }`}
-                  title="Sign Out"
+                  className="flex items-center space-x-1 px-2.5 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all border border-[#DC2626]/20 bg-[#DC2626]/10 hover:bg-[#DC2626] text-[#DC2626] hover:text-white dark:text-[#EF4444] dark:hover:text-white shrink-0"
+                  title="Sign Out of Account"
                 >
-                  Exit
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Sign Out</span>
                 </button>
               </div>
             ) : (
