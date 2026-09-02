@@ -80,6 +80,16 @@ export const getAdminUsers = async (params = {}) => {
   return res.data;
 };
 
+export const syncAdminUsers = async (clientUsers = []) => {
+  const res = await API.post('/admin/sync-users', { clientUsers });
+  return res.data;
+};
+
+export const createAdminUser = async (userData) => {
+  const res = await API.post('/admin/create-user', userData);
+  return res.data;
+};
+
 export const updateAdminSubscription = async (userId, data) => {
   const res = await API.post(`/admin/users/${userId}/subscription`, data);
   return res.data;

@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Crown, ShieldAlert, CheckCircle2, XCircle, Search, RefreshCw, 
-  Trash2, PlusCircle, ArrowUpRight, DollarSign, Clock, Filter, AlertCircle 
+  Trash2, PlusCircle, ArrowUpRight, DollarSign, Clock, Filter, AlertCircle,
+  Eye, Calendar, Phone, Mail, ShieldCheck, UserPlus, X, Sparkles
 } from 'lucide-react';
 import { 
   getAdminUsers, 
+  syncAdminUsers,
+  createAdminUser,
   updateAdminSubscription, 
   deleteAdminUser, 
   getAdminAnalytics 
@@ -19,16 +22,48 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [actionLoading, setActionLoading] = useState(null);
   const [message, setMessage] = useState({ text: '', type: '' });
+  
+  // Modals
+  const [selectedProofUser, setSelectedProofUser] = useState(null);
+  const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    role: 'USER',
+    plan: 'PRO',
+    duration: '1_MONTH'
+  });
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [usersRes, analyticsRes] = await Promise.all([
-        getAdminUsers({ q: searchQuery, plan: planFilter, status: statusFilter }),
-        getAdminAnalytics()
-      ]);
+      // First sync with any client-cached users to guarantee zero data loss
+      const localDirStr = localStorage.getItem('psx_registered_directory');
+      const localDir = localDirStr ? JSON.parse(localDirStr) : [];
 
-      if (usersRes.success) setUsers(usersRes.users || []);
+      let usersList = [];
+      if (localDir.length > 0) {
+        try {
+          const syncRes = await syncAdminUsers(localDir);
+          if (syncRes.success && Array.isArray(syncRes.users)) {
+            usersList = syncRes.users;
+          }
+        } catch (e) {
+          console.warn('Sync fallback note:', e.message);
+        }
+      }
+
+      if (usersList.length === 0) {
+        const usersRes = await getAdminUsers({ q: searchQuery, plan: planFilter, status: statusFilter });
+        if (usersRes.success && Array.isArray(usersRes.users)) {
+          usersList = usersRes.users;
+        }
+      }
+
+      setUsers(usersList);
+
+      const analyticsRes = await getAdminAnalytics();
       if (analyticsRes.success) setAnalytics(analyticsRes.stats);
     } catch (err) {
       setMessage({
@@ -61,6 +96,7 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
 
       if (res.success) {
         setMessage({ text: res.message || 'Subscription updated successfully!', type: 'success' });
+        if (selectedProofUser?.id === userId) setSelectedProofUser(null);
         fetchData();
       }
     } catch (err) {
@@ -96,6 +132,28 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
     }
   };
 
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    setActionLoading('CREATE_USER');
+    setMessage({ text: '', type: '' });
+    try {
+      const res = await createAdminUser(newUserForm);
+      if (res.success) {
+        setMessage({ text: res.message || 'User added successfully!', type: 'success' });
+        setIsAddUserOpen(false);
+        setNewUserForm({ name: '', email: '', phone: '', role: 'USER', plan: 'PRO', duration: '1_MONTH' });
+        fetchData();
+      }
+    } catch (err) {
+      setMessage({
+        text: err.response?.data?.message || 'Failed to create user.',
+        type: 'error'
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleDeleteUser = async (userId, userName) => {
     if (!window.confirm(`Are you sure you want to delete user "${userName}"?`)) return;
     setActionLoading(userId);
@@ -113,6 +171,15 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const getDaysLeft = (endStr, isLifetime) => {
+    if (isLifetime) return 'Lifetime VIP';
+    if (!endStr) return 'No Active Sub';
+    const diff = new Date(endStr).getTime() - Date.now();
+    if (diff <= 0) return 'Expired';
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    return `${days} Days Left`;
   };
 
   const pendingUsers = users.filter(u => u.subscriptionStatus === 'PENDING');
@@ -133,13 +200,20 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
                   PSX Stockking Subscription & User Admin Panel
                 </h1>
                 <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
-                  Logged in as Administrator: <span className="text-[#2563EB] dark:text-[#3B82F6] font-bold">{currentUser?.email}</span>
+                  Logged in as Lead Administrator: <span className="text-[#2563EB] dark:text-[#3B82F6] font-bold">{currentUser?.email}</span>
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setIsAddUserOpen(true)}
+              className="px-4 py-2.5 rounded-lg bg-[#16A34A] hover:bg-[#15803D] dark:bg-[#22C55E] dark:hover:bg-[#16A34A] text-white dark:text-black font-bold text-xs cursor-pointer shadow-sm transition-all flex items-center space-x-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Add / Grant Subscriber</span>
+            </button>
             <button
               onClick={fetchData}
               disabled={loading}
@@ -150,7 +224,7 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
             </button>
             <button
               onClick={onBackToPortal}
-              className="px-5 py-2.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-xs cursor-pointer shadow-sm transition-all flex items-center space-x-2"
+              className="px-4 py-2.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-xs cursor-pointer shadow-sm transition-all flex items-center space-x-2"
             >
               <span>Return to Main Portal</span>
               <ArrowUpRight className="w-4 h-4" />
@@ -211,9 +285,9 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               {pendingUsers.map(u => (
-                <div key={u.id} className="bg-[#F8FAFC] dark:bg-[#0B0F19] p-4 rounded-lg border border-[#E2E8F0] dark:border-[#243044] space-y-2">
+                <div key={u.id} className="bg-[#F8FAFC] dark:bg-[#0B0F19] p-4 rounded-lg border border-[#E2E8F0] dark:border-[#243044] space-y-2.5">
                   <div className="flex justify-between items-start">
                     <div>
                       <span className="font-bold text-xs block">{u.name}</span>
@@ -221,21 +295,21 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
                       {u.phone && <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8] block">📱 {u.phone}</span>}
                     </div>
                     <span className="px-2 py-0.5 rounded-md bg-[#D97706]/10 text-[#D97706] dark:bg-[#F59E0B]/10 dark:text-[#F59E0B] text-[10px] font-bold border border-[#D97706]/20">
-                      PENDING
+                      PENDING VERIFICATION
                     </span>
                   </div>
 
-                  <div className="bg-[#FFFFFF] dark:bg-[#151E2E] p-2.5 rounded-lg border border-[#E2E8F0] dark:border-[#243044] text-[11px] space-y-1">
-                    <div className="flex justify-between">
-                      <span>Method: <strong className="text-[#16A34A] dark:text-[#22C55E]">{u.paymentProof?.method || 'Direct'}</strong></span>
-                      <span>Amount: <strong className="mono">PKR {u.paymentProof?.amount || 1499}</strong></span>
+                  <div className="bg-[#FFFFFF] dark:bg-[#151E2E] p-3 rounded-lg border border-[#E2E8F0] dark:border-[#243044] text-[11px] space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <span>Method: <strong className="text-[#16A34A] dark:text-[#22C55E] font-bold">{u.paymentProof?.method || 'Easypaisa / JazzCash'}</strong></span>
+                      <span>Amount: <strong className="mono font-bold text-xs">PKR {u.paymentProof?.amount || 1499}</strong></span>
                     </div>
                     <div>
-                      <span>TxID: <strong className="text-[#2563EB] dark:text-[#3B82F6] mono">{u.paymentProof?.transactionId || 'N/A'}</strong></span>
+                      <span>Transaction ID / Ref: <strong className="text-[#2563EB] dark:text-[#3B82F6] mono font-bold bg-[#2563EB]/10 px-1.5 py-0.5 rounded">{u.paymentProof?.transactionId || 'N/A'}</strong></span>
                     </div>
                     {u.paymentProof?.note && (
-                      <div className="text-[#64748B] dark:text-[#94A3B8] italic text-[10px]">
-                        Note: {u.paymentProof.note}
+                      <div className="text-[#64748B] dark:text-[#94A3B8] italic text-[10px] pt-0.5">
+                        💬 "{u.paymentProof.note}"
                       </div>
                     )}
                   </div>
@@ -246,21 +320,28 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
                       disabled={actionLoading === u.id}
                       className="px-3 py-1.5 rounded-lg bg-[#16A34A] hover:bg-[#15803D] dark:bg-[#22C55E] dark:hover:bg-[#16A34A] text-white dark:text-black font-bold text-[10px] cursor-pointer"
                     >
-                      Approve 1 Month (PKR 1,499)
+                      ✓ Approve 1 Month (PKR 1,499)
                     </button>
                     <button
                       onClick={() => handleUpdateSubscription(u.id, 'PRO', '3_MONTHS', 'ACTIVE')}
                       disabled={actionLoading === u.id}
                       className="px-3 py-1.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-[10px] cursor-pointer"
                     >
-                      Approve 3 Months
+                      ✓ Approve 3 Months (PKR 3,999)
                     </button>
                     <button
-                      onClick={() => handleUpdateSubscription(u.id, 'FREE', null, 'EXPIRED')}
+                      onClick={() => handleUpdateSubscription(u.id, 'PRO', 'LIFETIME', 'ACTIVE')}
                       disabled={actionLoading === u.id}
-                      className="px-3 py-1.5 rounded-lg bg-[#DC2626] hover:bg-[#B91C1C] dark:bg-[#EF4444] text-white font-bold text-[10px] cursor-pointer"
+                      className="px-3 py-1.5 rounded-lg bg-[#D97706] hover:bg-[#B45309] text-white font-bold text-[10px] cursor-pointer"
                     >
-                      Reject Proof
+                      👑 Grant Lifetime
+                    </button>
+                    <button
+                      onClick={() => handleUpdateSubscription(u.id, 'FREE', 'FREE', 'EXPIRED')}
+                      disabled={actionLoading === u.id}
+                      className="px-3 py-1.5 rounded-lg bg-[#DC2626]/10 text-[#DC2626] dark:text-[#EF4444] hover:bg-[#DC2626] hover:text-white font-bold text-[10px] cursor-pointer"
+                    >
+                      ✗ Reject
                     </button>
                   </div>
                 </div>
@@ -275,7 +356,8 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div className="flex items-center space-x-2">
               <Users className="w-5 h-5 text-[#2563EB] dark:text-[#3B82F6]" />
-              <h2 className="text-base font-bold">User Directory & Subscription Manager</h2>
+              <h2 className="text-base font-bold">User Directory & Subscription Details</h2>
+              <span className="text-xs text-[#64748B] dark:text-[#94A3B8] font-bold">({users.length} Users)</span>
             </div>
 
             {/* Filter Controls */}
@@ -284,7 +366,7 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
                 <Search className="w-3.5 h-3.5 text-[#64748B] dark:text-[#94A3B8] absolute left-3 top-2.5" />
                 <input
                   type="text"
-                  placeholder="Search user name or email..."
+                  placeholder="Search name, email, phone, TxID..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   className="bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[#0F172A] dark:text-[#F8FAFC] focus:outline-none focus:border-[#2563EB] dark:focus:border-[#3B82F6] w-56"
@@ -310,6 +392,7 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
                 <option value="ACTIVE">Active</option>
                 <option value="PENDING">Pending</option>
                 <option value="EXPIRED">Expired</option>
+                <option value="INACTIVE">Inactive</option>
               </select>
             </div>
           </div>
@@ -322,8 +405,10 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
                   <th className="py-3 px-4">User Details</th>
                   <th className="py-3 px-3">Role</th>
                   <th className="py-3 px-3">Current Plan</th>
-                  <th className="py-3 px-3">Status</th>
+                  <th className="py-3 px-3">Duration</th>
+                  <th className="py-3 px-3">Status & Time Left</th>
                   <th className="py-3 px-3">Expiry Date</th>
+                  <th className="py-3 px-3">Payment Proof</th>
                   <th className="py-3 px-3 text-center">Subscription Controls</th>
                   <th className="py-3 px-3 text-center">Actions</th>
                 </tr>
@@ -331,25 +416,29 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
               <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#243044] bg-[#FFFFFF] dark:bg-[#151E2E]">
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
+                    <td colSpan={9} className="py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
                       No users found matching your search.
                     </td>
                   </tr>
                 ) : (
                   users.map(u => {
                     const isPro = u.plan === 'PRO' && u.subscriptionStatus === 'ACTIVE';
-                    const isPending = u.subscriptionStatus === 'PENDING';
+                    const isLifetime = u.subscriptionDuration === 'LIFETIME' || u.role === 'ADMIN';
+                    const daysLeft = getDaysLeft(u.subscriptionEnd, isLifetime);
+                    const hasProof = Boolean(u.paymentProof?.transactionId);
 
                     return (
                       <tr key={u.id} className="hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors">
+                        {/* User Details */}
                         <td className="py-3 px-4">
                           <div>
-                            <span className="font-bold block">{u.name}</span>
+                            <span className="font-bold block text-sm">{u.name}</span>
                             <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8] block">{u.email}</span>
-                            {u.phone && <span className="text-[10px] text-[#2563EB] dark:text-[#3B82F6] block">📱 {u.phone}</span>}
+                            {u.phone && <span className="text-[10px] text-[#2563EB] dark:text-[#3B82F6] font-bold block">📱 {u.phone}</span>}
                           </div>
                         </td>
 
+                        {/* Role */}
                         <td className="py-3 px-3">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                             u.role === 'ADMIN' 
@@ -360,6 +449,7 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
                           </span>
                         </td>
 
+                        {/* Current Plan */}
                         <td className="py-3 px-3">
                           {isPro ? (
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#D97706]/10 text-[#D97706] dark:bg-[#F59E0B]/10 dark:text-[#F59E0B] border border-[#D97706]/20">
@@ -372,64 +462,116 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
                           )}
                         </td>
 
+                        {/* Duration */}
                         <td className="py-3 px-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            u.subscriptionStatus === 'ACTIVE' 
-                              ? 'text-[#16A34A] dark:text-[#22C55E]' 
-                              : (u.subscriptionStatus === 'PENDING' ? 'text-[#D97706] dark:text-[#F59E0B]' : 'text-[#64748B] dark:text-[#94A3B8]')
-                          }`}>
-                            {u.subscriptionStatus || 'NONE'}
+                          <span className="font-bold text-[11px] text-[#0F172A] dark:text-[#F8FAFC]">
+                            {u.subscriptionDuration?.replace('_', ' ') || 'FREE'}
                           </span>
                         </td>
 
-                        <td className="py-3 px-3 mono text-[11px] text-[#64748B] dark:text-[#94A3B8]">
-                          {u.subscriptionExpiresAt 
-                            ? new Date(u.subscriptionExpiresAt).toLocaleDateString('en-GB') 
-                            : '—'}
+                        {/* Status & Days Left */}
+                        <td className="py-3 px-3">
+                          <div className="space-y-0.5">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold inline-block ${
+                              u.subscriptionStatus === 'ACTIVE' 
+                                ? 'bg-[#16A34A]/10 text-[#16A34A] dark:text-[#22C55E]' 
+                                : (u.subscriptionStatus === 'PENDING' ? 'bg-[#D97706]/10 text-[#D97706] dark:text-[#F59E0B]' : 'bg-[#64748B]/10 text-[#64748B] dark:text-[#94A3B8]')
+                            }`}>
+                              {u.subscriptionStatus || 'INACTIVE'}
+                            </span>
+                            <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] block mono font-semibold">
+                              {daysLeft}
+                            </span>
+                          </div>
                         </td>
 
-                        <td className="py-3 px-3 text-center">
-                          <div className="flex items-center justify-center space-x-1.5">
-                            {!isPro ? (
-                              <button
-                                onClick={() => handleUpdateSubscription(u.id, 'PRO', '1_MONTH', 'ACTIVE')}
-                                disabled={actionLoading === u.id}
-                                className="px-2.5 py-1 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-[10px] cursor-pointer"
-                                title="Activate 30 Days Pro"
-                              >
-                                Activate Pro (1M)
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleExtendDays(u.id, 30)}
-                                disabled={actionLoading === u.id}
-                                className="px-2 py-1 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-[10px] cursor-pointer"
-                                title="Add 30 Days"
-                              >
-                                +30 Days
-                              </button>
-                            )}
+                        {/* Expiry Date */}
+                        <td className="py-3 px-3 mono text-[11px] text-[#64748B] dark:text-[#94A3B8]">
+                          {isLifetime ? (
+                            <span className="text-[#D97706] dark:text-[#F59E0B] font-bold">Lifetime (No Expiry)</span>
+                          ) : u.subscriptionEnd ? (
+                            new Date(u.subscriptionEnd).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                          ) : '—'}
+                        </td>
 
-                            {isPro && (
-                              <button
-                                onClick={() => handleUpdateSubscription(u.id, 'FREE', null, 'EXPIRED')}
-                                disabled={actionLoading === u.id}
-                                className="px-2 py-1 rounded-lg bg-[#DC2626]/10 text-[#DC2626] dark:text-[#EF4444] hover:bg-[#DC2626] hover:text-white text-[10px] font-bold cursor-pointer"
-                                title="Cancel Pro Subscription"
-                              >
-                                Demote
-                              </button>
+                        {/* Payment Proof Button */}
+                        <td className="py-3 px-3">
+                          {hasProof ? (
+                            <button
+                              onClick={() => setSelectedProofUser(u)}
+                              className="px-2 py-1 rounded bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 text-[#2563EB] dark:text-[#3B82F6] font-bold text-[10px] flex items-center space-x-1 cursor-pointer hover:bg-[#2563EB]/20"
+                            >
+                              <Eye className="w-3 h-3" />
+                              <span>View Proof</span>
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Direct</span>
+                          )}
+                        </td>
+
+                        {/* Subscription Controls */}
+                        <td className="py-3 px-3 text-center">
+                          <div className="flex flex-wrap items-center justify-center gap-1.5">
+                            {!isPro ? (
+                              <>
+                                <button
+                                  onClick={() => handleUpdateSubscription(u.id, 'PRO', '1_MONTH', 'ACTIVE')}
+                                  disabled={actionLoading === u.id}
+                                  className="px-2 py-1 rounded bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-[10px] cursor-pointer"
+                                  title="Activate 1 Month Pro"
+                                >
+                                  +1M Pro
+                                </button>
+                                <button
+                                  onClick={() => handleUpdateSubscription(u.id, 'PRO', '3_MONTHS', 'ACTIVE')}
+                                  disabled={actionLoading === u.id}
+                                  className="px-2 py-1 rounded bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-[10px] cursor-pointer"
+                                  title="Activate 3 Months Pro"
+                                >
+                                  +3M Pro
+                                </button>
+                                <button
+                                  onClick={() => handleUpdateSubscription(u.id, 'PRO', 'LIFETIME', 'ACTIVE')}
+                                  disabled={actionLoading === u.id}
+                                  className="px-2 py-1 rounded bg-[#D97706] hover:bg-[#B45309] text-white font-bold text-[10px] cursor-pointer"
+                                  title="Grant Lifetime VIP"
+                                >
+                                  👑 Lifetime
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => handleExtendDays(u.id, 30)}
+                                  disabled={actionLoading === u.id}
+                                  className="px-2 py-1 rounded bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] text-white font-bold text-[10px] cursor-pointer"
+                                  title="Add 30 Days Extension"
+                                >
+                                  +30 Days
+                                </button>
+                                {u.role !== 'ADMIN' && (
+                                  <button
+                                    onClick={() => handleUpdateSubscription(u.id, 'FREE', 'FREE', 'EXPIRED')}
+                                    disabled={actionLoading === u.id}
+                                    className="px-2 py-1 rounded bg-[#DC2626]/10 text-[#DC2626] dark:text-[#EF4444] hover:bg-[#DC2626] hover:text-white text-[10px] font-bold cursor-pointer"
+                                    title="Demote to Free"
+                                  >
+                                    Demote
+                                  </button>
+                                )}
+                              </>
                             )}
                           </div>
                         </td>
 
+                        {/* Actions */}
                         <td className="py-3 px-3 text-center">
                           {u.role !== 'ADMIN' && (
                             <button
                               onClick={() => handleDeleteUser(u.id, u.name)}
                               disabled={actionLoading === u.id}
                               className="p-1.5 rounded-lg bg-[#DC2626]/10 text-[#DC2626] dark:text-[#EF4444] hover:bg-[#DC2626] hover:text-white transition-colors cursor-pointer"
-                              title="Delete User"
+                              title="Delete User Account"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -443,6 +585,162 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
             </table>
           </div>
         </div>
+
+        {/* Modal: View Payment Proof */}
+        {selectedProofUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+            <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+              <div className="flex justify-between items-center border-b border-[#E2E8F0] dark:border-[#243044] pb-3">
+                <div className="flex items-center space-x-2">
+                  <ShieldCheck className="w-5 h-5 text-[#2563EB] dark:text-[#3B82F6]" />
+                  <h3 className="text-base font-bold">Payment & Upgrade Verification</h3>
+                </div>
+                <button onClick={() => setSelectedProofUser(null)} className="p-1 rounded-lg hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B]">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] p-3 rounded-lg border border-[#E2E8F0] dark:border-[#243044] space-y-1.5">
+                  <div className="flex justify-between"><span className="text-[#64748B]">Subscriber:</span> <span className="font-bold">{selectedProofUser.name}</span></div>
+                  <div className="flex justify-between"><span className="text-[#64748B]">Email:</span> <span className="font-bold text-[#2563EB] dark:text-[#3B82F6]">{selectedProofUser.email}</span></div>
+                  {selectedProofUser.phone && <div className="flex justify-between"><span className="text-[#64748B]">Phone:</span> <span className="font-bold">{selectedProofUser.phone}</span></div>}
+                </div>
+
+                <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] p-3 rounded-lg border border-[#E2E8F0] dark:border-[#243044] space-y-1.5">
+                  <div className="flex justify-between"><span className="text-[#64748B]">Payment Method:</span> <span className="font-bold text-[#16A34A] dark:text-[#22C55E]">{selectedProofUser.paymentProof?.method || 'N/A'}</span></div>
+                  <div className="flex justify-between"><span className="text-[#64748B]">Amount Paid:</span> <span className="font-bold mono">PKR {selectedProofUser.paymentProof?.amount || 1499}</span></div>
+                  <div className="flex justify-between"><span className="text-[#64748B]">Transaction ID:</span> <span className="font-bold mono text-[#2563EB] dark:text-[#3B82F6]">{selectedProofUser.paymentProof?.transactionId || 'N/A'}</span></div>
+                  {selectedProofUser.paymentProof?.note && (
+                    <div className="pt-1 text-[#64748B] dark:text-[#94A3B8]">
+                      Note: <i className="text-[#0F172A] dark:text-[#F8FAFC]">"{selectedProofUser.paymentProof.note}"</i>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-[#E2E8F0] dark:border-[#243044]">
+                <button
+                  onClick={() => handleUpdateSubscription(selectedProofUser.id, 'PRO', '1_MONTH', 'ACTIVE')}
+                  className="flex-1 py-2 rounded-lg bg-[#16A34A] text-white font-bold text-xs cursor-pointer"
+                >
+                  Approve 1M Pro
+                </button>
+                <button
+                  onClick={() => handleUpdateSubscription(selectedProofUser.id, 'PRO', '3_MONTHS', 'ACTIVE')}
+                  className="flex-1 py-2 rounded-lg bg-[#2563EB] text-white font-bold text-xs cursor-pointer"
+                >
+                  Approve 3M Pro
+                </button>
+                <button
+                  onClick={() => handleUpdateSubscription(selectedProofUser.id, 'FREE', 'FREE', 'EXPIRED')}
+                  className="px-3 py-2 rounded-lg bg-[#DC2626]/10 text-[#DC2626] font-bold text-xs cursor-pointer"
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Add / Grant Subscriber */}
+        {isAddUserOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+            <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+              <div className="flex justify-between items-center border-b border-[#E2E8F0] dark:border-[#243044] pb-3">
+                <div className="flex items-center space-x-2">
+                  <UserPlus className="w-5 h-5 text-[#16A34A] dark:text-[#22C55E]" />
+                  <h3 className="text-base font-bold">Add User / Grant Subscription</h3>
+                </div>
+                <button onClick={() => setIsAddUserOpen(false)} className="p-1 rounded-lg hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B]">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateUser} className="space-y-3.5 text-xs">
+                <div>
+                  <label className="font-bold text-[#64748B] dark:text-[#94A3B8] block mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Asad Siddiqui"
+                    value={newUserForm.name}
+                    onChange={e => setNewUserForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg p-2.5 text-xs text-[#0F172A] dark:text-[#F8FAFC] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-[#64748B] dark:text-[#94A3B8] block mb-1">Email Address *</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="user@gmail.com"
+                    value={newUserForm.email}
+                    onChange={e => setNewUserForm(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg p-2.5 text-xs text-[#0F172A] dark:text-[#F8FAFC] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-[#64748B] dark:text-[#94A3B8] block mb-1">Phone / WhatsApp</label>
+                  <input
+                    type="text"
+                    placeholder="03001234567"
+                    value={newUserForm.phone}
+                    onChange={e => setNewUserForm(prev => ({ ...prev, phone: e.target.value }))}
+                    className="w-full bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg p-2.5 text-xs text-[#0F172A] dark:text-[#F8FAFC] focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-bold text-[#64748B] dark:text-[#94A3B8] block mb-1">Plan</label>
+                    <select
+                      value={newUserForm.plan}
+                      onChange={e => setNewUserForm(prev => ({ ...prev, plan: e.target.value }))}
+                      className="w-full bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg p-2.5 text-xs font-bold"
+                    >
+                      <option value="PRO">Pro VIP ⭐</option>
+                      <option value="FREE">Free Tier</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-[#64748B] dark:text-[#94A3B8] block mb-1">Duration</label>
+                    <select
+                      value={newUserForm.duration}
+                      onChange={e => setNewUserForm(prev => ({ ...prev, duration: e.target.value }))}
+                      className="w-full bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg p-2.5 text-xs font-bold"
+                    >
+                      <option value="1_MONTH">1 Month</option>
+                      <option value="3_MONTHS">3 Months</option>
+                      <option value="1_YEAR">1 Year</option>
+                      <option value="LIFETIME">Lifetime</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex justify-end space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddUserOpen(false)}
+                    className="px-4 py-2 rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] font-bold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={actionLoading === 'CREATE_USER'}
+                    className="px-5 py-2 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white font-bold shadow-sm cursor-pointer"
+                  >
+                    {actionLoading === 'CREATE_USER' ? 'Creating...' : 'Create & Grant Access'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
