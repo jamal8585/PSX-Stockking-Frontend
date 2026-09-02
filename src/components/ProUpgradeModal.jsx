@@ -65,7 +65,9 @@ export default function ProUpgradeModal({ isOpen, onClose, user, onAuthRequired,
         method: paymentMethod,
         transactionId,
         amount,
-        note
+        note,
+        email: user?.email,
+        userId: user?.id || user?._id
       });
 
       if (res.success) {
