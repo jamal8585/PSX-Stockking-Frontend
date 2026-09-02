@@ -133,6 +133,35 @@ export default function NewsCatalystTradeHub({
     return clean;
   };
 
+  const formatLiveNewsDate = (item) => {
+    const pubDate = item?.publishedAt ? new Date(item.publishedAt) : new Date();
+    const validDate = isNaN(pubDate.getTime()) ? new Date() : pubDate;
+    
+    const now = new Date();
+    const diffSec = Math.floor((now - validDate) / 1000);
+    
+    let agoStr = 'Just now';
+    if (diffSec >= 60 && diffSec < 3600) {
+      agoStr = `${Math.floor(diffSec / 60)}m ago`;
+    } else if (diffSec >= 3600 && diffSec < 86400) {
+      const hrs = Math.floor(diffSec / 3600);
+      agoStr = `${hrs}h ago`;
+    } else if (diffSec >= 86400) {
+      const days = Math.floor(diffSec / 86400);
+      agoStr = `${days}d ago`;
+    }
+
+    const timeStr = validDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const isSameDay = validDate.toDateString() === now.toDateString();
+    const dateLabel = isSameDay ? 'Today (آج)' : validDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    return {
+      isSameDay,
+      label: `${dateLabel} • ${timeStr}`,
+      ago: item?.timeAgo || agoStr
+    };
+  };
+
   const rawList = Array.isArray(news) && news.length > 0 ? news : (Array.isArray(newsList) ? newsList : []);
 
   const filtered = rawList.filter(n => {
@@ -261,10 +290,18 @@ export default function NewsCatalystTradeHub({
                     </span>
                   </div>
 
-                  {/* Minute / Hour Timestamp */}
-                  <div className="flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] text-[#2563EB] dark:text-[#3B82F6] text-xs font-bold mono">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>{item.timeAgo || 'Recent'}</span>
+                  {/* Minute / Hour Timestamp & Live Same-Day Badge */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {formatLiveNewsDate(item).isSameDay && (
+                      <span className="flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16A34A]/10 text-[#16A34A] dark:bg-[#22C55E]/10 dark:text-[#22C55E] border border-[#16A34A]/20 dark:border-[#22C55E]/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] mr-1.5 animate-pulse" />
+                        LIVE TODAY (آج)
+                      </span>
+                    )}
+                    <div className="flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] text-[#2563EB] dark:text-[#3B82F6] text-xs font-bold mono">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>{formatLiveNewsDate(item).label} ({formatLiveNewsDate(item).ago})</span>
+                    </div>
                   </div>
                 </div>
 
