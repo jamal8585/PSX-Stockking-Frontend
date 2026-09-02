@@ -91,12 +91,14 @@ export const createAdminUser = async (userData) => {
 };
 
 export const updateAdminSubscription = async (userId, data) => {
-  const res = await API.post(`/admin/users/${userId}/subscription`, data);
+  const targetId = typeof userId === 'object' ? (userId.id || userId._id || userId.email) : userId;
+  const res = await API.post(`/admin/users/${encodeURIComponent(String(targetId || '').trim())}/subscription`, data);
   return res.data;
 };
 
 export const deleteAdminUser = async (userId) => {
-  const res = await API.delete(`/admin/users/${userId}`);
+  const targetId = typeof userId === 'object' ? (userId.id || userId._id || userId.email) : userId;
+  const res = await API.delete(`/admin/users/${encodeURIComponent(String(targetId || '').trim())}`);
   return res.data;
 };
 

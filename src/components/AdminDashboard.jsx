@@ -84,19 +84,27 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
     fetchData();
   };
 
-  const handleUpdateSubscription = async (userId, plan, duration, status = 'ACTIVE') => {
-    setActionLoading(userId);
+  const handleUpdateSubscription = async (userTarget, plan, duration, status = 'ACTIVE') => {
+    const userId = typeof userTarget === 'object' ? (userTarget.id || userTarget._id || userTarget.email) : userTarget;
+    const userEmail = typeof userTarget === 'object' ? userTarget.email : (String(userId || '').includes('@') ? userId : '');
+    const userName = typeof userTarget === 'object' ? userTarget.name : '';
+    const userPhone = typeof userTarget === 'object' ? userTarget.phone : '';
+
+    setActionLoading(userId || userEmail);
     setMessage({ text: '', type: '' });
     try {
-      const res = await updateAdminSubscription(userId, {
+      const res = await updateAdminSubscription(userId || userEmail, {
         plan,
         subscriptionDuration: duration,
-        subscriptionStatus: status
+        subscriptionStatus: status,
+        email: userEmail,
+        name: userName,
+        phone: userPhone
       });
 
       if (res.success) {
         setMessage({ text: res.message || 'Subscription updated successfully!', type: 'success' });
-        if (selectedProofUser?.id === userId) setSelectedProofUser(null);
+        if (selectedProofUser?.id === userId || selectedProofUser?.email === userEmail) setSelectedProofUser(null);
         fetchData();
       }
     } catch (err) {
@@ -109,13 +117,16 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
     }
   };
 
-  const handleExtendDays = async (userId, days = 30) => {
-    setActionLoading(userId);
+  const handleExtendDays = async (userTarget, days = 30) => {
+    const userId = typeof userTarget === 'object' ? (userTarget.id || userTarget._id || userTarget.email) : userTarget;
+    const userEmail = typeof userTarget === 'object' ? userTarget.email : (String(userId || '').includes('@') ? userId : '');
+    setActionLoading(userId || userEmail);
     setMessage({ text: '', type: '' });
     try {
-      const res = await updateAdminSubscription(userId, {
+      const res = await updateAdminSubscription(userId || userEmail, {
         plan: 'PRO',
-        extendDays: days
+        extendDays: days,
+        email: userEmail
       });
 
       if (res.success) {
@@ -125,6 +136,32 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
     } catch (err) {
       setMessage({
         text: err.response?.data?.message || 'Failed to extend subscription.',
+        type: 'error'
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteUser = async (userTarget, userName = '') => {
+    const userId = typeof userTarget === 'object' ? (userTarget.id || userTarget._id || userTarget.email) : userTarget;
+    const nameToDisplay = typeof userTarget === 'object' ? (userTarget.name || userTarget.email) : (userName || userId);
+    
+    if (!window.confirm(`Are you sure you want to permanently delete user "${nameToDisplay}"?`)) {
+      return;
+    }
+
+    setActionLoading(userId);
+    setMessage({ text: '', type: '' });
+    try {
+      const res = await deleteAdminUser(userId);
+      if (res.success) {
+        setMessage({ text: `User ${nameToDisplay} deleted successfully.`, type: 'success' });
+        fetchData();
+      }
+    } catch (err) {
+      setMessage({
+        text: err.response?.data?.message || 'Failed to delete user.',
         type: 'error'
       });
     } finally {
@@ -154,24 +191,7 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
     }
   };
 
-  const handleDeleteUser = async (userId, userName) => {
-    if (!window.confirm(`Are you sure you want to delete user "${userName}"?`)) return;
-    setActionLoading(userId);
-    try {
-      const res = await deleteAdminUser(userId);
-      if (res.success) {
-        setMessage({ text: `User ${userName} deleted.`, type: 'success' });
-        fetchData();
-      }
-    } catch (err) {
-      setMessage({
-        text: err.response?.data?.message || 'Failed to delete user.',
-        type: 'error'
-      });
-    } finally {
-      setActionLoading(null);
-    }
-  };
+
 
   const getDaysLeft = (endStr, isLifetime) => {
     if (isLifetime) return 'Lifetime VIP';
@@ -515,24 +535,24 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
                             {!isPro ? (
                               <>
                                 <button
-                                  onClick={() => handleUpdateSubscription(u.id, 'PRO', '1_MONTH', 'ACTIVE')}
-                                  disabled={actionLoading === u.id}
+                                  onClick={() => handleUpdateSubscription(u, 'PRO', '1_MONTH', 'ACTIVE')}
+                                  disabled={actionLoading === (u.id || u.email)}
                                   className="px-2 py-1 rounded bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-[10px] cursor-pointer"
                                   title="Activate 1 Month Pro"
                                 >
                                   +1M Pro
                                 </button>
                                 <button
-                                  onClick={() => handleUpdateSubscription(u.id, 'PRO', '3_MONTHS', 'ACTIVE')}
-                                  disabled={actionLoading === u.id}
+                                  onClick={() => handleUpdateSubscription(u, 'PRO', '3_MONTHS', 'ACTIVE')}
+                                  disabled={actionLoading === (u.id || u.email)}
                                   className="px-2 py-1 rounded bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-[10px] cursor-pointer"
                                   title="Activate 3 Months Pro"
                                 >
                                   +3M Pro
                                 </button>
                                 <button
-                                  onClick={() => handleUpdateSubscription(u.id, 'PRO', 'LIFETIME', 'ACTIVE')}
-                                  disabled={actionLoading === u.id}
+                                  onClick={() => handleUpdateSubscription(u, 'PRO', 'LIFETIME', 'ACTIVE')}
+                                  disabled={actionLoading === (u.id || u.email)}
                                   className="px-2 py-1 rounded bg-[#D97706] hover:bg-[#B45309] text-white font-bold text-[10px] cursor-pointer"
                                   title="Grant Lifetime VIP"
                                 >
@@ -542,8 +562,8 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
                             ) : (
                               <>
                                 <button
-                                  onClick={() => handleExtendDays(u.id, 30)}
-                                  disabled={actionLoading === u.id}
+                                  onClick={() => handleExtendDays(u, 30)}
+                                  disabled={actionLoading === (u.id || u.email)}
                                   className="px-2 py-1 rounded bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] text-white font-bold text-[10px] cursor-pointer"
                                   title="Add 30 Days Extension"
                                 >
@@ -551,8 +571,8 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
                                 </button>
                                 {u.role !== 'ADMIN' && (
                                   <button
-                                    onClick={() => handleUpdateSubscription(u.id, 'FREE', 'FREE', 'EXPIRED')}
-                                    disabled={actionLoading === u.id}
+                                    onClick={() => handleUpdateSubscription(u, 'FREE', 'FREE', 'EXPIRED')}
+                                    disabled={actionLoading === (u.id || u.email)}
                                     className="px-2 py-1 rounded bg-[#DC2626]/10 text-[#DC2626] dark:text-[#EF4444] hover:bg-[#DC2626] hover:text-white text-[10px] font-bold cursor-pointer"
                                     title="Demote to Free"
                                   >
@@ -568,8 +588,8 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
                         <td className="py-3 px-3 text-center">
                           {u.role !== 'ADMIN' && (
                             <button
-                              onClick={() => handleDeleteUser(u.id, u.name)}
-                              disabled={actionLoading === u.id}
+                              onClick={() => handleDeleteUser(u)}
+                              disabled={actionLoading === (u.id || u.email)}
                               className="p-1.5 rounded-lg bg-[#DC2626]/10 text-[#DC2626] dark:text-[#EF4444] hover:bg-[#DC2626] hover:text-white transition-colors cursor-pointer"
                               title="Delete User Account"
                             >
@@ -621,19 +641,19 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
 
               <div className="flex flex-wrap gap-2 pt-2 border-t border-[#E2E8F0] dark:border-[#243044]">
                 <button
-                  onClick={() => handleUpdateSubscription(selectedProofUser.id, 'PRO', '1_MONTH', 'ACTIVE')}
+                  onClick={() => handleUpdateSubscription(selectedProofUser, 'PRO', '1_MONTH', 'ACTIVE')}
                   className="flex-1 py-2 rounded-lg bg-[#16A34A] text-white font-bold text-xs cursor-pointer"
                 >
                   Approve 1M Pro
                 </button>
                 <button
-                  onClick={() => handleUpdateSubscription(selectedProofUser.id, 'PRO', '3_MONTHS', 'ACTIVE')}
+                  onClick={() => handleUpdateSubscription(selectedProofUser, 'PRO', '3_MONTHS', 'ACTIVE')}
                   className="flex-1 py-2 rounded-lg bg-[#2563EB] text-white font-bold text-xs cursor-pointer"
                 >
                   Approve 3M Pro
                 </button>
                 <button
-                  onClick={() => handleUpdateSubscription(selectedProofUser.id, 'FREE', 'FREE', 'EXPIRED')}
+                  onClick={() => handleUpdateSubscription(selectedProofUser, 'FREE', 'FREE', 'EXPIRED')}
                   className="px-3 py-2 rounded-lg bg-[#DC2626]/10 text-[#DC2626] font-bold text-xs cursor-pointer"
                 >
                   Reject
