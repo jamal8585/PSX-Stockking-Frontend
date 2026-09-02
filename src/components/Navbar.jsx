@@ -15,6 +15,7 @@ import {
   BarChart3,
   Coins,
   LogOut,
+  ChevronDown,
   User as UserIcon
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
@@ -42,6 +43,7 @@ export default function Navbar({
   onOpenAuth, 
   onOpenUpgrade, 
   onOpenAdmin, 
+  onOpenProfile,
   onLogout, 
   theme = 'dark', 
   onToggleTheme 
@@ -367,45 +369,39 @@ export default function Navbar({
 
             {/* Auth Profile / Login Button */}
             {currentUser ? (
-              <div className="relative flex items-center shrink-0">
-                {/* Unified In-Card Profile with Embedded Sign Out Button */}
-                <div className={`flex items-center space-x-2 pl-2 pr-1.5 py-1 rounded-xl border text-xs shadow-xs ${
-                  isLight ? 'bg-[#F8FAFC] border-[#E2E8F0]' : 'bg-[#0B0F19] border-[#243044]'
+              <button
+                type="button"
+                onClick={onOpenProfile}
+                className={`flex items-center space-x-2 pl-2 pr-2.5 py-1.5 rounded-xl border text-xs cursor-pointer transition-all hover:border-[#2563EB]/50 dark:hover:border-[#3B82F6]/50 shadow-xs shrink-0 ${
+                  isLight ? 'bg-[#F8FAFC] hover:bg-[#F1F5F9] border-[#E2E8F0]' : 'bg-[#0B0F19] hover:bg-[#1E293B] border-[#243044]'
+                }`}
+                title="Click to open profile, edit details & sign out"
+              >
+                {/* Avatar Initial */}
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs shrink-0 ${
+                  isPro 
+                    ? (isLight ? 'bg-[#D97706]/15 text-[#D97706] border border-[#D97706]/30' : 'bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/40') 
+                    : (isLight ? 'bg-[#2563EB]/15 text-[#2563EB] border border-[#2563EB]/20' : 'bg-[#3B82F6]/20 text-[#3B82F6] border border-[#3B82F6]/30')
                 }`}>
-                  {/* Avatar Initial */}
-                  <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
-                    isPro 
-                      ? (isLight ? 'bg-[#D97706]/10 text-[#D97706] border border-[#D97706]/30' : 'bg-[#F59E0B]/10 text-[#F59E0B] border border-[#F59E0B]/30') 
-                      : (isLight ? 'bg-[#2563EB]/10 text-[#2563EB]' : 'bg-[#3B82F6]/10 text-[#3B82F6]')
-                  }`}>
-                    {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
-                  </div>
-
-                  {/* Name & Plan */}
-                  <div className="flex flex-col text-left max-w-[80px] sm:max-w-[110px] pr-0.5">
-                    <span className={`font-bold text-[11px] leading-tight truncate ${
-                      isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'
-                    }`} title={currentUser.name}>
-                      {currentUser.name?.replace(/\s*\(Lead Admin\)/i, '') || 'User'}
-                    </span>
-                    <span className={`text-[9px] font-bold uppercase tracking-wider truncate ${
-                      isPro ? (isLight ? 'text-[#D97706]' : 'text-[#F59E0B]') : (isLight ? 'text-[#64748B]' : 'text-[#94A3B8]')
-                    }`}>
-                      {isPro ? '⭐ PRO VIP' : 'FREE TIER'}
-                    </span>
-                  </div>
-
-                  {/* Direct Red Sign Out Button Inside the Card */}
-                  <button
-                    onClick={onLogout}
-                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all border border-[#DC2626]/30 bg-[#DC2626]/10 hover:bg-[#DC2626] text-[#DC2626] hover:text-white dark:text-[#EF4444] dark:hover:text-white shadow-xs shrink-0 ml-1"
-                    title="Sign Out of Account"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span className="font-bold text-[11px]">Sign Out</span>
-                  </button>
+                  {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
                 </div>
-              </div>
+
+                {/* Name & Plan */}
+                <div className="flex flex-col text-left max-w-[85px] sm:max-w-[120px]">
+                  <span className={`font-bold text-[11px] leading-tight truncate ${
+                    isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'
+                  }`} title={currentUser.name}>
+                    {currentUser.name?.replace(/\s*\(Lead Admin\)/i, '') || 'User'}
+                  </span>
+                  <span className={`text-[9px] font-bold uppercase tracking-wider truncate ${
+                    isPro ? (isLight ? 'text-[#D97706]' : 'text-[#F59E0B]') : (isLight ? 'text-[#64748B]' : 'text-[#94A3B8]')
+                  }`}>
+                    {isPro ? '⭐ PRO VIP' : 'FREE TIER'}
+                  </span>
+                </div>
+
+                <ChevronDown className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-[#64748B]' : 'text-[#94A3B8]'}`} />
+              </button>
             ) : (
               <div className="flex items-center space-x-1.5">
                 <button

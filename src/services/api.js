@@ -72,6 +72,11 @@ export const submitUpgradeProof = async (data) => {
   return res.data;
 };
 
+export const updateUserProfile = async (profileData) => {
+  const res = await API.put('/auth/profile', profileData);
+  return res.data;
+};
+
 // ==========================================
 // ADMIN ENDPOINTS
 // ==========================================

@@ -15,6 +15,7 @@ import ProUpgradeModal from './components/ProUpgradeModal';
 import AdminDashboard from './components/AdminDashboard';
 import DividendIntelligenceHub from './components/DividendIntelligenceHub';
 import WatchlistHub from './components/WatchlistHub';
+import ProfileModal from './components/ProfileModal';
 
 import {
   getMarketSummary,
@@ -420,6 +421,7 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(() => {
     try {
       return (
@@ -842,6 +844,7 @@ export default function App() {
         onOpenAuth={handleOpenAuth}
         onOpenUpgrade={handleOpenUpgrade}
         onOpenAdmin={handleOpenAdmin}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
         onLogout={handleLogout}
         theme={theme}
         onToggleTheme={handleToggleTheme}
@@ -952,6 +955,22 @@ export default function App() {
           setCurrentUser(updatedUser);
           showToast('Upgrade proof submitted! Admin will verify shortly.');
         }}
+      />
+
+      {/* Profile & Settings Modal */}
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        currentUser={currentUser}
+        onUpdateUser={(updated) => {
+          setCurrentUser(updated);
+          localStorage.setItem('psx_user_profile', JSON.stringify(updated));
+          showToast('Profile updated successfully!');
+        }}
+        onLogout={handleLogout}
+        onOpenUpgrade={handleOpenUpgrade}
+        onOpenAdmin={handleOpenAdmin}
+        theme={theme}
       />
 
       {/* Modals */}
