@@ -372,28 +372,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
             {loading ? 'Authenticating...' : (mode === 'login' ? 'Sign In with Email' : 'Create Free Account')}
           </button>
         </form>
-
-        {/* Official Admin Helper */}
-        <div className="mt-5 pt-4 border-t border-[#E2E8F0] dark:border-[#243044] text-center text-[11px] text-[#64748B] dark:text-[#94A3B8]">
-          <p>
-            Portal Administrator Login:{' '}
-            <button
-              type="button"
-              onClick={() => {
-                setMode('login');
-                setFormData({
-                  name: 'Jamal Ahmed',
-                  email: 'jamal.ahmedrumi@gmail.com',
-                  password: 'R44@Jamal20dec##',
-                  phone: '03452831413'
-                });
-              }}
-              className="text-[#2563EB] dark:text-[#3B82F6] font-bold hover:underline cursor-pointer"
-            >
-              Fill Official Admin Credentials (jamal.ahmedrumi@gmail.com)
-            </button>
-          </p>
-        </div>
       </div>
     </div>
   );
