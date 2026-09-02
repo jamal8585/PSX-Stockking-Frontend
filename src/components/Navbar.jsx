@@ -367,11 +367,12 @@ export default function Navbar({
 
             {/* Auth Profile / Login Button */}
             {currentUser ? (
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                {/* User Profile Card */}
-                <div className={`flex items-center space-x-1.5 sm:space-x-2 px-2 sm:px-2.5 py-1 rounded-xl border text-xs ${
+              <div className="relative flex items-center shrink-0">
+                {/* Unified In-Card Profile with Embedded Sign Out Button */}
+                <div className={`flex items-center space-x-2 pl-2 pr-1.5 py-1 rounded-xl border text-xs shadow-xs ${
                   isLight ? 'bg-[#F8FAFC] border-[#E2E8F0]' : 'bg-[#0B0F19] border-[#243044]'
                 }`}>
+                  {/* Avatar Initial */}
                   <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
                     isPro 
                       ? (isLight ? 'bg-[#D97706]/10 text-[#D97706] border border-[#D97706]/30' : 'bg-[#F59E0B]/10 text-[#F59E0B] border border-[#F59E0B]/30') 
@@ -380,11 +381,12 @@ export default function Navbar({
                     {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
                   </div>
 
-                  <div className="flex flex-col text-left max-w-[80px] sm:max-w-[120px] md:max-w-[150px]">
+                  {/* Name & Plan */}
+                  <div className="flex flex-col text-left max-w-[80px] sm:max-w-[110px] pr-0.5">
                     <span className={`font-bold text-[11px] leading-tight truncate ${
                       isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'
                     }`} title={currentUser.name}>
-                      {currentUser.name}
+                      {currentUser.name?.replace(/\s*\(Lead Admin\)/i, '') || 'User'}
                     </span>
                     <span className={`text-[9px] font-bold uppercase tracking-wider truncate ${
                       isPro ? (isLight ? 'text-[#D97706]' : 'text-[#F59E0B]') : (isLight ? 'text-[#64748B]' : 'text-[#94A3B8]')
@@ -392,17 +394,17 @@ export default function Navbar({
                       {isPro ? '⭐ PRO VIP' : 'FREE TIER'}
                     </span>
                   </div>
-                </div>
 
-                {/* Sign Out Button */}
-                <button
-                  onClick={onLogout}
-                  className="flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all border border-[#DC2626]/30 bg-[#DC2626]/10 hover:bg-[#DC2626] text-[#DC2626] hover:text-white dark:text-[#EF4444] dark:hover:text-white shadow-xs shrink-0"
-                  title="Sign Out of Account"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span className="font-bold">Sign Out</span>
-                </button>
+                  {/* Direct Red Sign Out Button Inside the Card */}
+                  <button
+                    onClick={onLogout}
+                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all border border-[#DC2626]/30 bg-[#DC2626]/10 hover:bg-[#DC2626] text-[#DC2626] hover:text-white dark:text-[#EF4444] dark:hover:text-white shadow-xs shrink-0 ml-1"
+                    title="Sign Out of Account"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span className="font-bold text-[11px]">Sign Out</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="flex items-center space-x-1.5">
