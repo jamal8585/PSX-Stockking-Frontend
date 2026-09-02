@@ -810,6 +810,7 @@ export default function App() {
       <AdminDashboard
         currentUser={currentUser}
         onBackToPortal={() => setIsAdminOpen(false)}
+        onLogout={handleLogout}
       />
     );
   }

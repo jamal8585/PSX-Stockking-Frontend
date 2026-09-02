@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Crown, ShieldAlert, CheckCircle2, XCircle, Search, RefreshCw, 
   Trash2, PlusCircle, ArrowUpRight, DollarSign, Clock, Filter, AlertCircle,
-  Eye, Calendar, Phone, Mail, ShieldCheck, UserPlus, X, Sparkles
+  Eye, Calendar, Phone, Mail, ShieldCheck, UserPlus, X, Sparkles, LogOut
 } from 'lucide-react';
 import { 
   getAdminUsers, 
@@ -13,7 +13,7 @@ import {
   getAdminAnalytics 
 } from '../services/api';
 
-export default function AdminDashboard({ currentUser, onBackToPortal }) {
+export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }) {
   const [users, setUsers] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -212,10 +212,10 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
               onClick={() => setIsAddUserOpen(true)}
-              className="px-4 py-2.5 rounded-lg bg-[#16A34A] hover:bg-[#15803D] dark:bg-[#22C55E] dark:hover:bg-[#16A34A] text-white dark:text-black font-bold text-xs cursor-pointer shadow-sm transition-all flex items-center space-x-2"
+              className="px-3.5 py-2 rounded-lg bg-[#16A34A] hover:bg-[#15803D] dark:bg-[#22C55E] dark:hover:bg-[#16A34A] text-white dark:text-black font-bold text-xs cursor-pointer shadow-sm transition-all flex items-center space-x-1.5"
             >
               <UserPlus className="w-4 h-4" />
               <span>Add / Grant Subscriber</span>
@@ -223,18 +223,28 @@ export default function AdminDashboard({ currentUser, onBackToPortal }) {
             <button
               onClick={fetchData}
               disabled={loading}
-              className="p-2.5 rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] hover:bg-[#E2E8F0] dark:hover:bg-[#243044] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] cursor-pointer transition-all border border-[#E2E8F0] dark:border-[#243044]"
+              className="p-2 rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] hover:bg-[#E2E8F0] dark:hover:bg-[#243044] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] cursor-pointer transition-all border border-[#E2E8F0] dark:border-[#243044]"
               title="Refresh User Data"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#2563EB] dark:text-[#3B82F6]' : ''}`} />
             </button>
             <button
               onClick={onBackToPortal}
-              className="px-4 py-2.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-xs cursor-pointer shadow-sm transition-all flex items-center space-x-2"
+              className="px-3.5 py-2 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-xs cursor-pointer shadow-sm transition-all flex items-center space-x-1.5"
             >
-              <span>Return to Main Portal</span>
+              <span>Return to Portal</span>
               <ArrowUpRight className="w-4 h-4" />
             </button>
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                className="px-3.5 py-2 rounded-lg bg-[#DC2626]/10 hover:bg-[#DC2626] border border-[#DC2626]/20 text-[#DC2626] hover:text-white dark:text-[#EF4444] dark:hover:text-white font-bold text-xs cursor-pointer shadow-sm transition-all flex items-center space-x-1.5"
+                title="Sign Out of Account"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sign Out</span>
+              </button>
+            )}
           </div>
         </div>
 

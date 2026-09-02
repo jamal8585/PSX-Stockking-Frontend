@@ -397,11 +397,11 @@ export default function Navbar({
                 {/* Sign Out Button */}
                 <button
                   onClick={onLogout}
-                  className="flex items-center space-x-1 px-2.5 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all border border-[#DC2626]/20 bg-[#DC2626]/10 hover:bg-[#DC2626] text-[#DC2626] hover:text-white dark:text-[#EF4444] dark:hover:text-white shrink-0"
+                  className="flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all border border-[#DC2626]/30 bg-[#DC2626]/10 hover:bg-[#DC2626] text-[#DC2626] hover:text-white dark:text-[#EF4444] dark:hover:text-white shadow-xs shrink-0"
                   title="Sign Out of Account"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Sign Out</span>
+                  <LogOut className="w-4 h-4" />
+                  <span className="font-bold">Sign Out</span>
                 </button>
               </div>
             ) : (
