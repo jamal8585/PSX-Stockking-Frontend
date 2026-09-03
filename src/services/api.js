@@ -42,8 +42,25 @@ export const removeAuthToken = () => {
 };
 
 // ==========================================
-// AUTH ENDPOINTS
+// AUTH ENDPOINTS (WITH EMAIL OTP VERIFICATION)
 // ==========================================
+export const sendOtp = async (data) => {
+  const res = await API.post('/auth/send-otp', data);
+  return res.data;
+};
+
+export const verifyOtpSignup = async (data) => {
+  const res = await API.post('/auth/verify-otp-signup', data);
+  if (res.data?.token) setAuthToken(res.data.token);
+  return res.data;
+};
+
+export const verifyOtpForgot = async (data) => {
+  const res = await API.post('/auth/verify-otp-forgot', data);
+  if (res.data?.token) setAuthToken(res.data.token);
+  return res.data;
+};
+
 export const signupUser = async (data) => {
   const res = await API.post('/auth/signup', data);
   if (res.data?.token) setAuthToken(res.data.token);
