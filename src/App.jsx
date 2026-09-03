@@ -426,7 +426,9 @@ export default function App() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(() => {
     try {
+      const savedAdminState = localStorage.getItem('psx_is_admin_open');
       return (
+        savedAdminState === 'true' ||
         window.location.pathname.toLowerCase() === '/admin' || 
         window.location.hash.toLowerCase() === '#admin' || 
         window.location.search.includes('admin=true')
@@ -435,6 +437,23 @@ export default function App() {
       return false;
     }
   });
+
+  // Keep Admin Panel state preserved across page refresh
+  useEffect(() => {
+    try {
+      if (isAdminOpen) {
+        localStorage.setItem('psx_is_admin_open', 'true');
+        if (window.location.hash !== '#admin') {
+          window.location.hash = '#admin';
+        }
+      } else {
+        localStorage.setItem('psx_is_admin_open', 'false');
+        if (window.location.hash === '#admin') {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      }
+    } catch (e) {}
+  }, [isAdminOpen]);
 
   // Supabase Google OAuth callback & session listener
   useEffect(() => {
