@@ -211,89 +211,12 @@ export default function Navbar({
             </div>
           </div>
 
-          {/* Center Navigation Tabs (Horizontal Single Line) */}
-          <nav className={`hidden 2xl:flex items-center space-x-1 p-1 rounded-xl border shrink-0 ${
-            isLight ? 'bg-[#F1F5F9] border-[#E2E8F0]' : 'bg-[#1E293B] border-[#243044]'
-          }`}>
-            <button
-              onClick={() => setActiveTab('news')}
-              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
-                activeTab === 'news' 
-                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
-                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
-              }`}
-            >
-              <Zap className="w-3.5 h-3.5" />
-              <span>All Sectors News</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('portfolio')}
-              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
-                activeTab === 'portfolio' 
-                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
-                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
-              }`}
-            >
-              <Briefcase className="w-3.5 h-3.5" />
-              <span>My Portfolio ({portfolioCount})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('recommendations')}
-              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
-                activeTab === 'recommendations' 
-                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
-                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Daily AI Signals</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('dividends')}
-              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
-                activeTab === 'dividends' 
-                  ? (isLight ? 'bg-[#D97706] text-white shadow-sm' : 'bg-[#F59E0B] text-black shadow-sm font-black')
-                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
-              }`}
-            >
-              <Coins className="w-3.5 h-3.5" />
-              <span>Upcoming Dividends 💰</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('watchlist')}
-              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
-                activeTab === 'watchlist' 
-                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
-                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
-              }`}
-            >
-              <Bookmark className="w-3.5 h-3.5" />
-              <span>Watchlist Radar ({watchlistCount})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('screener')}
-              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
-                activeTab === 'screener' 
-                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
-                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
-              }`}
-            >
-              <BarChart3 className="w-3.5 h-3.5" />
-              <span>Full PSX Screener</span>
-            </button>
-          </nav>
-
           {/* Right Actions & Controls Group */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Theme Toggle (Light / Dark) */}
             <button
               onClick={onToggleTheme}
-              className={`p-2 rounded-lg border transition-all cursor-pointer flex items-center justify-center ${
+              className={`p-2 rounded-lg border transition-all cursor-pointer flex items-center justify-center shrink-0 ${
                 isLight 
                   ? 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] hover:bg-[#F1F5F9]' 
                   : 'bg-[#0B0F19] border-[#243044] text-[#F8FAFC] hover:bg-[#1E293B]'
@@ -306,7 +229,7 @@ export default function Navbar({
             {/* Watchlist */}
             <button
               onClick={onOpenWatchlist}
-              className={`relative p-2 rounded-lg border transition-all cursor-pointer ${
+              className={`relative p-2 rounded-lg border transition-all cursor-pointer shrink-0 ${
                 isLight 
                   ? 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] hover:bg-[#F1F5F9]' 
                   : 'bg-[#0B0F19] border-[#243044] text-[#F8FAFC] hover:bg-[#1E293B]'
@@ -328,7 +251,7 @@ export default function Navbar({
               <button
                 onClick={onRunScan}
                 disabled={isScanning}
-                className={`hidden md:flex items-center space-x-1.5 px-3 py-2 rounded-lg text-white font-bold text-xs disabled:opacity-50 transition-all cursor-pointer whitespace-nowrap ${
+                className={`hidden md:flex items-center space-x-1.5 px-3 py-2 rounded-lg text-white font-bold text-xs disabled:opacity-50 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   isLight ? 'bg-[#2563EB] hover:bg-[#1D4ED8]' : 'bg-[#3B82F6] hover:bg-[#60A5FA]'
                 }`}
                 title="Force Live Market Scan (Admin Only)"
@@ -342,7 +265,7 @@ export default function Navbar({
             {isAdmin && (
               <button
                 onClick={onOpenAdmin}
-                className={`flex items-center space-x-1 px-2.5 sm:px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all border whitespace-nowrap ${
+                className={`flex items-center space-x-1 px-2.5 sm:px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all border whitespace-nowrap shrink-0 ${
                   isLight 
                     ? 'bg-[#F1F5F9] border-[#E2E8F0] text-[#0F172A] hover:bg-[#E2E8F0]' 
                     : 'bg-[#1E293B] border-[#243044] text-[#F8FAFC] hover:bg-[#243044]'
@@ -356,7 +279,7 @@ export default function Navbar({
             {!isPro && (
               <button
                 onClick={onOpenUpgrade}
-                className={`flex items-center space-x-1 px-2.5 sm:px-3.5 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all whitespace-nowrap ${
+                className={`flex items-center space-x-1 px-2.5 sm:px-3.5 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all whitespace-nowrap shrink-0 ${
                   isLight 
                     ? 'bg-[#D97706] hover:bg-[#B45309] text-white shadow-sm' 
                     : 'bg-[#F59E0B] hover:bg-[#D97706] text-black font-black shadow-sm'
@@ -387,7 +310,7 @@ export default function Navbar({
                 </div>
 
                 {/* Name & Plan */}
-                <div className="flex flex-col text-left max-w-[85px] sm:max-w-[120px]">
+                <div className="flex flex-col text-left max-w-[85px] sm:max-w-[130px]">
                   <span className={`font-bold text-[11px] leading-tight truncate ${
                     isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'
                   }`} title={currentUser.name}>
@@ -403,7 +326,7 @@ export default function Navbar({
                 <ChevronDown className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-[#64748B]' : 'text-[#94A3B8]'}`} />
               </button>
             ) : (
-              <div className="flex items-center space-x-1.5">
+              <div className="flex items-center space-x-1.5 shrink-0">
                 <button
                   onClick={() => onOpenAuth('login')}
                   className={`px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all border whitespace-nowrap ${
@@ -416,7 +339,7 @@ export default function Navbar({
                 </button>
                 <button
                   onClick={() => onOpenAuth('signup')}
-                  className={`hidden md:block px-3.5 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all text-white whitespace-nowrap ${
+                  className={`px-3.5 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all text-white whitespace-nowrap ${
                     isLight ? 'bg-[#2563EB] hover:bg-[#1D4ED8]' : 'bg-[#3B82F6] hover:bg-[#60A5FA]'
                   }`}
                 >
@@ -428,64 +351,83 @@ export default function Navbar({
         </div>
       </div>
 
-      {/* Mobile / Tablet Tab Bar */}
-      <div className={`flex xl:hidden items-center justify-start sm:justify-around py-2 px-2 border-t text-xs font-bold overflow-x-auto space-x-1.5 scrollbar-none touch-pan-x ${
-        isLight ? 'bg-[#F8FAFC] border-[#E2E8F0] text-[#64748B]' : 'bg-[#0B0F19] border-[#243044] text-[#94A3B8]'
+      {/* 3. Dedicated Terminal Module Navigation Bar (All Screens - Clean & Never Overflows) */}
+      <div className={`border-t transition-colors ${
+        isLight ? 'bg-[#F8FAFC] border-[#E2E8F0]' : 'bg-[#0B0F19] border-[#243044]'
       }`}>
-        <button
-          onClick={() => setActiveTab('news')}
-          className={`px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all flex items-center space-x-1 cursor-pointer ${
-            activeTab === 'news' ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm') : 'hover:bg-black/5 dark:hover:bg-white/5'
-          }`}
-        >
-          <Zap className="w-3.5 h-3.5" />
-          <span>News</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('portfolio')}
-          className={`px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all flex items-center space-x-1 cursor-pointer ${
-            activeTab === 'portfolio' ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm') : 'hover:bg-black/5 dark:hover:bg-white/5'
-          }`}
-        >
-          <Briefcase className="w-3.5 h-3.5" />
-          <span>Portfolio ({portfolioCount})</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('recommendations')}
-          className={`px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all flex items-center space-x-1 cursor-pointer ${
-            activeTab === 'recommendations' ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm') : 'hover:bg-black/5 dark:hover:bg-white/5'
-          }`}
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Signals</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('dividends')}
-          className={`px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all flex items-center space-x-1 cursor-pointer ${
-            activeTab === 'dividends' ? (isLight ? 'bg-[#D97706] text-white shadow-sm' : 'bg-[#F59E0B] text-black font-black shadow-sm') : 'hover:bg-black/5 dark:hover:bg-white/5'
-          }`}
-        >
-          <Coins className="w-3.5 h-3.5" />
-          <span>Dividends</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('watchlist')}
-          className={`px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all flex items-center space-x-1 cursor-pointer ${
-            activeTab === 'watchlist' ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm') : 'hover:bg-black/5 dark:hover:bg-white/5'
-          }`}
-        >
-          <Bookmark className="w-3.5 h-3.5" />
-          <span>Watchlist ({watchlistCount})</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('screener')}
-          className={`px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all flex items-center space-x-1 cursor-pointer ${
-            activeTab === 'screener' ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm') : 'hover:bg-black/5 dark:hover:bg-white/5'
-          }`}
-        >
-          <BarChart3 className="w-3.5 h-3.5" />
-          <span>Screener</span>
-        </button>
+        <div className="max-w-[1680px] w-full mx-auto px-2 sm:px-6 lg:px-8 py-1.5 flex items-center justify-start sm:justify-center overflow-x-auto space-x-1 sm:space-x-2 scrollbar-none touch-pan-x">
+          <button
+            onClick={() => setActiveTab('news')}
+            className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              activeTab === 'news' 
+                ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
+                : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5" />
+            <span>All Sectors News</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('portfolio')}
+            className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              activeTab === 'portfolio' 
+                ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
+                : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+            }`}
+          >
+            <Briefcase className="w-3.5 h-3.5" />
+            <span>My Portfolio ({portfolioCount})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('recommendations')}
+            className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              activeTab === 'recommendations' 
+                ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
+                : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Daily AI Signals</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('dividends')}
+            className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              activeTab === 'dividends' 
+                ? (isLight ? 'bg-[#D97706] text-white shadow-sm' : 'bg-[#F59E0B] text-black shadow-sm font-black')
+                : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+            }`}
+          >
+            <Coins className="w-3.5 h-3.5" />
+            <span>Upcoming Dividends 💰</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('watchlist')}
+            className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              activeTab === 'watchlist' 
+                ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
+                : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+            }`}
+          >
+            <Bookmark className="w-3.5 h-3.5" />
+            <span>Watchlist Radar ({watchlistCount})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('screener')}
+            className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              activeTab === 'screener' 
+                ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
+                : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span>Full PSX Screener</span>
+          </button>
+        </div>
       </div>
     </header>
   );
