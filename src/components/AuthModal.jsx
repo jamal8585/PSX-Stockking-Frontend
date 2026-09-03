@@ -43,6 +43,27 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  const resetModalState = () => {
+    setStep('form');
+    setOtpCode('');
+    setFormData({ name: '', email: '', password: '', phone: '' });
+    setError('');
+    setSuccessMsg('');
+    setDevOtpNotice('');
+    setLoading(false);
+    setSocialLoading(false);
+    setTimer(60);
+    setCanResend(false);
+  };
+
+  // Reset all state when modal opens or initialMode changes
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode || 'login');
+      resetModalState();
+    }
+  }, [isOpen, initialMode]);
+
   // Countdown timer for OTP resend
   useEffect(() => {
     let interval = null;
@@ -61,6 +82,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
 
   if (!isOpen) return null;
 
+  const handleClose = () => {
+    resetModalState();
+    onClose();
+  };
+
   const handleChange = (e) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     if (error) setError('');
@@ -68,11 +94,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
 
   const handleModeSwitch = (newMode) => {
     setMode(newMode);
-    setStep('form');
-    setOtpCode('');
-    setError('');
-    setSuccessMsg('');
-    setDevOtpNotice('');
+    resetModalState();
   };
 
   // 1. Send OTP Request (for Signup or Forgot Password)
@@ -192,7 +214,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
         
         setTimeout(() => {
           onAuthSuccess(res.user);
-          onClose();
+          handleClose();
         }, 600);
       }
     } catch (err) {
@@ -221,7 +243,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
         
         setTimeout(() => {
           onAuthSuccess(res.user);
-          onClose();
+          handleClose();
         }, 600);
       }
     } catch (err) {
@@ -255,7 +277,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
       <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl p-6 relative transition-all">
         {/* Close Button */}
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute top-5 right-5 p-2 rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] cursor-pointer transition-colors z-10"
         >
           <X className="w-5 h-5" />
