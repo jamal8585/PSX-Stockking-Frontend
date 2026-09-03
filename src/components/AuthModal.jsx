@@ -83,92 +83,22 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
     }
   };
 
-  // Google Supabase OAuth & Seamless 1-Click Auth
+  // Google Supabase OAuth Flow (Zero browser prompts)
   const handleGoogleAuth = async () => {
     setError('');
     setSuccessMsg('');
     setSocialLoading(true);
 
     try {
-      if (supabase) {
-        await signInWithGoogleSupabase();
-        // Supabase OAuth redirects to Google login and then back
-        return;
+      if (!supabase) {
+        throw new Error('Supabase configuration missing: Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in project settings.');
       }
 
-      // Seamless direct email login fallback if Supabase env is pending
-      const promptEmail = window.prompt(
-        'Enter your Google / Gmail address to continue with instant 1-click login:',
-        formData.email || 'user@gmail.com'
-      );
-      if (!promptEmail) {
-        setSocialLoading(false);
-        return;
-      }
-      const socialEmail = promptEmail.trim();
-      const socialName = socialEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-      const socialAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${socialEmail}`;
-
-      const res = await socialAuthLogin({
-        provider: 'google',
-        email: socialEmail,
-        name: socialName,
-        avatar: socialAvatar
-      });
-
-      if (res.success && res.user) {
-        setSuccessMsg(res.message || 'Successfully signed in with Google!');
-        localStorage.setItem('psx_user_profile', JSON.stringify(res.user));
-
-        try {
-          const dir = JSON.parse(localStorage.getItem('psx_registered_directory') || '[]');
-          const idx = dir.findIndex(u => u.email?.toLowerCase() === res.user.email?.toLowerCase());
-          if (idx >= 0) dir[idx] = { ...dir[idx], ...res.user };
-          else dir.push(res.user);
-          localStorage.setItem('psx_registered_directory', JSON.stringify(dir));
-        } catch (e) {
-          console.warn('Directory cache error:', e);
-        }
-
-        setTimeout(() => {
-          onAuthSuccess(res.user);
-          onClose();
-        }, 600);
-      }
+      // Triggers real Google OAuth redirect via Supabase
+      await signInWithGoogleSupabase();
     } catch (err) {
       console.error('Google Supabase error:', err);
-      // If OAuth redirect is blocked by browser, offer direct instant verification
-      const promptEmail = window.prompt(
-        'Enter your Google / Gmail address to sign in:',
-        formData.email || 'user@gmail.com'
-      );
-      if (promptEmail) {
-        const socialEmail = promptEmail.trim();
-        const socialName = socialEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        const socialAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${socialEmail}`;
-
-        try {
-          const res = await socialAuthLogin({
-            provider: 'google',
-            email: socialEmail,
-            name: socialName,
-            avatar: socialAvatar
-          });
-
-          if (res.success && res.user) {
-            setSuccessMsg(res.message || 'Successfully signed in with Google!');
-            localStorage.setItem('psx_user_profile', JSON.stringify(res.user));
-            setTimeout(() => {
-              onAuthSuccess(res.user);
-              onClose();
-            }, 600);
-          }
-        } catch (authErr) {
-          setError(authErr.response?.data?.message || 'Google authentication failed.');
-        }
-      } else {
-        setError(err.message || 'Google authentication failed.');
-      }
+      setError(err.message || 'Google authentication failed. Please check Supabase Google provider settings.');
     } finally {
       setSocialLoading(false);
     }
