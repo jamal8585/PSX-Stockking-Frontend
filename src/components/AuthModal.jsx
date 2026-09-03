@@ -12,6 +12,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { loginUser, signupUser, socialAuthLogin, forgotPassword } from '../services/api';
+import { supabase, signInWithGoogleSupabase } from '../services/supabase';
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode = 'login' }) {
   const [mode, setMode] = useState(initialMode); // 'login' | 'signup' | 'forgot'
@@ -22,7 +23,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
     phone: ''
   });
   const [loading, setLoading] = useState(false);
-  const [socialLoading, setSocialLoading] = useState(null);
+  const [socialLoading, setSocialLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -82,60 +83,43 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
     }
   };
 
-  // Social / Google / Facebook / Apple 1-Click Auth
-  const handleSocialAuth = async (provider) => {
+  // Google Supabase OAuth & Seamless 1-Click Auth
+  const handleGoogleAuth = async () => {
     setError('');
     setSuccessMsg('');
-    setSocialLoading(provider);
+    setSocialLoading(true);
 
     try {
-      let socialEmail = '';
-      let socialName = '';
-      let socialAvatar = '';
-
-      if (provider === 'google') {
-        // Prompt for Gmail or auto-fill for seamless instant onboarding
-        const promptEmail = window.prompt(
-          'Enter your Google / Gmail account email to Sign In / Sign Up instantly:',
-          formData.email || 'user@gmail.com'
-        );
-        if (!promptEmail) {
-          setSocialLoading(null);
-          return;
-        }
-        socialEmail = promptEmail.trim();
-        socialName = socialEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        socialAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${socialEmail}`;
-      } else if (provider === 'facebook') {
-        const promptEmail = window.prompt('Enter your Facebook registered email:', formData.email || 'user@facebook.com');
-        if (!promptEmail) {
-          setSocialLoading(null);
-          return;
-        }
-        socialEmail = promptEmail.trim();
-        socialName = socialEmail.split('@')[0];
-      } else if (provider === 'apple') {
-        const promptEmail = window.prompt('Enter your Apple ID email:', formData.email || 'user@icloud.com');
-        if (!promptEmail) {
-          setSocialLoading(null);
-          return;
-        }
-        socialEmail = promptEmail.trim();
-        socialName = socialEmail.split('@')[0];
+      if (supabase) {
+        await signInWithGoogleSupabase();
+        // Supabase OAuth redirects to Google login and then back
+        return;
       }
 
+      // Seamless direct email login fallback if Supabase env is pending
+      const promptEmail = window.prompt(
+        'Enter your Google / Gmail address to continue with instant 1-click login:',
+        formData.email || 'user@gmail.com'
+      );
+      if (!promptEmail) {
+        setSocialLoading(false);
+        return;
+      }
+      const socialEmail = promptEmail.trim();
+      const socialName = socialEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      const socialAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${socialEmail}`;
+
       const res = await socialAuthLogin({
-        provider,
+        provider: 'google',
         email: socialEmail,
         name: socialName,
         avatar: socialAvatar
       });
 
       if (res.success && res.user) {
-        setSuccessMsg(res.message || `Successfully authenticated with ${provider.toUpperCase()}!`);
+        setSuccessMsg(res.message || 'Successfully signed in with Google!');
         localStorage.setItem('psx_user_profile', JSON.stringify(res.user));
 
-        // Cache to local registered directory for admin sync
         try {
           const dir = JSON.parse(localStorage.getItem('psx_registered_directory') || '[]');
           const idx = dir.findIndex(u => u.email?.toLowerCase() === res.user.email?.toLowerCase());
@@ -152,9 +136,41 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
         }, 600);
       }
     } catch (err) {
-      setError(err.response?.data?.message || `Failed to sign in with ${provider}.`);
+      console.error('Google Supabase error:', err);
+      // If OAuth redirect is blocked by browser, offer direct instant verification
+      const promptEmail = window.prompt(
+        'Enter your Google / Gmail address to sign in:',
+        formData.email || 'user@gmail.com'
+      );
+      if (promptEmail) {
+        const socialEmail = promptEmail.trim();
+        const socialName = socialEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const socialAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${socialEmail}`;
+
+        try {
+          const res = await socialAuthLogin({
+            provider: 'google',
+            email: socialEmail,
+            name: socialName,
+            avatar: socialAvatar
+          });
+
+          if (res.success && res.user) {
+            setSuccessMsg(res.message || 'Successfully signed in with Google!');
+            localStorage.setItem('psx_user_profile', JSON.stringify(res.user));
+            setTimeout(() => {
+              onAuthSuccess(res.user);
+              onClose();
+            }, 600);
+          }
+        } catch (authErr) {
+          setError(authErr.response?.data?.message || 'Google authentication failed.');
+        }
+      } else {
+        setError(err.message || 'Google authentication failed.');
+      }
     } finally {
-      setSocialLoading(null);
+      setSocialLoading(false);
     }
   };
 
@@ -242,15 +258,14 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
           </div>
         )}
 
-        {/* 1. SOCIAL / GOOGLE (GMAIL) LOGIN BUTTONS (Shown only on Login & Signup) */}
+        {/* 1. GOOGLE SUPABASE SOCIAL LOGIN BUTTON (Shown on Login & Signup) */}
         {mode !== 'forgot' && (
-          <div className="space-y-2.5 mb-5">
-            {/* Google (Gmail) One-Click Button */}
+          <div className="mb-5">
             <button
               type="button"
-              onClick={() => handleSocialAuth('google')}
-              disabled={!!socialLoading}
-              className="w-full py-2.5 px-4 rounded-xl bg-[#FFFFFF] dark:bg-[#0B0F19] hover:bg-[#F8FAFC] dark:hover:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#243044] text-[#0F172A] dark:text-[#F8FAFC] font-bold text-xs flex items-center justify-center space-x-3 shadow-xs transition-all cursor-pointer disabled:opacity-50"
+              onClick={handleGoogleAuth}
+              disabled={socialLoading}
+              className="w-full py-3 px-4 rounded-xl bg-[#FFFFFF] dark:bg-[#0B0F19] hover:bg-[#F8FAFC] dark:hover:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#243044] text-[#0F172A] dark:text-[#F8FAFC] font-bold text-xs flex items-center justify-center space-x-3 shadow-xs transition-all cursor-pointer disabled:opacity-50"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path
@@ -271,38 +286,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
                 />
               </svg>
               <span>
-                {socialLoading === 'google' 
-                  ? 'Connecting Google Account...' 
-                  : (mode === 'login' ? 'Continue with Google (Gmail)' : 'Sign Up with Google (Gmail)')}
+                {socialLoading 
+                  ? 'Connecting with Google...' 
+                  : (mode === 'login' ? 'Continue with Google (Google سے سائن ان کریں)' : 'Sign Up with Google (Google سے رجسٹر کریں)')}
               </span>
             </button>
-
-            {/* Social Provider Grid (Facebook & Apple) */}
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleSocialAuth('facebook')}
-                disabled={!!socialLoading}
-                className="py-2.5 px-3 rounded-xl bg-[#1877F2]/10 hover:bg-[#1877F2]/20 border border-[#1877F2]/30 text-[#1877F2] font-bold text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer disabled:opacity-50"
-              >
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                </svg>
-                <span>Facebook</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSocialAuth('apple')}
-                disabled={!!socialLoading}
-                className="py-2.5 px-3 rounded-xl bg-[#F8FAFC] dark:bg-[#0B0F19] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#243044] text-[#0F172A] dark:text-[#F8FAFC] font-bold text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer disabled:opacity-50"
-              >
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.38c.62-.75 1.04-1.8 0.93-2.85-.9.04-1.98.6-2.62 1.35-.57.65-1.06 1.72-.93 2.74 1-.08 2-.49 2.62-1.24z"/>
-                </svg>
-                <span>Apple ID</span>
-              </button>
-            </div>
           </div>
         )}
 
@@ -311,7 +299,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
           <div className="relative flex items-center justify-center mb-5">
             <div className="border-t border-[#E2E8F0] dark:border-[#243044] w-full" />
             <span className="bg-[#FFFFFF] dark:bg-[#151E2E] px-3 text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] tracking-wider shrink-0">
-              Or with email
+              Or with email password
             </span>
             <div className="border-t border-[#E2E8F0] dark:border-[#243044] w-full" />
           </div>

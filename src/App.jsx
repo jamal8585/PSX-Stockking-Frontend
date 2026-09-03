@@ -31,8 +31,10 @@ import {
   updatePortfolioPosition,
   deletePortfolioPosition,
   getCurrentUser,
-  removeAuthToken
+  removeAuthToken,
+  socialAuthLogin
 } from './services/api';
+import { supabase, signOutSupabase } from './services/supabase';
 
 import officialQuotes from './data/official_quotes.json';
 
@@ -434,6 +436,39 @@ export default function App() {
     }
   });
 
+  // Supabase Google OAuth callback & session listener
+  useEffect(() => {
+    if (!supabase) return;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
+        const suUser = session.user;
+        const email = suUser.email;
+        const name = suUser.user_metadata?.full_name || suUser.user_metadata?.name || email.split('@')[0];
+        const avatar = suUser.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${email}`;
+
+        try {
+          const res = await socialAuthLogin({
+            provider: 'google',
+            email,
+            name,
+            avatar
+          });
+          if (res?.success && res.user) {
+            handleAuthSuccess(res.user);
+            localStorage.setItem('psx_user_profile', JSON.stringify(res.user));
+          }
+        } catch (err) {
+          console.warn('Supabase backend sync warning:', err.message);
+        }
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
+
   // Verify auth session with backend on load & auto-open auth modal if visiting /admin as guest
   useEffect(() => {
     const verifySession = async () => {
@@ -470,6 +505,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    signOutSupabase();
     removeAuthToken();
     localStorage.removeItem('psx_user_profile');
     localStorage.removeItem('psx_watchlist_guest_default');
