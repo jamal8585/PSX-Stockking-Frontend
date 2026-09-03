@@ -290,12 +290,12 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
           </div>
           <h2 className="text-2xl font-bold text-[#0F172A] dark:text-[#F8FAFC] tracking-tight">
             {step === 'otp'
-              ? 'Verify Email OTP (ای میل کوڈ درج کریں)'
+              ? 'Verify Email OTP'
               : mode === 'login' 
                 ? 'Sign In to PSX Stockking' 
                 : mode === 'signup'
                   ? 'Create Your Free Account'
-                  : 'Reset Password (پاس ورڈ ری سیٹ)'}
+                  : 'Reset Password'}
           </h2>
           <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
             {step === 'otp'
@@ -377,7 +377,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
           <form onSubmit={handleVerifyOtp} className="space-y-4">
             <div>
               <label className="block text-[11px] font-bold text-[#0F172A] dark:text-[#F8FAFC] uppercase mb-1 text-center">
-                Enter 6-Digit Email Code (کوڈ درج کریں)
+                Enter 6-Digit Email Code
               </label>
               <input
                 type="text"
@@ -396,7 +396,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
             {mode === 'forgot' && (
               <div>
                 <label className="block text-[11px] font-bold text-[#0F172A] dark:text-[#F8FAFC] uppercase mb-1">
-                  New Password (نیا پاس ورڈ)
+                  New Password
                 </label>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-[#64748B] dark:text-[#94A3B8] absolute left-3.5 top-3" />
@@ -482,7 +482,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
                   <span>
                     {socialLoading 
                       ? 'Connecting with Google...' 
-                      : (mode === 'login' ? 'Continue with Google (Google سے سائن ان کریں)' : 'Sign Up with Google (Google سے رجسٹر کریں)')}
+                      : (mode === 'login' ? 'Continue with Google' : 'Sign Up with Google')}
                   </span>
                 </button>
               </div>
@@ -563,7 +563,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
                         onClick={() => handleModeSwitch('forgot')}
                         className="text-[11px] font-bold text-[#2563EB] dark:text-[#3B82F6] hover:underline cursor-pointer transition-colors"
                       >
-                        Forgot Password? (پاس ورڈ بھول گئے؟)
+                        Forgot Password?
                       </button>
                     </div>
                   )}
@@ -597,10 +597,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
                 {loading 
                   ? 'Processing...' 
                   : (mode === 'forgot' 
-                      ? 'Send Reset Code (OTP ای میل بھیجیں)' 
+                      ? 'Send Reset Code' 
                       : mode === 'login' 
                         ? 'Sign In with Email' 
-                        : 'Send Verification Code (OTP ای میل بھیجیں)')}
+                        : 'Send Verification Code')}
               </button>
             </form>
           </>

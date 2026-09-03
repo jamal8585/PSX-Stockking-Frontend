@@ -327,7 +327,7 @@ export default function ProfileModal({
             className="w-full py-3 rounded-xl bg-[#DC2626]/10 hover:bg-[#DC2626] border border-[#DC2626]/30 text-[#DC2626] hover:text-white dark:text-[#EF4444] dark:hover:text-white font-bold text-xs cursor-pointer shadow-sm transition-all flex items-center justify-center space-x-2"
           >
             <LogOut className="w-4 h-4" />
-            <span>Sign Out of Account (لاگ آؤٹ)</span>
+            <span>Sign Out of Account</span>
           </button>
         </div>
       </div>

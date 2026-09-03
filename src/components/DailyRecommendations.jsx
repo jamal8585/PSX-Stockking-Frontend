@@ -399,7 +399,7 @@ export default function DailyRecommendations({
                   className="flex items-center justify-center space-x-1.5 px-3 py-2 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
                 >
                   <Calculator className="w-3.5 h-3.5" />
-                  <span>Darson Calc</span>
+                  <span>Order Calc</span>
                 </button>
                 <button
                   onClick={() => onSelectStock(item.symbol)}

@@ -20,7 +20,9 @@ import {
   Sliders,
   Flame,
   Scale,
-  RefreshCw
+  RefreshCw,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 import { getStockHistory } from '../services/api';
@@ -31,7 +33,9 @@ function InteractiveStockChart({
   currentPrice = 100, 
   symbol = 'STOCK',
   chartType = 'candlestick', // 'area' | 'candlestick'
-  isLoading = false
+  isLoading = false,
+  customWidth = 640,
+  customHeight = 280
 }) {
   const [hoverIndex, setHoverIndex] = useState(null);
 
@@ -63,12 +67,12 @@ function InteractiveStockChart({
   const priceRange = maxPrice - minPrice || 1;
   const maxVolume = Math.max(...volumes) || 1;
 
-  const width = 640;
-  const height = 280;
-  const paddingLeft = 10;
-  const paddingRight = 45;
-  const paddingTop = 15;
-  const paddingBottom = 45; // Space for volume bars and date labels
+  const width = customWidth;
+  const height = customHeight;
+  const paddingLeft = 12;
+  const paddingRight = 55;
+  const paddingTop = 20;
+  const paddingBottom = 48; // Space for volume bars and date labels
 
   const chartWidth = width - paddingLeft - paddingRight;
   const mainChartHeight = height - paddingTop - paddingBottom;
@@ -280,6 +284,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
   const [chartType, setChartType] = useState('candlestick'); // 'candlestick' | 'area'
   const [liveHistoryData, setLiveHistoryData] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   // Safely extract symbol whether stock is string or object
   const stockObj = typeof stock === 'string' ? { symbol: stock } : (stock || {});
@@ -676,6 +681,15 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
                         </button>
                       ))}
                     </div>
+
+                    {/* Fullscreen Button */}
+                    <button
+                      onClick={() => setIsFullScreen(true)}
+                      className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-cyan-400 hover:bg-gray-800 cursor-pointer transition-colors"
+                      title="Open Fullscreen Chart"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
 
@@ -971,6 +985,88 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
             <span>Open Position Sizer & Order Planner</span>
           </button>
         </div>
+
+        {/* 7. Dedicated Fullscreen Chart Modal View */}
+        {isFullScreen && (
+          <div className="fixed inset-0 z-[70] bg-[#070B12]/98 backdrop-blur-2xl flex flex-col p-4 sm:p-6 overflow-hidden">
+            {/* Fullscreen Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-gray-800 shrink-0">
+              <div className="flex items-center space-x-4">
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h2 className="text-xl font-black text-white">{name}</h2>
+                    <span className="px-2.5 py-0.5 rounded bg-cyan-500 text-black font-mono font-black text-xs">{sym}</span>
+                    <span className="text-xs text-gray-400 font-bold hidden sm:inline">{sector}</span>
+                  </div>
+                  <div className="flex items-center space-x-3 mt-1">
+                    <span className="text-2xl font-black text-white mono">PKR {price.toFixed(2)}</span>
+                    <span className={`font-bold mono text-xs ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {isPositive ? '+' : ''}{change.toFixed(2)} ({isPositive ? '+' : ''}{changePercent.toFixed(2)}%)
+                    </span>
+                    <span className="text-gray-500 text-xs hidden md:inline">Vol: {(volume || 0).toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Fullscreen Controls */}
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                <div className="flex items-center space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-800 text-xs">
+                  <button
+                    onClick={() => setChartType('candlestick')}
+                    className={`px-3 py-1 rounded font-bold transition-all cursor-pointer ${
+                      chartType === 'candlestick' ? 'bg-cyan-500 text-black' : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    🕯️ Candles
+                  </button>
+                  <button
+                    onClick={() => setChartType('area')}
+                    className={`px-3 py-1 rounded font-bold transition-all cursor-pointer ${
+                      chartType === 'area' ? 'bg-cyan-500 text-black' : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    📈 Line
+                  </button>
+                </div>
+
+                <div className="flex items-center space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-800 text-xs mono font-bold">
+                  {['1D', '5D', '1M', '3M', '1Y'].map(tf => (
+                    <button
+                      key={tf}
+                      onClick={() => setSelectedTimeframe(tf)}
+                      className={`px-2.5 py-1 rounded cursor-pointer ${
+                        selectedTimeframe === tf ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {tf}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setIsFullScreen(false)}
+                  className="p-2 rounded-xl bg-gray-800 text-gray-300 hover:text-white hover:bg-gray-700 cursor-pointer transition-colors"
+                  title="Exit Fullscreen (Esc)"
+                >
+                  <Minimize2 className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Fullscreen Chart Area */}
+            <div className="flex-1 w-full pt-4 min-h-0 flex flex-col">
+              <InteractiveStockChart
+                data={chartData}
+                currentPrice={price}
+                symbol={sym}
+                chartType={chartType}
+                isLoading={historyLoading}
+                customWidth={1100}
+                customHeight={480}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

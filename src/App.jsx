@@ -7,7 +7,7 @@ import PortfolioAdvisor from './components/PortfolioAdvisor';
 import DailyRecommendations from './components/DailyRecommendations';
 import StockScreenerTable from './components/StockScreenerTable';
 import StockDetailModal from './components/StockDetailModal';
-import DarsonOrderCalculatorModal from './components/DarsonOrderCalculatorModal';
+import OrderCalculatorModal from './components/OrderCalculatorModal';
 import WatchlistModal from './components/WatchlistModal';
 import DayTradeSuggestionModal from './components/DayTradeSuggestionModal';
 import AuthModal from './components/AuthModal';
@@ -1075,7 +1075,7 @@ export default function App() {
       )}
 
       {calcStock && (
-        <DarsonOrderCalculatorModal
+        <OrderCalculatorModal
           key={calcStock?.symbol || 'calc'}
           stock={calcStock}
           stocks={stocks}
@@ -1088,6 +1088,7 @@ export default function App() {
           watchlist={watchlist}
           onClose={() => setIsWatchlistOpen(false)}
           onSelectStock={handleSelectStock}
+          onOpenCalculator={setCalcStock}
           onRemove={handleToggleWatchlist}
         />
       )}

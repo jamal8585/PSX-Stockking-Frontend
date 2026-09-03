@@ -153,7 +153,7 @@ export default function NewsCatalystTradeHub({
 
     const timeStr = validDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
     const isSameDay = validDate.toDateString() === now.toDateString();
-    const dateLabel = isSameDay ? 'Today (آج)' : validDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const dateLabel = isSameDay ? 'Today' : validDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
     return {
       isSameDay,
@@ -295,7 +295,7 @@ export default function NewsCatalystTradeHub({
                     {formatLiveNewsDate(item).isSameDay && (
                       <span className="flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16A34A]/10 text-[#16A34A] dark:bg-[#22C55E]/10 dark:text-[#22C55E] border border-[#16A34A]/20 dark:border-[#22C55E]/20">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] mr-1.5 animate-pulse" />
-                        LIVE TODAY (آج)
+                        LIVE TODAY
                       </span>
                     )}
                     <div className="flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] text-[#2563EB] dark:text-[#3B82F6] text-xs font-bold mono">
@@ -400,7 +400,7 @@ export default function NewsCatalystTradeHub({
                                 className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-[#2563EB] via-[#4F46E5] to-[#7C3AED] hover:from-[#1D4ED8] hover:to-[#6D28D9] text-white font-extrabold text-xs shadow-md shadow-blue-500/20 flex items-center justify-center space-x-1.5 cursor-pointer transition-all"
                               >
                                 <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-                                <span>AI Next-Day Signal & Prediction (کل کی پیشگوئی)</span>
+                                <span>AI Next-Day Signal & Prediction</span>
                               </button>
 
                               <div className="grid grid-cols-2 gap-2 text-xs">
@@ -515,7 +515,7 @@ export default function NewsCatalystTradeHub({
                                 className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-[#DC2626] to-[#991B1B] hover:from-[#B91C1C] hover:to-[#7F1D1D] text-white font-extrabold text-xs shadow-md shadow-red-500/20 flex items-center justify-center space-x-1.5 cursor-pointer transition-all"
                               >
                                 <AlertTriangle className="w-3.5 h-3.5 text-amber-300" />
-                                <span>AI Next-Day Risk Forecast (کل کا رسک الرٹ)</span>
+                                <span>AI Next-Day Risk Forecast</span>
                               </button>
 
                               <div className="grid grid-cols-2 gap-2 text-xs">
@@ -644,7 +644,7 @@ function TomorrowPredictionModal({ data, onClose, onOpenCalculator, onSelectStoc
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold flex items-center space-x-2 text-[#0F172A] dark:text-[#F8FAFC]">
                 <Activity className="w-4 h-4 text-[#2563EB] dark:text-[#3B82F6]" />
-                <span>Tomorrow's Market Session Forecast (کل کی متوقع چال)</span>
+                <span>Tomorrow's Market Session Forecast</span>
               </h3>
               <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-[#2563EB]/10 text-[#2563EB] dark:bg-[#3B82F6]/10 dark:text-[#3B82F6] border border-[#2563EB]/20">
                 AI Confidence: {confidencePct}%
@@ -721,30 +721,22 @@ function TomorrowPredictionModal({ data, onClose, onOpenCalculator, onSelectStoc
             </div>
           </div>
 
-          {/* 4. Complete Urdu Explanation (اردو میں مکمل رہنمائی) */}
+          {/* 4. Complete Actionable Trading Summary */}
           <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-blue-500/10 border border-emerald-500/20 space-y-2">
             <div className="flex items-center space-x-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
               <Sparkles className="w-4 h-4" />
-              <span>کل کی ٹریڈنگ رہنمائی (Urdu / Easy English Summary)</span>
+              <span>Executive Trading Blueprint & Risk Advisory</span>
             </div>
             
-            <p className="text-xs sm:text-sm text-[#0F172A] dark:text-[#F8FAFC] leading-relaxed font-medium" dir="rtl">
+            <p className="text-xs sm:text-sm text-[#0F172A] dark:text-[#F8FAFC] leading-relaxed font-medium">
               {isBullish ? (
                 <>
-                  اس خبر کے نتیجے میں کل <b>{trade.symbol}</b> پر صبح کے سیشن میں زبردست بائنگ پریشر متوقع ہے۔ کل مارکیٹ کھلتے ہی <b>{trade.entryPriceMin} سے {trade.entryPriceMax} PKR</b> کے درمیان انٹری پلان کریں۔ کل کا پہلا متوقع ٹارگٹ <b>{tomorrowTarget1} PKR</b> اور سوئنگ ٹارگٹ <b>{tomorrowTarget2} PKR</b> ہوگا۔ اپنے سرمائے کی حفاظت کے لیے <b>{stopLoss} PKR</b> کا اسٹاپ لاس لازمی سیٹ رکھیں۔
+                  Following this major catalyst, strong institutional buying momentum is projected for <b>{trade.symbol}</b> in tomorrow's morning trading session. Traders should plan an entry within the <b>PKR {trade.entryPriceMin} - {trade.entryPriceMax}</b> price band during the opening 30 minutes. Target 1 is <b>PKR {tomorrowTarget1}</b> with a swing objective of <b>PKR {tomorrowTarget2}</b>. Preserve capital by maintaining a strict stop-loss at <b>PKR {stopLoss}</b>.
                 </>
               ) : (
                 <>
-                  اس خبر کے باعث کل <b>{trade.symbol}</b> میں سیلنگ پریشر اور منافع خوری متوقع ہے۔ نئی بائنگ سے گریز کریں اور اگر موجودہ ہولڈنگ ہے تو <b>{stopLoss} PKR</b> کے نیچے جانے کی صورت میں اسٹاپ لاس پر ایگزٹ کر لیں یا پرافٹ بک کر لیں۔
+                  Due to this negative catalyst, profit-taking and selling pressure are anticipated for <b>{trade.symbol}</b>. Avoid fresh aggressive long positions. Existing position holders should protect their capital by executing defensive stop-losses or taking profits if price breaches below <b>PKR {stopLoss}</b>.
                 </>
-              )}
-            </p>
-
-            <p className="text-xs text-[#64748B] dark:text-[#94A3B8] pt-1">
-              <b>Roman Urdu:</b> {isBullish ? (
-                `Is news catalyst ki waja se kal subah ${trade.symbol} mein high volume buying expected hai. Opening 30 minutes mein PKR ${trade.entryPriceMin} - ${trade.entryPriceMax} ke range mein entry lein. Kal ka pehla target PKR ${tomorrowTarget1} aur PKR ${stopLoss} ka stop-loss follow karein.`
-              ) : (
-                `Is news ki waja se kal ${trade.symbol} par downside pressure ka imkaan hai. Fresh buying se bachein aur PKR ${stopLoss} ke stop-loss ko strictly follow karein.`
               )}
             </p>
           </div>

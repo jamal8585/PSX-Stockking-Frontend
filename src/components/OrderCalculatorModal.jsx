@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 
-export default function DarsonOrderCalculatorModal({ stock, stocks = [], onClose }) {
+export default function OrderCalculatorModal({ stock, stocks = [], onClose }) {
   if (!stock) return null;
 
   const sym = (stock.symbol || '').toUpperCase().trim();
@@ -84,7 +84,7 @@ export default function DarsonOrderCalculatorModal({ stock, stocks = [], onClose
   };
 
   const handleCopy = () => {
-    const text = `--- DARSON SECURITIES ORDER PLAN ---
+    const text = `--- PSX ALPHA ORDER EXECUTION PLAN ---
 Symbol: ${stock.symbol}
 Action: BUY (Limit / Market Order)
 Current Market Price (CMP): PKR ${livePrice.toFixed(2)}
@@ -119,7 +119,7 @@ Risk-to-Reward: 1 : ${riskRewardRatio}`;
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold tracking-tight">
-                Darson Securities Order Calculator
+                PSX Alpha Order Execution Calculator
               </h2>
               <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
                 Position Sizing for <b className="text-[#0F172A] dark:text-[#F8FAFC] mono">{stock.symbol}</b> {stock.name ? `• ${stock.name}` : ''}
@@ -284,10 +284,10 @@ Risk-to-Reward: 1 : ${riskRewardRatio}`;
             className="w-full flex items-center justify-center space-x-2 py-3 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
           >
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            <span>{copied ? 'Order Specs Copied to Clipboard!' : 'Copy Order Specs for Darson Portal'}</span>
+            <span>{copied ? 'Order Specs Copied to Clipboard!' : 'Copy Order Specs for Trading Portal'}</span>
           </button>
           <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] text-center">
-            Open Darson Securities Trade App/Web, enter Symbol <b className="text-[#0F172A] dark:text-[#F8FAFC]">{stock.symbol}</b>, CMP <b className="text-[#2563EB] dark:text-[#3B82F6]">PKR {livePrice.toFixed(2)}</b>, Quantity <b className="text-[#0F172A] dark:text-[#F8FAFC]">{shares}</b>, and Limit Price <b className="text-[#0F172A] dark:text-[#F8FAFC]">PKR {effectivePrice.toFixed(2)}</b>.
+            Open your PSX Brokerage Trade App/Web, enter Symbol <b className="text-[#0F172A] dark:text-[#F8FAFC]">{stock.symbol}</b>, CMP <b className="text-[#2563EB] dark:text-[#3B82F6]">PKR {livePrice.toFixed(2)}</b>, Quantity <b className="text-[#0F172A] dark:text-[#F8FAFC]">{shares}</b>, and Limit Price <b className="text-[#0F172A] dark:text-[#F8FAFC]">PKR {effectivePrice.toFixed(2)}</b>.
           </p>
         </div>
       </div>

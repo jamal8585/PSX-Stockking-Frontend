@@ -31,21 +31,29 @@ export default function WatchlistModal({ watchlist, onClose, onSelectStock, onOp
         ) : (
           <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
             {watchlist.map(stock => {
-              const isPos = stock.change >= 0;
+              const sym = (stock.symbol || '').toUpperCase().trim();
+              const priceVal = Number(stock.currentPrice || 0);
+              const changePct = Number(
+                stock.changePercent !== undefined && !isNaN(stock.changePercent)
+                  ? stock.changePercent
+                  : (stock.prevClose > 0 ? ((priceVal - stock.prevClose) / stock.prevClose * 100) : 0)
+              );
+              const isPos = changePct >= 0;
+
               return (
                 <div 
-                  key={stock.symbol}
+                  key={sym}
                   className="bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg p-3 flex items-center justify-between hover:border-[#2563EB] dark:hover:border-[#3B82F6] transition-all"
                 >
                   <div>
                     <div className="flex items-center space-x-2">
-                      <span className="font-bold text-[#0F172A] dark:text-[#F8FAFC] mono text-sm">{stock.symbol}</span>
-                      <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] truncate max-w-[120px]">{stock.name}</span>
+                      <span className="font-bold text-[#0F172A] dark:text-[#F8FAFC] mono text-sm">{sym}</span>
+                      <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] truncate max-w-[120px]">{stock.name || sym}</span>
                     </div>
                     <div className="flex items-center space-x-2 mt-0.5 text-xs">
-                      <span className="font-bold text-[#0F172A] dark:text-[#F8FAFC] mono">PKR {Number(stock.currentPrice).toFixed(2)}</span>
+                      <span className="font-bold text-[#0F172A] dark:text-[#F8FAFC] mono">PKR {priceVal.toFixed(2)}</span>
                       <span className={`font-bold mono text-[11px] ${isPos ? 'text-[#16A34A] dark:text-[#22C55E]' : 'text-[#DC2626] dark:text-[#EF4444]'}`}>
-                        {isPos ? '+' : ''}{Number(stock.changePercent).toFixed(2)}%
+                        {isPos ? '+' : ''}{changePct.toFixed(2)}%
                       </span>
                     </div>
                   </div>
@@ -54,17 +62,20 @@ export default function WatchlistModal({ watchlist, onClose, onSelectStock, onOp
                     <button
                       onClick={() => {
                         onClose();
-                        onOpenCalculator({
-                          symbol: stock.symbol,
-                          companyName: stock.name,
-                          currentPrice: stock.currentPrice,
-                          stopLoss: stock.technicals?.support1 || (stock.currentPrice * 0.95),
-                          target1: stock.technicals?.resistance1 || (stock.currentPrice * 1.08),
-                          signal: stock.technicals?.signal || 'HOLD'
-                        });
+                        if (typeof onOpenCalculator === 'function') {
+                          onOpenCalculator({
+                            symbol: sym,
+                            name: stock.name || sym,
+                            companyName: stock.name || sym,
+                            currentPrice: priceVal,
+                            stopLoss: stock.technicals?.support1 || (priceVal * 0.95),
+                            target1: stock.technicals?.resistance1 || (priceVal * 1.08),
+                            signal: stock.technicals?.signal || (isPos ? 'BUY' : 'HOLD')
+                          });
+                        }
                       }}
                       className="p-1.5 rounded-lg bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 text-[#2563EB] dark:text-[#3B82F6] hover:bg-[#2563EB] hover:text-white dark:hover:bg-[#3B82F6] transition-all cursor-pointer"
-                      title="Open Position Sizer"
+                      title="Open Position Sizer & Order Calculator"
                     >
                       <Calculator className="w-3.5 h-3.5" />
                     </button>
