@@ -440,8 +440,35 @@ export default function App() {
   useEffect(() => {
     if (!supabase) return;
 
+    // Check initial session upon OAuth redirect return
+    const checkInitialSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const suUser = session.user;
+          const email = suUser.email;
+          const name = suUser.user_metadata?.full_name || suUser.user_metadata?.name || email.split('@')[0];
+          const avatar = suUser.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${email}`;
+
+          const res = await socialAuthLogin({
+            provider: 'google',
+            email,
+            name,
+            avatar
+          });
+          if (res?.success && res.user) {
+            handleAuthSuccess(res.user);
+            localStorage.setItem('psx_user_profile', JSON.stringify(res.user));
+          }
+        }
+      } catch (e) {
+        console.warn('Initial session check note:', e);
+      }
+    };
+    checkInitialSession();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
+      if (session?.user && (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION')) {
         const suUser = session.user;
         const email = suUser.email;
         const name = suUser.user_metadata?.full_name || suUser.user_metadata?.name || email.split('@')[0];
