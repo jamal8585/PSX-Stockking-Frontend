@@ -192,6 +192,17 @@ export default function DailyRecommendations({
     <div className="space-y-4">
       {/* 1. Header & Filters */}
       <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-4 sm:p-6 shadow-sm dark:shadow-md transition-all">
+        {/* Prominent Active Trading Session Date Badge */}
+        <div className="flex flex-wrap items-center gap-2 mb-3 pb-3 border-b border-[#E2E8F0] dark:border-[#243044]">
+          <span className="flex items-center text-xs font-black px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse" />
+            📅 Active Trading Session: Today, {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+          </span>
+          <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8] font-bold">
+            • Effective & Actionable for Today's PSX Market (09:30 AM PKT)
+          </span>
+        </div>
+
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
@@ -328,7 +339,12 @@ export default function DailyRecommendations({
                 <div className="filter blur-sm select-none pointer-events-none opacity-40">
                   <div className="flex justify-between mb-3">
                     <div>
-                      <h3 className="text-xl font-bold text-[#0F172A] dark:text-[#F8FAFC] mono">{item.symbol}</h3>
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-xl font-bold text-[#0F172A] dark:text-[#F8FAFC] mono">{item.symbol}</h3>
+                        <span className="text-[9px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono font-bold border border-emerald-500/20">
+                          Active: {new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </span>
+                      </div>
                       <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">{item.sector}</p>
                     </div>
                     <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-[#16A34A]/10 text-[#16A34A]">
@@ -376,6 +392,9 @@ export default function DailyRecommendations({
                       </h3>
                       <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] font-bold border border-[#E2E8F0] dark:border-[#243044] truncate max-w-[120px]">
                         {item.sector}
+                      </span>
+                      <span className="text-[9px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono font-black border border-emerald-500/20 shrink-0">
+                        Active: {new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </span>
                     </div>
                     <p className="text-xs text-[#64748B] dark:text-[#94A3B8] truncate max-w-[200px]" title={item.companyName}>
