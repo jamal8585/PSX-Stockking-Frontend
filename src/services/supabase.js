@@ -14,14 +14,22 @@ export const supabase = (SUPABASE_URL && SUPABASE_ANON_KEY)
     })
   : null;
 
+export const getOAuthRedirectUrl = () => {
+  if (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')) {
+    return window.location.origin;
+  }
+  return 'https://psx-stockking-frontend.vercel.app';
+};
+
 export const signInWithGoogleSupabase = async () => {
   if (!supabase) {
     throw new Error('Supabase credentials not configured');
   }
+  const redirectTarget = getOAuthRedirectUrl();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+      redirectTo: redirectTarget,
       queryParams: {
         access_type: 'offline',
         prompt: 'consent'
