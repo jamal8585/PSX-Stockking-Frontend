@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, 
   Layers, 
@@ -19,18 +19,30 @@ import {
   PieChart,
   Sliders,
   Flame,
-  Scale
+  Scale,
+  RefreshCw
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
+import { getStockHistory } from '../services/api';
 
 // High-Performance Interactive SVG Stock Chart (Supports both Area and Candlestick OHLC + Volume)
 function InteractiveStockChart({ 
   data = [], 
   currentPrice = 100, 
   symbol = 'STOCK',
-  chartType = 'candlestick' // 'area' | 'candlestick'
+  chartType = 'candlestick', // 'area' | 'candlestick'
+  isLoading = false
 }) {
   const [hoverIndex, setHoverIndex] = useState(null);
+
+  if (isLoading) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center text-cyan-400 text-xs py-20 space-y-2">
+        <RefreshCw className="w-6 h-6 animate-spin text-cyan-400" />
+        <span className="font-mono font-bold tracking-wider">Synchronizing Real PSX DPS Telemetry ({symbol})...</span>
+      </div>
+    );
+  }
 
   if (!data || data.length === 0) {
     return (
@@ -41,13 +53,13 @@ function InteractiveStockChart({
   }
 
   // Extract prices, high, low, open, close
-  const prices = data.map(d => Number(d.price) || currentPrice);
+  const prices = data.map(d => Number(d.price || d.close) || currentPrice);
   const highs = data.map(d => Number(d.high || d.price * 1.015) || currentPrice);
   const lows = data.map(d => Number(d.low || d.price * 0.985) || currentPrice);
   const volumes = data.map(d => Number(d.volume || 1));
 
-  const minPrice = Math.min(...lows) * 0.99;
-  const maxPrice = Math.max(...highs) * 1.01;
+  const minPrice = Math.min(...lows) * 0.995;
+  const maxPrice = Math.max(...highs) * 1.005;
   const priceRange = maxPrice - minPrice || 1;
   const maxVolume = Math.max(...volumes) || 1;
 
@@ -65,7 +77,7 @@ function InteractiveStockChart({
 
   const points = data.map((d, i) => {
     const x = paddingLeft + (i / (data.length - 1 || 1)) * chartWidth;
-    const priceVal = Number(d.price || currentPrice);
+    const priceVal = Number(d.price || d.close || currentPrice);
     const openVal = Number(d.open || priceVal * 0.995);
     const highVal = Number(d.high || Math.max(openVal, priceVal) * 1.01);
     const lowVal = Number(d.low || Math.min(openVal, priceVal) * 0.99);
@@ -103,8 +115,7 @@ function InteractiveStockChart({
   const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${(paddingTop + mainChartHeight).toFixed(1)} L ${points[0].x.toFixed(1)} ${(paddingTop + mainChartHeight).toFixed(1)} Z`;
 
   const activePoint = hoverIndex !== null && points[hoverIndex] ? points[hoverIndex] : points[points.length - 1];
-
-  const candleWidth = Math.max(3, Math.min(12, (chartWidth / points.length) * 0.7));
+  const candleWidth = Math.max(3, Math.min(16, (chartWidth / points.length) * 0.72));
 
   return (
     <div className="relative w-full h-[280px] select-none">
@@ -226,7 +237,7 @@ function InteractiveStockChart({
         )}
 
         {/* Date labels at bottom */}
-        {points.filter((_, idx) => idx % Math.ceil(points.length / 6) === 0).map((pt, i) => (
+        {points.filter((_, idx) => idx % Math.max(1, Math.ceil(points.length / 6)) === 0).map((pt, i) => (
           <text key={i} x={pt.x} y={height - 2} fill="#64748B" fontSize="9" textAnchor="middle" fontFamily="monospace">
             {pt.data.date}
           </text>
@@ -246,7 +257,7 @@ function InteractiveStockChart({
           <div className="flex items-center justify-between space-x-3 pb-1 border-b border-gray-800 text-[11px] font-mono">
             <span className="text-gray-400 font-bold">{activePoint.data.date}</span>
             <span className={`font-extrabold ${activePoint.isBull ? 'text-emerald-400' : 'text-rose-400'}`}>
-              PKR {Number(activePoint.close).toFixed(2)} ({activePoint.isBull ? '+' : ''}{((activePoint.close - activePoint.open) / activePoint.open * 100).toFixed(2)}%)
+              PKR {Number(activePoint.close).toFixed(2)} ({activePoint.isBull ? '+' : ''}{((activePoint.close - activePoint.open) / (activePoint.open || 1) * 100).toFixed(2)}%)
             </span>
           </div>
           <div className="grid grid-cols-4 gap-2 pt-1 font-mono text-[10px]">
@@ -267,17 +278,39 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
   const [activeTab, setActiveTab] = useState('chart'); // 'chart' | 'fundamentals' | 'technicals'
   const [selectedTimeframe, setSelectedTimeframe] = useState('1M');
   const [chartType, setChartType] = useState('candlestick'); // 'candlestick' | 'area'
+  const [liveHistoryData, setLiveHistoryData] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // Safely extract symbol whether stock is string or object
   const stockObj = typeof stock === 'string' ? { symbol: stock } : (stock || {});
   const sym = (stockObj.symbol || stockObj.name || (typeof stock === 'string' ? stock : '') || 'STOCK').toUpperCase().trim();
   const official = (officialQuotes && officialQuotes[sym]) ? officialQuotes[sym] : null;
 
-  const currentPrice = Number(stockObj.currentPrice || official?.currentPrice || 100);
-  const prevClose = Number(stockObj.prevClose || official?.prevClose || (currentPrice * 0.99));
+  // Real Multi-Timeframe Fetch Hook
+  useEffect(() => {
+    let isMounted = true;
+    const fetchRealData = async () => {
+      setHistoryLoading(true);
+      try {
+        const res = await getStockHistory(sym, selectedTimeframe);
+        if (isMounted && res.success) {
+          setLiveHistoryData(res);
+        }
+      } catch (err) {
+        console.warn('Could not load live stock history:', err.message);
+      } finally {
+        if (isMounted) setHistoryLoading(false);
+      }
+    };
+    fetchRealData();
+    return () => { isMounted = false; };
+  }, [sym, selectedTimeframe]);
+
+  const currentPrice = Number(liveHistoryData?.quote?.currentPrice || stockObj.currentPrice || official?.currentPrice || 100);
+  const prevClose = Number(liveHistoryData?.quote?.prevClose || stockObj.prevClose || official?.prevClose || (currentPrice * 0.99));
   const change = stockObj.change !== undefined ? Number(stockObj.change) : (official?.change !== undefined ? Number(official.change) : Number((currentPrice - prevClose).toFixed(2)));
   const changePercent = stockObj.changePercent !== undefined ? Number(stockObj.changePercent) : (official?.changePercent !== undefined ? Number(official.changePercent) : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0));
-  const volume = Number(stockObj.volume || official?.volume || 1500000);
+  const volume = Number(liveHistoryData?.quote?.volume || stockObj.volume || official?.volume || 1500000);
   const name = stockObj.name || official?.name || sym;
   const sector = stockObj.sector || official?.sector || 'General Market';
   const high = Number(stockObj.high || official?.high || (currentPrice * 1.02));
@@ -286,9 +319,9 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
   const eps = Number(stockObj.eps || 6.9);
   const dividendYield = Number(stockObj.dividendYield || 0);
   const marketCap = Number(stockObj.marketCap || (currentPrice * (volume > 5000000 ? 5500000000 : 120000000)));
-  const technicals = stockObj.technicals || {};
-  const historicalPrices = stockObj.historicalPrices || [];
 
+  // Overlay Live Real Technicals from Backend Analytics Engine
+  const technicals = liveHistoryData?.technicals || stockObj.technicals || {};
   const isPositive = change >= 0;
   const price = Number(currentPrice > 0 ? currentPrice : 10);
 
@@ -299,27 +332,27 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
   const week52Low = Number(technicals.support2 || (price * 0.58)).toFixed(2);
 
   // Pivot Points S3, S2, S1, PP, R1, R2, R3
-  const pp = Number(((Number(dayHigh) + Number(dayLow) + price) / 3).toFixed(2));
-  const r1 = Number((2 * pp - Number(dayLow)).toFixed(2));
-  const s1 = Number((2 * pp - Number(dayHigh)).toFixed(2));
-  const r2 = Number((pp + (Number(dayHigh) - Number(dayLow))).toFixed(2));
-  const s2 = Number((pp - (Number(dayHigh) - Number(dayLow))).toFixed(2));
-  const r3 = Number((Number(dayHigh) + 2 * (pp - Number(dayLow))).toFixed(2));
-  const s3 = Number((Number(dayLow) - 2 * (Number(dayHigh) - pp)).toFixed(2));
+  const pp = Number((technicals.pivotPoints?.pp || ((Number(dayHigh) + Number(dayLow) + price) / 3)).toFixed(2));
+  const r1 = Number((technicals.pivotPoints?.r1 || (2 * pp - Number(dayLow))).toFixed(2));
+  const s1 = Number((technicals.pivotPoints?.s1 || (2 * pp - Number(dayHigh))).toFixed(2));
+  const r2 = Number((technicals.pivotPoints?.r2 || (pp + (Number(dayHigh) - Number(dayLow)))).toFixed(2));
+  const s2 = Number((technicals.pivotPoints?.s2 || (pp - (Number(dayHigh) - Number(dayLow)))).toFixed(2));
+  const r3 = Number((technicals.pivotPoints?.r3 || (Number(dayHigh) + 2 * (pp - Number(dayLow)))).toFixed(2));
+  const s3 = Number((technicals.pivotPoints?.s3 || (Number(dayLow) - 2 * (Number(dayHigh) - pp))).toFixed(2));
 
   // Technical Indicators
-  const ema20 = Number((price * 0.985).toFixed(2));
-  const sma50 = Number((price * 0.942).toFixed(2));
-  const sma200 = Number((price * 0.865).toFixed(2));
-  const rsi = Number(technicals.rsi14 || 64.8).toFixed(1);
-  const macdVal = Number((price * 0.018).toFixed(2));
-  const macdSignal = Number((price * 0.014).toFixed(2));
-  const macdHist = Number((macdVal - macdSignal).toFixed(2));
-  const stochK = 72.4;
-  const stochD = 66.8;
-  const atr14 = Number((price * 0.038).toFixed(2));
-  const bbUpper = Number((price * 1.072).toFixed(2));
-  const bbLower = Number((price * 0.928).toFixed(2));
+  const ema20 = Number((technicals.ema20 || price * 0.985).toFixed(2));
+  const sma50 = Number((technicals.sma50 || price * 0.942).toFixed(2));
+  const sma200 = Number((technicals.sma200 || price * 0.865).toFixed(2));
+  const rsi = Number(technicals.rsi14 || 56.4).toFixed(1);
+  const macdVal = Number((technicals.macd?.value || price * 0.018).toFixed(2));
+  const macdSignal = Number((technicals.macd?.signal || price * 0.014).toFixed(2));
+  const macdHist = Number((technicals.macd?.hist || macdVal - macdSignal).toFixed(2));
+  const stochK = Number(technicals.stochastic?.k || 68.4);
+  const stochD = Number(technicals.stochastic?.d || 62.1);
+  const atr14 = Number((technicals.atr14 || price * 0.038).toFixed(2));
+  const bbUpper = Number((technicals.bollinger?.upper || price * 1.072).toFixed(2));
+  const bbLower = Number((technicals.bollinger?.lower || price * 0.928).toFixed(2));
 
   // Fundamental Valuation & Financial Health Metrics
   const bookValue = Number((price * 0.72).toFixed(2));
@@ -338,64 +371,55 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
     ? `Rs. ${(marketCap / 1000000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}M`
     : `Rs. ${(price * 5500).toFixed(2)}M`;
 
-  // Calculated Returns for 1W, 1M, 3M, 6M, 1Y
-  const ret1W = Number((changePercent * 0.8).toFixed(2));
-  const ret1M = Number((changePercent > 0 ? (changePercent * 4.2 + 12.5) : -8.4).toFixed(2));
-  const ret3M = Number((changePercent > 0 ? (changePercent * 8.5 + 24.2) : -14.1).toFixed(2));
-  const ret6M = Number((changePercent > 0 ? (changePercent * 14.3 + 45.0) : 18.5).toFixed(2));
-  const ret1Y = Number((changePercent > 0 ? (changePercent * 11.2 + 35.8) : 8.2).toFixed(2));
+  // Calculated Returns for 1W, 1M, 3M, 6M, 1Y from live analytics
+  const realReturns = liveHistoryData?.performanceReturns || {};
+  const ret1W = Number((realReturns['1W'] !== undefined ? realReturns['1W'] : changePercent * 0.8).toFixed(2));
+  const ret1M = Number((realReturns['1M'] !== undefined ? realReturns['1M'] : (changePercent > 0 ? (changePercent * 4.2 + 12.5) : -8.4)).toFixed(2));
+  const ret3M = Number((realReturns['3M'] !== undefined ? realReturns['3M'] : (changePercent > 0 ? (changePercent * 8.5 + 24.2) : -14.1)).toFixed(2));
+  const ret6M = Number((realReturns['6M'] !== undefined ? realReturns['6M'] : (changePercent > 0 ? (changePercent * 14.3 + 45.0) : 18.5)).toFixed(2));
+  const ret1Y = Number((realReturns['1Y'] !== undefined ? realReturns['1Y'] : (changePercent > 0 ? (changePercent * 11.2 + 35.8) : 8.2)).toFixed(2));
 
-  // Generate Multi-Timeframe Chart Data with realistic OHLC Candlestick metrics
+  // Multi-Timeframe Chart Data Hook
   const chartData = useMemo(() => {
-    if (!historicalPrices || historicalPrices.length === 0) {
-      // Realistic synthetic candlestick trajectory
-      return Array.from({ length: 30 }, (_, i) => {
-        const base = price * (0.88 + (i / 30) * 0.12 + Math.sin(i * 0.5) * 0.02);
-        const open = Number((base * (1 + (Math.sin(i) * 0.008))).toFixed(2));
-        const close = Number((base * (1 + (Math.cos(i) * 0.012))).toFixed(2));
-        const high = Number((Math.max(open, close) * 1.012).toFixed(2));
-        const low = Number((Math.min(open, close) * 0.988).toFixed(2));
-        const vol = Math.round(volume * (0.5 + Math.sin(i) * 0.4 + 0.4));
-
-        return {
-          date: `D-${30 - i}`,
-          price: close,
-          open,
-          high,
-          low,
-          close,
-          volume: vol
-        };
-      });
+    if (liveHistoryData?.bars && liveHistoryData.bars.length > 0) {
+      return liveHistoryData.bars;
     }
 
-    let sliceCount = 30;
-    if (selectedTimeframe === '1D') sliceCount = 10;
-    else if (selectedTimeframe === '5D') sliceCount = 5;
-    else if (selectedTimeframe === '1M') sliceCount = 30;
-    else if (selectedTimeframe === '3M' || selectedTimeframe === '6M') sliceCount = 60;
-    else sliceCount = historicalPrices.length;
+    // Dynamic fallback generation based on selected timeframe
+    let count = 30;
+    if (selectedTimeframe === '1D') count = 15;
+    else if (selectedTimeframe === '5D') count = 5;
+    else if (selectedTimeframe === '1M') count = 22;
+    else if (selectedTimeframe === '3M') count = 60;
+    else if (selectedTimeframe === '1Y') count = 120;
 
-    return historicalPrices.slice(-sliceCount).map(h => {
-      const p = Number(h.close || h.price || price);
-      const o = Number(h.open || p * 0.995);
-      const hi = Number(h.high || Math.max(o, p) * 1.01);
-      const lo = Number(h.low || Math.min(o, p) * 0.99);
+    return Array.from({ length: count }, (_, i) => {
+      const isIntraday = selectedTimeframe === '1D';
+      const stepLabel = isIntraday 
+        ? `${9 + Math.floor(i / 3)}:${(i % 3) * 20 || '00'} AM`
+        : `D-${count - i}`;
+      
+      const base = price * (0.92 + (i / count) * 0.08 + Math.sin(i * 0.4) * 0.015);
+      const open = Number((base * (1 + (Math.sin(i) * 0.006))).toFixed(2));
+      const close = Number((base * (1 + (Math.cos(i) * 0.008))).toFixed(2));
+      const hi = Number((Math.max(open, close) * 1.008).toFixed(2));
+      const lo = Number((Math.min(open, close) * 0.992).toFixed(2));
+      const vol = Math.round(volume * (0.6 + Math.sin(i) * 0.3 + 0.3));
 
       return {
-        date: h.date?.slice(5) || h.date || 'D',
-        price: p,
-        open: o,
+        date: stepLabel,
+        price: close,
+        open,
         high: hi,
         low: lo,
-        close: p,
-        volume: Number(h.volume || volume) / 1000000
+        close,
+        volume: vol
       };
     });
-  }, [historicalPrices, selectedTimeframe, price, volume]);
+  }, [liveHistoryData, selectedTimeframe, price, volume]);
 
   // AI Decision Summary
-  const trend = technicals.trend || (change >= 0 ? 'BULLISH' : 'NEUTRAL');
+  const trend = technicals.trend || technicals.signal || (change >= 0 ? 'BULLISH' : 'NEUTRAL');
   const targetSell = Number((price * 1.115).toFixed(2));
   const stopLoss = Number((price * 0.95).toFixed(2));
 
@@ -406,9 +430,9 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
         color: 'text-amber-400 border-amber-500/30 bg-amber-500/10',
         summary: `${name} (${sym}) has witnessed an intense rally and RSI is currently elevated at ${rsi}. While the primary trend in the ${sector} sector remains strong, short-term volatility and profit-taking are anticipated. Existing holders should book partial gains at current rates and raise their stop loss to PKR ${stopLoss}. New entries should wait for a healthier pullback towards S1 (PKR ${s1}).`
       };
-    } else if (trend === 'BULLISH' || changePercent > 0) {
+    } else if (trend === 'BULLISH' || trend === 'STRONG BUY' || trend === 'ACCUMULATE' || changePercent > 0) {
       return {
-        verdict: 'BULLISH BREAKOUT • ACCUMULATE / BUY',
+        verdict: `${trend.toUpperCase()} • ACCUMULATE / BUY`,
         color: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10',
         summary: `${name} (${sym}) is demonstrating strong institutional accumulation in the ${sector} sector. Price is holding comfortably above pivot point (PKR ${pp}) and EMA 20 (PKR ${ema20}) with solid trading volume (${(volume).toLocaleString()} shares). Favorable P/E valuation (${peRatio}x vs Sector ${sectorPe}x, P/B ${pbRatio}x) provides attractive upside. Buy zone is PKR ${s1} - ${price.toFixed(2)}, targeting PKR ${targetSell} with stop loss at PKR ${stopLoss}.`
       };
@@ -662,6 +686,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
                     currentPrice={price} 
                     symbol={sym} 
                     chartType={chartType} 
+                    isLoading={historyLoading}
                   />
                 </div>
               </div>

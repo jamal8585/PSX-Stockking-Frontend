@@ -153,6 +153,13 @@ export const getStockDetail = async (symbol) => {
   return res.data;
 };
 
+export const getStockHistory = async (symbol, timeframe = '1M') => {
+  const res = await API.get(`/stocks/${symbol}/history`, {
+    params: { timeframe }
+  });
+  return res.data;
+};
+
 export const getRecommendations = async (params = {}) => {
   const res = await API.get('/recommendations', { params });
   return res.data;
