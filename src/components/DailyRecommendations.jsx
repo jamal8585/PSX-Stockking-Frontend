@@ -11,9 +11,76 @@ import {
   ArrowUpRight, 
   Filter, 
   Lock, 
-  Crown 
+  Crown,
+  Calendar,
+  Clock
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
+
+// Intelligent PSX Market Session & Weekend Calendar Engine
+export function getPSXMarketSessionInfo() {
+  const now = new Date();
+  
+  // Calculate Pakistan Standard Time (PKT is UTC+5)
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const pktDate = new Date(utc + (3600000 * 5));
+  
+  const day = pktDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 5 = Friday, 6 = Saturday
+  const hours = pktDate.getHours();
+  const minutes = pktDate.getMinutes();
+  const timeNum = hours * 100 + minutes;
+
+  let targetDate = new Date(pktDate);
+  let isWeekend = false;
+  let statusBadge = '';
+  let subText = '';
+  let isFridayEod = false;
+
+  if (day === 6) { // Saturday
+    isWeekend = true;
+    targetDate.setDate(pktDate.getDate() + 2); // Monday (+2)
+    statusBadge = '🛑 Weekend Closed (Sat & Sun Off)';
+    subText = `Signals Active for Upcoming Monday Open (${targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })})`;
+  } else if (day === 0) { // Sunday
+    isWeekend = true;
+    targetDate.setDate(pktDate.getDate() + 1); // Monday (+1)
+    statusBadge = '🛑 Weekend Closed (Sunday Off)';
+    subText = `Signals Active for Tomorrow's Monday Open (${targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })})`;
+  } else if (day === 5 && timeNum >= 1600) { // Friday after 04:00 PM (Market Closed)
+    isFridayEod = true;
+    targetDate.setDate(pktDate.getDate() + 3); // Monday (+3)
+    statusBadge = '📅 Friday Session Closed • Weekend Off';
+    subText = `Friday EOD Signals Active for Upcoming Monday Session (${targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })})`;
+  } else if (timeNum >= 1600) { // Mon-Thu after 04:00 PM
+    targetDate.setDate(pktDate.getDate() + 1); // Next day
+    statusBadge = `📅 Post-Market Analysis`;
+    subText = `Actionable for Tomorrow's PSX Market Open (${targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })})`;
+  } else { // Mon-Fri active trading day (00:00 to 16:00 PKT)
+    targetDate = pktDate;
+    statusBadge = `🟢 Active Trading Session: Today, ${pktDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}`;
+    subText = `Effective & Actionable for Today's PSX Market (09:30 AM PKT)`;
+  }
+
+  const sessionDateFormatted = targetDate.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+
+  const cardDateFormatted = (isWeekend || isFridayEod) 
+    ? `For Mon: ${targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}`
+    : `Active: ${targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+
+  return {
+    isWeekend,
+    isFridayEod,
+    statusBadge,
+    subText,
+    sessionDateFormatted,
+    cardDateFormatted
+  };
+}
 
 export default function DailyRecommendations({ 
   recommendations, 
@@ -26,6 +93,7 @@ export default function DailyRecommendations({
   const [filterSignal, setFilterSignal] = useState('ALL');
   const [filterSector, setFilterSector] = useState('ALL');
 
+  const marketSession = useMemo(() => getPSXMarketSessionInfo(), []);
   const isPro = currentUser?.plan === 'PRO' && currentUser?.subscriptionStatus === 'ACTIVE';
 
   // Resiliently derive recommendations list
@@ -193,14 +261,32 @@ export default function DailyRecommendations({
       {/* 1. Header & Filters */}
       <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-4 sm:p-6 shadow-sm dark:shadow-md transition-all">
         {/* Prominent Active Trading Session Date Badge */}
-        <div className="flex flex-wrap items-center gap-2 mb-3 pb-3 border-b border-[#E2E8F0] dark:border-[#243044]">
-          <span className="flex items-center text-xs font-black px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse" />
-            📅 Active Trading Session: Today, {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
-          </span>
-          <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8] font-bold">
-            • Effective & Actionable for Today's PSX Market (09:30 AM PKT)
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-3 border-b border-[#E2E8F0] dark:border-[#243044]">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`flex items-center text-xs font-black px-3 py-1.5 rounded-lg border ${
+              marketSession.isWeekend 
+                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                : (marketSession.isFridayEod
+                    ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30'
+                    : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30')
+            }`}>
+              <span className={`w-2 h-2 rounded-full mr-2 ${
+                marketSession.isWeekend 
+                  ? 'bg-amber-500' 
+                  : (marketSession.isFridayEod ? 'bg-blue-500' : 'bg-emerald-500 animate-pulse')
+              }`} />
+              <span>{marketSession.statusBadge}</span>
+            </span>
+            <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8] font-bold">
+              • {marketSession.subText}
+            </span>
+          </div>
+
+          <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] text-[11px] font-mono shrink-0">
+            <Calendar className="w-3.5 h-3.5 text-[#2563EB] dark:text-[#3B82F6]" />
+            <span className="text-[#64748B] dark:text-[#94A3B8]">Session:</span>
+            <b className="text-[#0F172A] dark:text-[#F8FAFC]">{marketSession.sessionDateFormatted}</b>
+          </div>
         </div>
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -341,8 +427,12 @@ export default function DailyRecommendations({
                     <div>
                       <div className="flex items-center space-x-2">
                         <h3 className="text-xl font-bold text-[#0F172A] dark:text-[#F8FAFC] mono">{item.symbol}</h3>
-                        <span className="text-[9px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono font-bold border border-emerald-500/20">
-                          Active: {new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        <span className={`text-[9px] px-2 py-0.5 rounded-md font-mono font-bold border shrink-0 ${
+                          marketSession.isWeekend || marketSession.isFridayEod
+                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                            : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                        }`}>
+                          {marketSession.cardDateFormatted}
                         </span>
                       </div>
                       <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">{item.sector}</p>
@@ -393,8 +483,12 @@ export default function DailyRecommendations({
                       <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] font-bold border border-[#E2E8F0] dark:border-[#243044] truncate max-w-[120px]">
                         {item.sector}
                       </span>
-                      <span className="text-[9px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono font-black border border-emerald-500/20 shrink-0">
-                        Active: {new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      <span className={`text-[9px] px-2 py-0.5 rounded-md font-mono font-black border shrink-0 ${
+                        marketSession.isWeekend || marketSession.isFridayEod
+                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                          : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                      }`}>
+                        {marketSession.cardDateFormatted}
                       </span>
                     </div>
                     <p className="text-xs text-[#64748B] dark:text-[#94A3B8] truncate max-w-[200px]" title={item.companyName}>
