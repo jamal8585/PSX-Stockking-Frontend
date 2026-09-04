@@ -122,10 +122,10 @@ function InteractiveStockChart({
   const candleWidth = Math.max(3, Math.min(16, (chartWidth / points.length) * 0.72));
 
   return (
-    <div className="relative w-full h-[280px] select-none">
+    <div className="relative w-full h-[280px] select-none overflow-hidden">
       <svg 
         viewBox={`0 0 ${width} ${height}`} 
-        className="w-full h-full overflow-visible"
+        className="w-full h-full overflow-hidden"
         onMouseMove={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           const mouseX = e.clientX - rect.left;
@@ -465,12 +465,12 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
   const aiVerdict = getExecutiveVerdict();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/90 backdrop-blur-md overflow-y-auto">
-      <div className="bg-gradient-to-b from-[#0F172A] via-[#0A0F1D] to-[#04070D] border border-cyan-500/40 rounded-2xl sm:rounded-3xl w-full max-w-6xl max-h-[94vh] overflow-y-auto shadow-2xl p-4 sm:p-6 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-md overflow-x-hidden overflow-y-auto w-full max-w-full">
+      <div className="bg-gradient-to-b from-[#0F172A] via-[#0A0F1D] to-[#04070D] border border-cyan-500/40 rounded-xl sm:rounded-3xl w-full max-w-6xl max-h-[94vh] overflow-x-hidden overflow-y-auto shadow-2xl p-3.5 sm:p-6 relative my-auto">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 sm:top-5 right-4 sm:right-5 p-2 rounded-xl bg-gray-800/80 text-gray-400 hover:text-white hover:bg-gray-700 cursor-pointer transition-colors z-10"
+          className="absolute top-3 sm:top-5 right-3 sm:right-5 p-2 rounded-xl bg-gray-800/80 text-gray-400 hover:text-white hover:bg-gray-700 cursor-pointer transition-colors z-10"
         >
           <X className="w-5 h-5" />
         </button>
@@ -619,30 +619,30 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
               </div>
 
               {/* Returns Matrix */}
-              <div className="bg-[#070B12] rounded-2xl p-4 border border-gray-800">
+              <div className="bg-[#070B12] rounded-2xl p-3 sm:p-4 border border-gray-800">
                 <span className="text-[10px] uppercase font-bold text-gray-400 block mb-2">
                   Historical Performance Returns
                 </span>
-                <div className="grid grid-cols-5 gap-1.5 text-center text-xs mono font-extrabold">
-                  <div className={`${ret1W >= 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border-rose-500/30'} border p-2 rounded-xl`}>
-                    <span className="text-[10px] text-gray-400 block font-normal">1W</span>
-                    <span>{ret1W >= 0 ? '+' : ''}{ret1W}%</span>
+                <div className="grid grid-cols-5 gap-1 sm:gap-1.5 text-center font-mono font-bold">
+                  <div className={`${ret1W >= 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border-rose-500/30'} border p-1 sm:p-2 rounded-lg sm:rounded-xl min-w-0`}>
+                    <span className="text-[9px] sm:text-[10px] text-gray-400 block font-normal">1W</span>
+                    <span className="text-[10px] sm:text-xs block leading-tight truncate">{ret1W >= 0 ? '+' : ''}{Number(ret1W).toFixed(1)}%</span>
                   </div>
-                  <div className={`${ret1M >= 0 ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40' : 'bg-rose-500/15 text-rose-400 border-rose-500/40'} border p-2 rounded-xl`}>
-                    <span className="text-[10px] text-gray-400 block font-normal">1M</span>
-                    <span>{ret1M >= 0 ? '+' : ''}{ret1M}%</span>
+                  <div className={`${ret1M >= 0 ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40' : 'bg-rose-500/15 text-rose-400 border-rose-500/40'} border p-1 sm:p-2 rounded-lg sm:rounded-xl min-w-0`}>
+                    <span className="text-[9px] sm:text-[10px] text-gray-400 block font-normal">1M</span>
+                    <span className="text-[10px] sm:text-xs block leading-tight truncate">{ret1M >= 0 ? '+' : ''}{Number(ret1M).toFixed(1)}%</span>
                   </div>
-                  <div className={`${ret3M >= 0 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : 'bg-rose-500/20 text-rose-400 border-rose-500/50'} border p-2 rounded-xl`}>
-                    <span className="text-[10px] text-gray-400 block font-normal">3M</span>
-                    <span>{ret3M >= 0 ? '+' : ''}{ret3M}%</span>
+                  <div className={`${ret3M >= 0 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : 'bg-rose-500/20 text-rose-400 border-rose-500/50'} border p-1 sm:p-2 rounded-lg sm:rounded-xl min-w-0`}>
+                    <span className="text-[9px] sm:text-[10px] text-gray-400 block font-normal">3M</span>
+                    <span className="text-[10px] sm:text-xs block leading-tight truncate">{ret3M >= 0 ? '+' : ''}{Number(ret3M).toFixed(1)}%</span>
                   </div>
-                  <div className={`${ret6M >= 0 ? 'bg-emerald-500/25 text-emerald-400 border-emerald-500/60' : 'bg-rose-500/25 text-rose-400 border-rose-500/60'} border p-2 rounded-xl`}>
-                    <span className="text-[10px] text-gray-400 block font-normal">6M</span>
-                    <span>{ret6M >= 0 ? '+' : ''}{ret6M}%</span>
+                  <div className={`${ret6M >= 0 ? 'bg-emerald-500/25 text-emerald-400 border-emerald-500/60' : 'bg-rose-500/25 text-rose-400 border-rose-500/60'} border p-1 sm:p-2 rounded-lg sm:rounded-xl min-w-0`}>
+                    <span className="text-[9px] sm:text-[10px] text-gray-400 block font-normal">6M</span>
+                    <span className="text-[10px] sm:text-xs block leading-tight truncate">{ret6M >= 0 ? '+' : ''}{Number(ret6M).toFixed(1)}%</span>
                   </div>
-                  <div className={`${ret1Y >= 0 ? 'bg-emerald-500/30 text-emerald-400 border-emerald-500/70' : 'bg-rose-500/30 text-rose-400 border-rose-500/70'} border p-2 rounded-xl`}>
-                    <span className="text-[10px] text-gray-400 block font-normal">1Y</span>
-                    <span>{ret1Y >= 0 ? '+' : ''}{ret1Y}%</span>
+                  <div className={`${ret1Y >= 0 ? 'bg-emerald-500/30 text-emerald-400 border-emerald-500/70' : 'bg-rose-500/30 text-rose-400 border-rose-500/70'} border p-1 sm:p-2 rounded-lg sm:rounded-xl min-w-0`}>
+                    <span className="text-[9px] sm:text-[10px] text-gray-400 block font-normal">1Y</span>
+                    <span className="text-[10px] sm:text-xs block leading-tight truncate">{ret1Y >= 0 ? '+' : ''}{Number(ret1Y).toFixed(1)}%</span>
                   </div>
                 </div>
               </div>
