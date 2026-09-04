@@ -251,24 +251,36 @@ function InteractiveStockChart({
       {/* Floating Tooltip with Full OHLC Breakdown */}
       {activePoint && (
         <div 
-          className="absolute pointer-events-none bg-[#0F172A]/95 backdrop-blur-md border border-cyan-500/60 rounded-xl px-3.5 py-2 shadow-2xl text-xs z-20"
+          className="absolute pointer-events-none bg-[#0B0F19]/95 backdrop-blur-md border border-cyan-500/60 rounded-xl p-2.5 shadow-2xl text-xs z-20 min-w-[190px] max-w-[260px]"
           style={{
-            left: `${Math.min(72, Math.max(18, (activePoint.x / width) * 100))}%`,
-            top: '4px',
+            left: `${Math.min(70, Math.max(30, (activePoint.x / width) * 100))}%`,
+            top: '8px',
             transform: 'translateX(-50%)'
           }}
         >
-          <div className="flex items-center justify-between space-x-3 pb-1 border-b border-gray-800 text-[11px] font-mono">
+          <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-gray-800 text-[11px] font-mono">
             <span className="text-gray-400 font-bold">{activePoint.data.date}</span>
             <span className={`font-extrabold ${activePoint.isBull ? 'text-emerald-400' : 'text-rose-400'}`}>
-              PKR {Number(activePoint.close).toFixed(2)} ({activePoint.isBull ? '+' : ''}{((activePoint.close - activePoint.open) / (activePoint.open || 1) * 100).toFixed(2)}%)
+              PKR {Number(activePoint.close).toFixed(2)}
             </span>
           </div>
-          <div className="grid grid-cols-4 gap-2 pt-1 font-mono text-[10px]">
-            <div><span className="text-gray-500 block">O:</span><span className="text-white font-bold">{Number(activePoint.open).toFixed(1)}</span></div>
-            <div><span className="text-gray-500 block">H:</span><span className="text-emerald-400 font-bold">{Number(activePoint.high).toFixed(1)}</span></div>
-            <div><span className="text-gray-500 block">L:</span><span className="text-rose-400 font-bold">{Number(activePoint.low).toFixed(1)}</span></div>
-            <div><span className="text-gray-500 block">C:</span><span className="text-cyan-400 font-bold">{Number(activePoint.close).toFixed(1)}</span></div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 pt-1.5 font-mono text-[10px]">
+            <div className="flex items-center justify-between space-x-1">
+              <span className="text-gray-500">Open:</span>
+              <span className="text-white font-bold">{Number(activePoint.open).toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between space-x-1">
+              <span className="text-gray-500">High:</span>
+              <span className="text-emerald-400 font-bold">{Number(activePoint.high).toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between space-x-1">
+              <span className="text-gray-500">Low:</span>
+              <span className="text-rose-400 font-bold">{Number(activePoint.low).toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between space-x-1">
+              <span className="text-gray-500">Close:</span>
+              <span className="text-cyan-400 font-bold">{Number(activePoint.close).toFixed(2)}</span>
+            </div>
           </div>
         </div>
       )}
@@ -988,81 +1000,83 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
 
         {/* 7. Dedicated Fullscreen Chart Modal View */}
         {isFullScreen && (
-          <div className="fixed inset-0 z-[70] bg-[#070B12]/98 backdrop-blur-2xl flex flex-col p-4 sm:p-6 overflow-hidden">
+          <div className="fixed inset-0 z-[70] bg-[#070B12] flex flex-col p-3 sm:p-6 overflow-x-hidden overflow-y-auto w-full max-w-full">
             {/* Fullscreen Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-gray-800 shrink-0">
-              <div className="flex items-center space-x-4">
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <h2 className="text-xl font-black text-white">{name}</h2>
-                    <span className="px-2.5 py-0.5 rounded bg-cyan-500 text-black font-mono font-black text-xs">{sym}</span>
-                    <span className="text-xs text-gray-400 font-bold hidden sm:inline">{sector}</span>
-                  </div>
-                  <div className="flex items-center space-x-3 mt-1">
-                    <span className="text-2xl font-black text-white mono">PKR {price.toFixed(2)}</span>
-                    <span className={`font-bold mono text-xs ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      {isPositive ? '+' : ''}{change.toFixed(2)} ({isPositive ? '+' : ''}{changePercent.toFixed(2)}%)
-                    </span>
-                    <span className="text-gray-500 text-xs hidden md:inline">Vol: {(volume || 0).toLocaleString()}</span>
-                  </div>
+            <div className="flex flex-col gap-2.5 pb-3 sm:pb-4 border-b border-gray-800 shrink-0">
+              {/* Row 1: Stock Title, Symbol & Exit Button */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center space-x-2 min-w-0 flex-1">
+                  <h2 className="text-base sm:text-2xl font-black text-white truncate">{name}</h2>
+                  <span className="px-2 py-0.5 rounded bg-cyan-500 text-black font-mono font-black text-xs shrink-0">{sym}</span>
+                  <span className="text-xs text-gray-400 font-bold hidden md:inline truncate">{sector}</span>
                 </div>
-              </div>
-
-              {/* Fullscreen Controls */}
-              <div className="flex items-center space-x-2 sm:space-x-3">
-                <div className="flex items-center space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-800 text-xs">
-                  <button
-                    onClick={() => setChartType('candlestick')}
-                    className={`px-3 py-1 rounded font-bold transition-all cursor-pointer ${
-                      chartType === 'candlestick' ? 'bg-cyan-500 text-black' : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    🕯️ Candles
-                  </button>
-                  <button
-                    onClick={() => setChartType('area')}
-                    className={`px-3 py-1 rounded font-bold transition-all cursor-pointer ${
-                      chartType === 'area' ? 'bg-cyan-500 text-black' : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    📈 Line
-                  </button>
-                </div>
-
-                <div className="flex items-center space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-800 text-xs mono font-bold">
-                  {['1D', '5D', '1M', '3M', '1Y'].map(tf => (
-                    <button
-                      key={tf}
-                      onClick={() => setSelectedTimeframe(tf)}
-                      className={`px-2.5 py-1 rounded cursor-pointer ${
-                        selectedTimeframe === tf ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      {tf}
-                    </button>
-                  ))}
-                </div>
-
                 <button
                   onClick={() => setIsFullScreen(false)}
-                  className="p-2 rounded-xl bg-gray-800 text-gray-300 hover:text-white hover:bg-gray-700 cursor-pointer transition-colors"
-                  title="Exit Fullscreen (Esc)"
+                  className="p-1.5 sm:p-2 rounded-xl bg-gray-800 text-gray-300 hover:text-white hover:bg-gray-700 cursor-pointer transition-colors shrink-0 flex items-center space-x-1 text-xs font-bold"
+                  title="Exit Fullscreen"
                 >
-                  <Minimize2 className="w-5 h-5" />
+                  <Minimize2 className="w-4 h-4 text-cyan-400" />
+                  <span className="text-cyan-400">Exit</span>
                 </button>
+              </div>
+
+              {/* Row 2: Live Price & Controls */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-baseline space-x-2">
+                  <span className="text-lg sm:text-2xl font-black text-white mono">PKR {price.toFixed(2)}</span>
+                  <span className={`font-bold mono text-xs ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {isPositive ? '+' : ''}{change.toFixed(2)} ({isPositive ? '+' : ''}{changePercent.toFixed(2)}%)
+                  </span>
+                </div>
+
+                {/* Toolbar Controls */}
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <div className="flex items-center space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-800 text-xs">
+                    <button
+                      onClick={() => setChartType('candlestick')}
+                      className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded font-bold transition-all cursor-pointer ${
+                        chartType === 'candlestick' ? 'bg-cyan-500 text-black' : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      🕯️ Candles
+                    </button>
+                    <button
+                      onClick={() => setChartType('area')}
+                      className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded font-bold transition-all cursor-pointer ${
+                        chartType === 'area' ? 'bg-cyan-500 text-black' : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      📈 Line
+                    </button>
+                  </div>
+
+                  <div className="flex items-center space-x-0.5 sm:space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-800 text-xs mono font-bold">
+                    {['1D', '5D', '1M', '3M', '1Y'].map(tf => (
+                      <button
+                        key={tf}
+                        onClick={() => setSelectedTimeframe(tf)}
+                        className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded cursor-pointer ${
+                          selectedTimeframe === tf ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        {tf}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Fullscreen Chart Area */}
-            <div className="flex-1 w-full pt-4 min-h-0 flex flex-col">
+            <div className="flex-1 w-full pt-2 sm:pt-4 min-h-[300px] sm:min-h-[440px] flex flex-col">
               <InteractiveStockChart
                 data={chartData}
                 currentPrice={price}
                 symbol={sym}
                 chartType={chartType}
                 isLoading={historyLoading}
-                customWidth={1100}
-                customHeight={480}
+                customWidth={800}
+                customHeight={380}
               />
             </div>
           </div>
