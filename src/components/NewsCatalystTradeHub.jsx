@@ -31,6 +31,71 @@ import {
 import officialQuotes from '../data/official_quotes.json';
 import { getPSXMarketSessionInfo } from './DailyRecommendations';
 
+// Comprehensive Stock Beta, Volatility & Swing Target Profiles
+const STOCK_VOLATILITY_PROFILES = {
+  // Refineries & High Beta
+  'PRL': { gainBase: 16.4, stopLossPct: 5.8, beta: 1.45 },
+  'CNERGY': { gainBase: 19.5, stopLossPct: 6.5, beta: 1.60 },
+  'ATRL': { gainBase: 14.8, stopLossPct: 5.2, beta: 1.35 },
+  'NRL': { gainBase: 15.2, stopLossPct: 5.4, beta: 1.38 },
+  // Technology & Telecom
+  'SYS': { gainBase: 13.2, stopLossPct: 4.5, beta: 1.20 },
+  'NETSOL': { gainBase: 17.5, stopLossPct: 6.0, beta: 1.50 },
+  'TRG': { gainBase: 18.2, stopLossPct: 6.2, beta: 1.55 },
+  'AVN': { gainBase: 14.5, stopLossPct: 5.0, beta: 1.30 },
+  'WTL': { gainBase: 22.0, stopLossPct: 7.5, beta: 1.70 },
+  // Oil & Gas Exploration & Marketing
+  'OGDC': { gainBase: 11.4, stopLossPct: 3.8, beta: 1.05 },
+  'PPL': { gainBase: 12.2, stopLossPct: 4.0, beta: 1.10 },
+  'MARI': { gainBase: 9.8, stopLossPct: 3.5, beta: 0.95 },
+  'PSO': { gainBase: 13.6, stopLossPct: 4.2, beta: 1.15 },
+  'SNGP': { gainBase: 14.2, stopLossPct: 4.8, beta: 1.25 },
+  'SSGC': { gainBase: 15.5, stopLossPct: 5.2, beta: 1.30 },
+  // Cement & Construction
+  'LUCK': { gainBase: 10.8, stopLossPct: 3.8, beta: 1.05 },
+  'MLCF': { gainBase: 14.2, stopLossPct: 4.8, beta: 1.25 },
+  'DGKC': { gainBase: 15.0, stopLossPct: 5.0, beta: 1.30 },
+  'CHCC': { gainBase: 12.8, stopLossPct: 4.5, beta: 1.18 },
+  'FCCL': { gainBase: 13.5, stopLossPct: 4.6, beta: 1.22 },
+  'PIOC': { gainBase: 13.0, stopLossPct: 4.4, beta: 1.19 },
+  // Commercial Banks
+  'MEBL': { gainBase: 8.2, stopLossPct: 3.2, beta: 0.85 },
+  'MCB': { gainBase: 7.6, stopLossPct: 3.0, beta: 0.80 },
+  'UBL': { gainBase: 8.5, stopLossPct: 3.2, beta: 0.88 },
+  'BAFL': { gainBase: 9.4, stopLossPct: 3.5, beta: 0.92 },
+  'BAHL': { gainBase: 8.8, stopLossPct: 3.3, beta: 0.89 },
+  'BOP': { gainBase: 16.0, stopLossPct: 5.5, beta: 1.40 },
+  'HBL': { gainBase: 8.9, stopLossPct: 3.4, beta: 0.90 },
+  'NBP': { gainBase: 11.2, stopLossPct: 4.0, beta: 1.05 },
+  // Fertilizer & Agri-Chemicals
+  'FFC': { gainBase: 8.4, stopLossPct: 3.0, beta: 0.82 },
+  'EFERT': { gainBase: 9.2, stopLossPct: 3.2, beta: 0.85 },
+  'ENGRO': { gainBase: 9.6, stopLossPct: 3.5, beta: 0.90 },
+  'FATIMA': { gainBase: 10.8, stopLossPct: 3.8, beta: 0.95 },
+  'FFBL': { gainBase: 13.8, stopLossPct: 4.6, beta: 1.22 },
+  // Automobile & Transport
+  'SAZEW': { gainBase: 16.8, stopLossPct: 5.2, beta: 1.42 },
+  'INDU': { gainBase: 9.8, stopLossPct: 3.6, beta: 0.92 },
+  'MTL': { gainBase: 10.5, stopLossPct: 3.8, beta: 0.95 },
+  'HCAR': { gainBase: 14.2, stopLossPct: 4.8, beta: 1.25 },
+  'AGTL': { gainBase: 11.5, stopLossPct: 4.0, beta: 1.00 },
+  // Power Generation & Distribution
+  'HUBC': { gainBase: 8.5, stopLossPct: 3.0, beta: 0.85 },
+  'KAPCO': { gainBase: 9.0, stopLossPct: 3.2, beta: 0.88 },
+  'KEL': { gainBase: 18.5, stopLossPct: 6.0, beta: 1.50 },
+  'NCPL': { gainBase: 11.0, stopLossPct: 3.8, beta: 0.95 },
+  // Steel & Engineering
+  'MUGHAL': { gainBase: 13.8, stopLossPct: 4.6, beta: 1.20 },
+  'ISL': { gainBase: 13.2, stopLossPct: 4.5, beta: 1.18 },
+  'ASTL': { gainBase: 15.5, stopLossPct: 5.2, beta: 1.35 },
+  // Pharmaceuticals
+  'SEARL': { gainBase: 12.0, stopLossPct: 4.0, beta: 1.05 },
+  'AGP': { gainBase: 10.8, stopLossPct: 3.8, beta: 0.98 },
+  // Textiles
+  'ILP': { gainBase: 11.2, stopLossPct: 3.8, beta: 1.05 },
+  'NML': { gainBase: 12.0, stopLossPct: 4.0, beta: 1.10 }
+};
+
 export default function NewsCatalystTradeHub({ 
   news = [], 
   newsList = [], 
@@ -52,8 +117,8 @@ export default function NewsCatalystTradeHub({
       : (Array.isArray(newsList) ? newsList : []);
   }, [news, newsList]);
 
-  // Helper to extract clean live price & quote
-  const getLiveQuote = (symbol, fallbackPrice = 100, fallbackName = '') => {
+  // Helper to dynamically calculate stock-specific trade setup & price targets
+  const getLiveQuote = (symbol, fallbackPrice = 100, fallbackName = '', positiveCount = 1, negativeCount = 0) => {
     const sym = (symbol || '').toUpperCase().trim();
     const foundStock = Array.isArray(stocks) ? stocks.find(s => s.symbol?.toUpperCase() === sym) : null;
     const foundOfficial = officialQuotes ? officialQuotes[sym] : null;
@@ -86,6 +151,24 @@ export default function NewsCatalystTradeHub({
     const name = foundStock?.name || foundOfficial?.name || fallbackName || sym;
     const sector = foundStock?.sector || foundOfficial?.sector || 'General Market';
 
+    // Compute Dynamic Volatility Target
+    const profile = STOCK_VOLATILITY_PROFILES[sym] || {
+      gainBase: 12.5,
+      stopLossPct: 4.5,
+      beta: 1.15
+    };
+
+    // Boost target based on net positive catalyst momentum
+    const netDiff = positiveCount - negativeCount;
+    const catalystMultiplier = 1 + Math.max(-0.15, Math.min(0.25, netDiff * 0.04));
+    const expectedGainPct = Number((profile.gainBase * catalystMultiplier).toFixed(1));
+    const stopLossPct = Number(profile.stopLossPct.toFixed(1));
+
+    const targetSellPrice = Number((currentPrice * (1 + expectedGainPct / 100)).toFixed(2));
+    const stopLoss = Number((currentPrice * (1 - stopLossPct / 100)).toFixed(2));
+    const entryPriceMin = Number((currentPrice * (1 - (stopLossPct * 0.35) / 100)).toFixed(2));
+    const entryPriceMax = Number((currentPrice * 1.008).toFixed(2));
+
     return {
       symbol: sym,
       name,
@@ -94,11 +177,12 @@ export default function NewsCatalystTradeHub({
       prevClose,
       change,
       changePercent,
-      targetSellPrice: Number((currentPrice * 1.115).toFixed(2)),
-      stopLoss: Number((currentPrice * 0.95).toFixed(2)),
-      entryPriceMin: Number((currentPrice * 0.985).toFixed(2)),
-      entryPriceMax: Number((currentPrice * 1.01).toFixed(2)),
-      expectedGainPct: 11.5
+      targetSellPrice,
+      stopLoss,
+      entryPriceMin,
+      entryPriceMax,
+      expectedGainPct,
+      stopLossPct
     };
   };
 
@@ -190,20 +274,9 @@ export default function NewsCatalystTradeHub({
       const upper = (sym || '').toUpperCase().trim();
       if (!upper) return null;
       if (!stockNewsMap.has(upper)) {
-        const quote = getLiveQuote(upper, 100, fallbackName);
         stockNewsMap.set(upper, {
           symbol: upper,
-          name: quote.name,
-          sector: quote.sector,
-          currentPrice: quote.currentPrice,
-          prevClose: quote.prevClose,
-          change: quote.change,
-          changePercent: quote.changePercent,
-          targetSellPrice: quote.targetSellPrice,
-          stopLoss: quote.stopLoss,
-          entryPriceMin: quote.entryPriceMin,
-          entryPriceMax: quote.entryPriceMax,
-          expectedGainPct: quote.expectedGainPct,
+          name: fallbackName || sym,
           category: cat || 'GENERAL',
           newsItems: []
         });
@@ -255,7 +328,7 @@ export default function NewsCatalystTradeHub({
         }
       });
 
-      // Also scan headlines for major PSX stocks if not explicitly in lists
+      // Also scan headlines for major PSX stocks
       const knownTickers = [
         { sym: 'PRL', name: 'Pakistan Refinery Limited', keywords: ['prl', 'pakistan refinery', 'refinery', 'crude oil'] },
         { sym: 'OGDC', name: 'Oil & Gas Development Co', keywords: ['ogdc', 'oil & gas development'] },
@@ -294,12 +367,15 @@ export default function NewsCatalystTradeHub({
       });
     });
 
-    // 2. Synthesize each stock's net verdict & score
+    // 2. Synthesize each stock's dynamic price targets & net verdict
     const results = [];
     stockNewsMap.forEach((data, sym) => {
       const positiveCount = data.newsItems.filter(n => n.polarity === 'POSITIVE').length;
       const negativeCount = data.newsItems.filter(n => n.polarity === 'NEGATIVE').length;
       const totalCount = data.newsItems.length;
+
+      // Extract dynamic stock-specific price targets based on volatility & catalyst balance
+      const quote = getLiveQuote(sym, 100, data.name, positiveCount, negativeCount);
 
       let netSentiment = 'BALANCED';
       let netVerdict = 'Balanced / Mixed Catalysts';
@@ -316,7 +392,7 @@ export default function NewsCatalystTradeHub({
         direction = 'UP';
         badgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
         confidence = Math.min(95, 80 + (positiveCount - negativeCount) * 5);
-        primaryReason = `Strong positive catalyst balance: ${positiveCount} favorable market drivers outweighing ${negativeCount} headwinds. High institutional accumulation expected for upcoming session.`;
+        primaryReason = `Strong positive catalyst balance: ${positiveCount} favorable market drivers outweighing ${negativeCount} headwinds. Target PKR ${quote.targetSellPrice} (+${quote.expectedGainPct}%) projected for upcoming session.`;
       } else if (negativeCount > positiveCount) {
         netSentiment = 'NEGATIVE';
         netVerdict = `🔴 Net Downside Risk (${negativeCount} Negative vs ${positiveCount} Positive News)`;
@@ -324,7 +400,7 @@ export default function NewsCatalystTradeHub({
         direction = 'DOWN';
         badgeClass = 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20';
         confidence = Math.min(95, 78 + (negativeCount - positiveCount) * 5);
-        primaryReason = `Negative catalyst drag: ${negativeCount} adverse news developments outweighing positive factors. Caution and tight trailing stop loss advised.`;
+        primaryReason = `Negative catalyst drag: ${negativeCount} adverse news developments outweighing positive factors. Caution and protective stop loss at PKR ${quote.stopLoss} advised.`;
       } else {
         netSentiment = 'BALANCED';
         netVerdict = `⚖️ Balanced / Mixed Impact (${positiveCount} Positive & ${negativeCount} Negative News)`;
@@ -332,11 +408,22 @@ export default function NewsCatalystTradeHub({
         direction = 'NEUTRAL';
         badgeClass = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
         confidence = 72;
-        primaryReason = `Conflicting catalysts present (${positiveCount} bullish vs ${negativeCount} bearish). Recommend monitoring volume at key support before entering.`;
+        primaryReason = `Conflicting catalysts present (${positiveCount} bullish vs ${negativeCount} bearish). Technical range resistance at PKR ${quote.targetSellPrice}.`;
       }
 
       results.push({
         ...data,
+        name: quote.name,
+        sector: quote.sector,
+        currentPrice: quote.currentPrice,
+        prevClose: quote.prevClose,
+        change: quote.change,
+        changePercent: quote.changePercent,
+        targetSellPrice: quote.targetSellPrice,
+        stopLoss: quote.stopLoss,
+        entryPriceMin: quote.entryPriceMin,
+        entryPriceMax: quote.entryPriceMax,
+        expectedGainPct: quote.expectedGainPct,
         positiveCount,
         negativeCount,
         totalCount,
@@ -442,7 +529,7 @@ export default function NewsCatalystTradeHub({
                 </span>
               </div>
               <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
-                Aggregates all concurrent news articles into a <b>single unified net signal per stock</b> with explicit positive/negative catalyst breakdown.
+                Aggregates all concurrent news articles into a <b>single unified net signal per stock</b> with dynamic volatility price targets and explicit catalyst breakdown.
               </p>
             </div>
           </div>
@@ -740,6 +827,7 @@ export default function NewsCatalystTradeHub({
                             entryPriceMin: stockData.entryPriceMin,
                             entryPriceMax: stockData.entryPriceMax,
                             expectedGainPct: stockData.expectedGainPct,
+                            stopLossPct: stockData.stopLossPct,
                             tradeReason: stockData.primaryReason
                           }, 
                           newsItem: stockData.newsItems[0] || { title: `Synthesized Net Setup for ${stockData.symbol}`, category: stockData.category, source: 'Consolidated AI Engine' }, 
@@ -891,12 +979,14 @@ export default function NewsCatalystTradeHub({
 function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculator, onSelectStock }) {
   const { trade, newsItem, isBullish, multiNews = [] } = data;
   const currentPrice = Number(trade.currentPrice || 100);
+  const gainPct = Number(trade.expectedGainPct || (isBullish ? 12.5 : 8.5));
+  const stopLossPct = Number(trade.stopLossPct || 4.5);
 
-  const expectedHigh = (currentPrice * (isBullish ? 1.085 : 1.01)).toFixed(2);
-  const expectedLow = (currentPrice * (isBullish ? 0.985 : 0.925)).toFixed(2);
-  const tomorrowTarget1 = (currentPrice * (isBullish ? 1.06 : 0.95)).toFixed(2);
-  const tomorrowTarget2 = Number(trade.targetSellPrice || (currentPrice * 1.115)).toFixed(2);
-  const stopLoss = Number(trade.stopLoss || (currentPrice * 0.95)).toFixed(2);
+  const expectedHigh = (currentPrice * (isBullish ? (1 + (gainPct * 0.6) / 100) : 1.008)).toFixed(2);
+  const expectedLow = (currentPrice * (isBullish ? 0.988 : (1 - (stopLossPct * 0.8) / 100))).toFixed(2);
+  const tomorrowTarget1 = (currentPrice * (isBullish ? (1 + (gainPct * 0.5) / 100) : 0.96)).toFixed(2);
+  const tomorrowTarget2 = Number(trade.targetSellPrice || (currentPrice * (1 + gainPct / 100))).toFixed(2);
+  const stopLoss = Number(trade.stopLoss || (currentPrice * (1 - stopLossPct / 100))).toFixed(2);
   const confidencePct = isBullish ? 88 : 84;
 
   const openingBias = isBullish 
@@ -1037,9 +1127,9 @@ function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculato
                   {isBullish ? 'Target 1 (Intraday)' : 'Immediate Downside Target'}
                 </span>
                 <span className="text-sm font-bold mono text-[#16A34A] dark:text-[#22C55E]">
-                  PKR {tomorrowTarget1} (+6.0%)
+                  PKR {tomorrowTarget1} (+{(gainPct * 0.5).toFixed(1)}%)
                 </span>
-                <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] block">Swing Target: PKR {tomorrowTarget2}</span>
+                <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] block">Swing Target: PKR {tomorrowTarget2} (+{gainPct}%)</span>
               </div>
 
               <div className="p-3 rounded-lg bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] space-y-1">
@@ -1047,7 +1137,7 @@ function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculato
                   Strict Risk Stop-Loss
                 </span>
                 <span className="text-sm font-bold mono text-[#DC2626] dark:text-[#EF4444]">
-                  PKR {stopLoss} (-5.0%)
+                  PKR {stopLoss} (-{stopLossPct}%)
                 </span>
                 <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] block">Trail stop if Target 1 hits</span>
               </div>
@@ -1071,7 +1161,7 @@ function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculato
             <p className="text-xs sm:text-sm text-[#0F172A] dark:text-[#F8FAFC] leading-relaxed font-medium">
               {isBullish ? (
                 <>
-                  Following the aggregated news catalysts, strong buying momentum is projected for <b>{trade.symbol}</b> in the upcoming session (<b>{marketSession?.sessionDateFormatted}</b>). Traders should plan an entry within the <b>PKR {trade.entryPriceMin} - {trade.entryPriceMax}</b> price band during the opening 30 minutes. Target 1 is <b>PKR {tomorrowTarget1}</b> with a swing objective of <b>PKR {tomorrowTarget2}</b>. Maintain a strict stop-loss at <b>PKR {stopLoss}</b>.
+                  Following the aggregated news catalysts, strong buying momentum is projected for <b>{trade.symbol}</b> in the upcoming session (<b>{marketSession?.sessionDateFormatted}</b>). Traders should plan an entry within the <b>PKR {trade.entryPriceMin} - {trade.entryPriceMax}</b> price band during the opening 30 minutes. Target 1 is <b>PKR {tomorrowTarget1}</b> with a swing objective of <b>PKR {tomorrowTarget2} (+{gainPct}%)</b>. Maintain a strict stop-loss at <b>PKR {stopLoss} (-{stopLossPct}%)</b>.
                 </>
               ) : (
                 <>
@@ -1104,7 +1194,7 @@ function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculato
                 companyName: trade.name,
                 currentPrice: currentPrice,
                 stopLoss: Number(stopLoss),
-                target1: Number(tomorrowTarget1),
+                target1: Number(tomorrowTarget2),
                 signal: isBullish ? 'BUY_NOW' : 'SELL_EXIT'
               });
             }}
