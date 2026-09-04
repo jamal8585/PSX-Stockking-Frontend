@@ -13,7 +13,10 @@ import {
   Lock, 
   Crown,
   Calendar,
-  Clock
+  Clock,
+  Search,
+  X,
+  Layers
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 
@@ -92,6 +95,7 @@ export default function DailyRecommendations({
 }) {
   const [filterSignal, setFilterSignal] = useState('ALL');
   const [filterSector, setFilterSector] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const marketSession = useMemo(() => getPSXMarketSessionInfo(), []);
   const isPro = currentUser?.plan === 'PRO' && currentUser?.subscriptionStatus === 'ACTIVE';
@@ -222,6 +226,13 @@ export default function DailyRecommendations({
   const filtered = all.filter(r => {
     if (filterSignal !== 'ALL' && r.signal !== filterSignal) return false;
     if (filterSector !== 'ALL' && r.sector && r.sector.toLowerCase() !== filterSector.toLowerCase()) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const symMatch = (r.symbol || '').toLowerCase().includes(q);
+      const nameMatch = (r.companyName || '').toLowerCase().includes(q);
+      const sectorMatch = (r.sector || '').toLowerCase().includes(q);
+      if (!symMatch && !nameMatch && !sectorMatch) return false;
+    }
     return true;
   });
 
@@ -352,8 +363,50 @@ export default function DailyRecommendations({
           </div>
         </div>
 
+        {/* Search Bar & Quick Ticker Selection Row */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mt-4 pt-3 border-t border-[#E2E8F0] dark:border-[#243044]">
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#64748B] dark:text-[#94A3B8]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search stock symbol or name (e.g. PRL, OGDC, LUCK)..."
+              className="w-full pl-9 pr-8 py-2 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] dark:focus:border-[#3B82F6] transition-colors"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#64748B] hover:text-[#0F172A] dark:text-[#94A3B8] dark:hover:text-[#F8FAFC] p-0.5 rounded cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Quick Popular Ticker Chips */}
+          <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs">
+            <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8] font-bold shrink-0 mr-1">
+              Quick Find:
+            </span>
+            {['PRL', 'OGDC', 'PPL', 'LUCK', 'MEBL', 'SYS', 'PSO', 'HUBC', 'INDU', 'FFC', 'DGKC', 'CNERGY'].map(sym => (
+              <button
+                key={sym}
+                onClick={() => setSearchQuery(searchQuery.toUpperCase() === sym ? '' : sym)}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-mono font-bold shrink-0 transition-all cursor-pointer border ${
+                  searchQuery.toUpperCase() === sym 
+                    ? 'bg-[#2563EB] dark:bg-[#3B82F6] text-white border-transparent shadow-sm' 
+                    : 'bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#0F172A] dark:text-[#F8FAFC] hover:border-[#2563EB] border-[#E2E8F0] dark:border-[#243044]'
+                }`}
+              >
+                {sym}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Sector Filter Bar */}
-        <div className="flex items-center space-x-1.5 mt-4 pt-3 border-t border-[#E2E8F0] dark:border-[#243044] overflow-x-auto pb-1 text-xs">
+        <div className="flex items-center space-x-1.5 mt-3 pt-3 border-t border-[#E2E8F0] dark:border-[#243044] overflow-x-auto pb-1 text-xs">
           <span className="text-[#64748B] dark:text-[#94A3B8] font-bold flex items-center shrink-0 mr-1">
             <Filter className="w-3.5 h-3.5 mr-1 text-[#2563EB] dark:text-[#3B82F6]" /> Sector:
           </span>
