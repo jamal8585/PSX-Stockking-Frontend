@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Zap, 
   TrendingUp, 
@@ -26,7 +26,10 @@ import {
   Newspaper,
   Scale,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Check,
+  SlidersHorizontal,
+  RotateCcw
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 import { getPSXMarketSessionInfo } from './DailyRecommendations';
@@ -86,7 +89,7 @@ const STOCK_VOLATILITY_PROFILES = {
   'NCPL': { gainBase: 11.0, stopLossPct: 3.8, beta: 0.95 },
   // Steel & Engineering
   'MUGHAL': { gainBase: 13.8, stopLossPct: 4.6, beta: 1.20 },
-  'ISL': { gainBase: 13.2, stopLossPct: 4.5, beta: 1.18 },
+  'INIL': { gainBase: 13.2, stopLossPct: 4.5, beta: 1.18 },
   'ASTL': { gainBase: 15.5, stopLossPct: 5.2, beta: 1.35 },
   // Pharmaceuticals
   'SEARL': { gainBase: 12.0, stopLossPct: 4.0, beta: 1.05 },
@@ -145,6 +148,105 @@ export const isNonFinancialNews = (title = '', desc = '') => {
   return nonFinancialKeywords.some(kw => text.includes(kw));
 };
 
+export const SECTOR_CATEGORIES = [
+  { id: 'OIL_GAS', label: 'Oil, Gas & Refineries', icon: '🛢️' },
+  { id: 'COMMERCIAL_BANKS', label: 'Commercial Banks', icon: '🏦' },
+  { id: 'TECHNOLOGY', label: 'Technology & Telecom', icon: '💻' },
+  { id: 'CEMENT', label: 'Cement & Construction', icon: '🏗️' },
+  { id: 'FERTILIZER', label: 'Fertilizer & Agri', icon: '🌱' },
+  { id: 'AUTOMOBILE', label: 'Automobile & Tractors', icon: '🚗' },
+  { id: 'POWER_ENERGY', label: 'Power Generation & Energy', icon: '⚡' },
+  { id: 'PHARMACEUTICALS', label: 'Pharmaceuticals & Health', icon: '💊' },
+  { id: 'STEEL_ENGINEERING', label: 'Steel & Engineering', icon: '⚙️' },
+  { id: 'TEXTILE', label: 'Textile & Apparel', icon: '🧵' },
+  { id: 'SUGAR_FOOD', label: 'Food, Dairy & Sugar', icon: '🌾' },
+  { id: 'MACRO_ECONOMY', label: 'Macro Economy & IMF', icon: '📊' }
+];
+
+export const MASTER_STOCKS_LIST = [
+  // Oil & Gas & Refineries
+  { symbol: 'PRL', name: 'Pakistan Refinery Limited', sector: 'Refinery', category: 'OIL_GAS' },
+  { symbol: 'CNERGY', name: 'Cynergico PK Limited', sector: 'Refinery', category: 'OIL_GAS' },
+  { symbol: 'ATRL', name: 'Attock Refinery Limited', sector: 'Refinery', category: 'OIL_GAS' },
+  { symbol: 'NRL', name: 'National Refinery Limited', sector: 'Refinery', category: 'OIL_GAS' },
+  { symbol: 'OGDC', name: 'Oil & Gas Development Co', sector: 'Oil & Gas Exploration', category: 'OIL_GAS' },
+  { symbol: 'PPL', name: 'Pakistan Petroleum Limited', sector: 'Oil & Gas Exploration', category: 'OIL_GAS' },
+  { symbol: 'MARI', name: 'Mari Petroleum Company', sector: 'Oil & Gas Exploration', category: 'OIL_GAS' },
+  { symbol: 'PSO', name: 'Pakistan State Oil', sector: 'Oil & Gas Marketing', category: 'OIL_GAS' },
+  { symbol: 'SNGP', name: 'Sui Northern Gas Pipelines', sector: 'Oil & Gas Marketing', category: 'OIL_GAS' },
+  { symbol: 'SSGC', name: 'Sui Southern Gas Company', sector: 'Oil & Gas Marketing', category: 'OIL_GAS' },
+  // Commercial Banks
+  { symbol: 'MEBL', name: 'Meezan Bank Limited', sector: 'Commercial Banks', category: 'COMMERCIAL_BANKS' },
+  { symbol: 'MCB', name: 'MCB Bank Limited', sector: 'Commercial Banks', category: 'COMMERCIAL_BANKS' },
+  { symbol: 'UBL', name: 'United Bank Limited', sector: 'Commercial Banks', category: 'COMMERCIAL_BANKS' },
+  { symbol: 'BAFL', name: 'Bank Alfalah Limited', sector: 'Commercial Banks', category: 'COMMERCIAL_BANKS' },
+  { symbol: 'BAHL', name: 'Bank AL Habib Limited', sector: 'Commercial Banks', category: 'COMMERCIAL_BANKS' },
+  { symbol: 'BOP', name: 'The Bank of Punjab', sector: 'Commercial Banks', category: 'COMMERCIAL_BANKS' },
+  { symbol: 'HBL', name: 'Habib Bank Limited', sector: 'Commercial Banks', category: 'COMMERCIAL_BANKS' },
+  { symbol: 'NBP', name: 'National Bank of Pakistan', sector: 'Commercial Banks', category: 'COMMERCIAL_BANKS' },
+  { symbol: 'BIPL', name: 'BankIslami Pakistan', sector: 'Commercial Banks', category: 'COMMERCIAL_BANKS' },
+  // Technology & Telecom
+  { symbol: 'SYS', name: 'Systems Limited', sector: 'Technology & Communication', category: 'TECHNOLOGY' },
+  { symbol: 'NETSOL', name: 'NetSol Technologies Ltd', sector: 'Technology & Communication', category: 'TECHNOLOGY' },
+  { symbol: 'TRG', name: 'TRG Pakistan Limited', sector: 'Technology & Communication', category: 'TECHNOLOGY' },
+  { symbol: 'AVN', name: 'Avanceon Limited', sector: 'Technology & Communication', category: 'TECHNOLOGY' },
+  { symbol: 'OCTOPUS', name: 'Octopus Digital Limited', sector: 'Technology & Communication', category: 'TECHNOLOGY' },
+  { symbol: 'WTL', name: 'WorldCall Telecom', sector: 'Technology & Communication', category: 'TECHNOLOGY' },
+  { symbol: 'TELE', name: 'Telecard Limited', sector: 'Technology & Communication', category: 'TECHNOLOGY' },
+  { symbol: 'PTC', name: 'Pakistan Telecommunication', sector: 'Technology & Communication', category: 'TECHNOLOGY' },
+  // Cement & Construction
+  { symbol: 'LUCK', name: 'Lucky Cement Limited', sector: 'Cement', category: 'CEMENT' },
+  { symbol: 'MLCF', name: 'Maple Leaf Cement Factory', sector: 'Cement', category: 'CEMENT' },
+  { symbol: 'DGKC', name: 'D.G. Khan Cement Co Ltd', sector: 'Cement', category: 'CEMENT' },
+  { symbol: 'CHCC', name: 'Cherat Cement Co Ltd', sector: 'Cement', category: 'CEMENT' },
+  { symbol: 'PIOC', name: 'Pioneer Cement Limited', sector: 'Cement', category: 'CEMENT' },
+  { symbol: 'FCCL', name: 'Fauji Cement Company', sector: 'Cement', category: 'CEMENT' },
+  { symbol: 'ACPL', name: 'Attock Cement Pakistan', sector: 'Cement', category: 'CEMENT' },
+  // Fertilizer
+  { symbol: 'FFC', name: 'Fauji Fertilizer Company', sector: 'Fertilizer', category: 'FERTILIZER' },
+  { symbol: 'EFERT', name: 'Engro Fertilizers Limited', sector: 'Fertilizer', category: 'FERTILIZER' },
+  { symbol: 'ENGRO', name: 'Engro Corporation', sector: 'Fertilizer', category: 'FERTILIZER' },
+  { symbol: 'FATIMA', name: 'Fatima Fertilizer Co', sector: 'Fertilizer', category: 'FERTILIZER' },
+  { symbol: 'FFBL', name: 'Fauji Fertilizer Bin Qasim', sector: 'Fertilizer', category: 'FERTILIZER' },
+  { symbol: 'AGL', name: 'Agritech Limited', sector: 'Fertilizer', category: 'FERTILIZER' },
+  // Automobile
+  { symbol: 'SAZEW', name: 'Sazgar Engineering Works', sector: 'Automobile Assembler', category: 'AUTOMOBILE' },
+  { symbol: 'INDU', name: 'Indus Motor Company Ltd', sector: 'Automobile Assembler', category: 'AUTOMOBILE' },
+  { symbol: 'MTL', name: 'Millat Tractors Limited', sector: 'Automobile Assembler', category: 'AUTOMOBILE' },
+  { symbol: 'HCAR', name: 'Honda Atlas Cars (Pak)', sector: 'Automobile Assembler', category: 'AUTOMOBILE' },
+  { symbol: 'AGTL', name: 'Al-Ghazi Tractors Limited', sector: 'Automobile Assembler', category: 'AUTOMOBILE' },
+  { symbol: 'PSMC', name: 'Pak Suzuki Motor Co', sector: 'Automobile Assembler', category: 'AUTOMOBILE' },
+  // Power & Energy
+  { symbol: 'HUBC', name: 'The Hub Power Company', sector: 'Power Generation', category: 'POWER_ENERGY' },
+  { symbol: 'KAPCO', name: 'Kot Addu Power Company', sector: 'Power Generation', category: 'POWER_ENERGY' },
+  { symbol: 'KEL', name: 'K-Electric Limited', sector: 'Power Generation', category: 'POWER_ENERGY' },
+  { symbol: 'NCPL', name: 'Nishat Chunian Power', sector: 'Power Generation', category: 'POWER_ENERGY' },
+  { symbol: 'NPL', name: 'Nishat Power Limited', sector: 'Power Generation', category: 'POWER_ENERGY' },
+  // Pharma
+  { symbol: 'SEARL', name: 'The Searle Company Ltd', sector: 'Pharmaceuticals', category: 'PHARMACEUTICALS' },
+  { symbol: 'AGP', name: 'AGP Limited', sector: 'Pharmaceuticals', category: 'PHARMACEUTICALS' },
+  { symbol: 'ABOT', name: 'Abbott Laboratories (Pak)', sector: 'Pharmaceuticals', category: 'PHARMACEUTICALS' },
+  { symbol: 'HINOON', name: 'Highnoon Laboratories', sector: 'Pharmaceuticals', category: 'PHARMACEUTICALS' },
+  { symbol: 'GLAXO', name: 'GlaxoSmithKline (Pak)', sector: 'Pharmaceuticals', category: 'PHARMACEUTICALS' },
+  { symbol: 'FEROZ', name: 'Ferozsons Laboratories', sector: 'Pharmaceuticals', category: 'PHARMACEUTICALS' },
+  // Steel & Engineering
+  { symbol: 'MUGHAL', name: 'Mughal Iron & Steel', sector: 'Engineering & Steel', category: 'STEEL_ENGINEERING' },
+  { symbol: 'INIL', name: 'International Industries', sector: 'Engineering & Steel', category: 'STEEL_ENGINEERING' },
+  { symbol: 'ISL', name: 'International Steels Ltd', sector: 'Engineering & Steel', category: 'STEEL_ENGINEERING' },
+  { symbol: 'PAEL', name: 'Pak Elektron Limited', sector: 'Cable & Electrical Goods', category: 'STEEL_ENGINEERING' },
+  { symbol: 'ASTL', name: 'Amreli Steels Limited', sector: 'Engineering & Steel', category: 'STEEL_ENGINEERING' },
+  // Textile
+  { symbol: 'ILP', name: 'Interloop Limited', sector: 'Textile Composite', category: 'TEXTILE' },
+  { symbol: 'NML', name: 'Nishat Mills Limited', sector: 'Textile Composite', category: 'TEXTILE' },
+  { symbol: 'KTML', name: 'Kohinoor Textile Mills', sector: 'Textile Composite', category: 'TEXTILE' },
+  { symbol: 'GATM', name: 'Gul Ahmed Textile Mills', sector: 'Textile Composite', category: 'TEXTILE' },
+  // Sugar & Food
+  { symbol: 'NATF', name: 'National Foods Limited', sector: 'Food & Personal Care', category: 'SUGAR_FOOD' },
+  { symbol: 'NESTLE', name: 'Nestle Pakistan Limited', sector: 'Food & Personal Care', category: 'SUGAR_FOOD' },
+  { symbol: 'TOMCL', name: 'The Organic Meat Company', sector: 'Food & Personal Care', category: 'SUGAR_FOOD' },
+  { symbol: 'UNITY', name: 'Unity Foods Limited', sector: 'Food & Personal Care', category: 'SUGAR_FOOD' }
+];
+
 export default function NewsCatalystTradeHub({ 
   news = [], 
   newsList = [], 
@@ -154,9 +256,35 @@ export default function NewsCatalystTradeHub({
 }) {
   const [viewMode, setViewMode] = useState('NET_STOCK_VIEW'); // 'NET_STOCK_VIEW' | 'LIVE_NEWS_STREAM'
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('ALL');
+  
+  // Multi-Select States
+  const [selectedSectors, setSelectedSectors] = useState([]); // array of category IDs (e.g. ['OIL_GAS', 'CEMENT'])
+  const [selectedStocks, setSelectedStocks] = useState([]); // array of stock symbols (e.g. ['PRL', 'HUBC'])
   const [selectedSentiment, setSelectedSentiment] = useState('ALL');
   const [predictionModalData, setPredictionModalData] = useState(null);
+
+  // Dropdown Popover States
+  const [isSectorDropdownOpen, setIsSectorDropdownOpen] = useState(false);
+  const [isStockDropdownOpen, setIsStockDropdownOpen] = useState(false);
+  const [sectorFilterQuery, setSectorFilterQuery] = useState('');
+  const [stockFilterQuery, setStockFilterQuery] = useState('');
+
+  const sectorDropdownRef = useRef(null);
+  const stockDropdownRef = useRef(null);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (sectorDropdownRef.current && !sectorDropdownRef.current.contains(event.target)) {
+        setIsSectorDropdownOpen(false);
+      }
+      if (stockDropdownRef.current && !stockDropdownRef.current.contains(event.target)) {
+        setIsStockDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const marketSession = useMemo(() => getPSXMarketSessionInfo(), []);
 
@@ -237,22 +365,6 @@ export default function NewsCatalystTradeHub({
       stopLossPct
     };
   };
-
-  const categories = [
-    { id: 'ALL', label: 'All Sectors' },
-    { id: 'OIL_GAS', label: 'Oil & Gas / Refineries' },
-    { id: 'COMMERCIAL_BANKS', label: 'Commercial Banks' },
-    { id: 'TECHNOLOGY', label: 'Tech & Telecom' },
-    { id: 'CEMENT', label: 'Cement & Construction' },
-    { id: 'FERTILIZER', label: 'Fertilizer' },
-    { id: 'AUTOMOBILE', label: 'Automobile' },
-    { id: 'POWER_ENERGY', label: 'Power & Energy' },
-    { id: 'PHARMACEUTICALS', label: 'Pharma' },
-    { id: 'STEEL_ENGINEERING', label: 'Steel & Engineering' },
-    { id: 'TEXTILE', label: 'Textiles' },
-    { id: 'SUGAR_FOOD', label: 'Sugar & Food' },
-    { id: 'MACRO_ECONOMY', label: 'Macro Economy' }
-  ];
 
   const getCleanImpactSummary = (item) => {
     const raw = item?.impactSummary || item?.description || '';
@@ -354,13 +466,11 @@ export default function NewsCatalystTradeHub({
 
     // 1. Ingest all clean news items into stock groupings with GUARANTEED CONSISTENT SENTIMENT
     cleanNewsList.forEach((newsItem, nIdx) => {
-      // Single global sentiment evaluated for this exact news article:
       const articlePolarity = evaluateArticleSentiment(newsItem.title, newsItem.impactSummary || newsItem.description);
       const tagLabel = articlePolarity === 'POSITIVE' ? '(Positive)' : '(Negative)';
 
       const impactedStockSymbols = new Set();
 
-      // Collect stocks directly mentioned or related to this news:
       (newsItem.upStocks || []).forEach(s => s?.symbol && impactedStockSymbols.add(s.symbol.toUpperCase().trim()));
       (newsItem.downStocks || []).forEach(s => s?.symbol && impactedStockSymbols.add(s.symbol.toUpperCase().trim()));
       (newsItem.tradeSuggestions || []).forEach(s => s?.symbol && impactedStockSymbols.add(s.symbol.toUpperCase().trim()));
@@ -372,7 +482,6 @@ export default function NewsCatalystTradeHub({
         }
       });
 
-      // Add to each impacted stock with the EXACT same articlePolarity
       impactedStockSymbols.forEach(sym => {
         const entry = ensureStock(sym, sym, newsItem.category);
         if (entry && !entry.newsItems.some(n => n.title === newsItem.title)) {
@@ -398,7 +507,6 @@ export default function NewsCatalystTradeHub({
       const negativeCount = data.newsItems.filter(n => n.polarity === 'NEGATIVE').length;
       const totalCount = data.newsItems.length;
 
-      // Extract dynamic stock-specific price targets based on volatility & catalyst balance
       const quote = getLiveQuote(sym, 100, data.name, positiveCount, negativeCount);
 
       let netSentiment = 'BALANCED';
@@ -464,13 +572,60 @@ export default function NewsCatalystTradeHub({
     return results.sort((a, b) => b.totalCount - a.totalCount || b.confidence - a.confidence);
   }, [cleanNewsList, stocks]);
 
-  // Filter Consolidated Stocks by Category, Sentiment, and Search Query
+  // Merge full stock list with consolidated dynamic stocks
+  const availableCompanyOptions = useMemo(() => {
+    const listMap = new Map();
+    MASTER_STOCKS_LIST.forEach(st => listMap.set(st.symbol.toUpperCase(), st));
+    consolidatedStocksData.forEach(st => {
+      const sym = st.symbol.toUpperCase();
+      if (!listMap.has(sym)) {
+        listMap.set(sym, { symbol: sym, name: st.name, sector: st.sector, category: st.category });
+      }
+    });
+    return Array.from(listMap.values()).sort((a, b) => a.symbol.localeCompare(b.symbol));
+  }, [consolidatedStocksData]);
+
+  // Sector Toggle Handler
+  const toggleSector = (sectorId) => {
+    setSelectedSectors(prev => 
+      prev.includes(sectorId) ? prev.filter(s => s !== sectorId) : [...prev, sectorId]
+    );
+  };
+
+  // Stock Toggle Handler
+  const toggleStock = (stockSymbol) => {
+    const sym = stockSymbol.toUpperCase().trim();
+    setSelectedStocks(prev => 
+      prev.includes(sym) ? prev.filter(s => s !== sym) : [...prev, sym]
+    );
+  };
+
+  // Clear All Filters
+  const clearAllFilters = () => {
+    setSelectedSectors([]);
+    setSelectedStocks([]);
+    setSearchQuery('');
+    setSelectedSentiment('ALL');
+  };
+
+  // Filter Consolidated Stocks by Multi-Sector, Multi-Stock, Sentiment, and Search Query
   const filteredStocks = useMemo(() => {
     return consolidatedStocksData.filter(item => {
-      if (selectedCategory !== 'ALL' && item.category !== selectedCategory) return false;
+      // 1. Multi-Sector Filter
+      if (selectedSectors.length > 0 && !selectedSectors.includes(item.category)) {
+        return false;
+      }
+
+      // 2. Multi-Stock Symbol Filter
+      if (selectedStocks.length > 0 && !selectedStocks.includes(item.symbol.toUpperCase())) {
+        return false;
+      }
+
+      // 3. Sentiment Filter
       if (selectedSentiment === 'POSITIVE' && item.netSentiment !== 'POSITIVE') return false;
       if (selectedSentiment === 'NEGATIVE' && item.netSentiment !== 'NEGATIVE') return false;
 
+      // 4. Free-Text Search Filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const symMatch = item.symbol.toLowerCase().includes(q);
@@ -482,15 +637,32 @@ export default function NewsCatalystTradeHub({
 
       return true;
     });
-  }, [consolidatedStocksData, selectedCategory, selectedSentiment, searchQuery]);
+  }, [consolidatedStocksData, selectedSectors, selectedStocks, selectedSentiment, searchQuery]);
 
   // Filter Chronological News Feed
   const filteredNewsFeed = useMemo(() => {
     return cleanNewsList.filter(n => {
       const globalPol = evaluateArticleSentiment(n.title, n.impactSummary || n.description);
-      const matchCategory = selectedCategory === 'ALL' || n.category === selectedCategory;
+      
+      // 1. Multi-Sector Match
+      const matchCategory = selectedSectors.length === 0 || selectedSectors.includes(n.category);
+
+      // 2. Multi-Stock Match
+      let matchStock = true;
+      if (selectedStocks.length > 0) {
+        const articleStocks = [
+          ...(n.upStocks || []).map(s => s.symbol?.toUpperCase()),
+          ...(n.downStocks || []).map(s => s.symbol?.toUpperCase()),
+          ...(n.tradeSuggestions || []).map(s => s.symbol?.toUpperCase())
+        ].filter(Boolean);
+        const text = (n.title + ' ' + (n.impactSummary || '')).toUpperCase();
+        matchStock = selectedStocks.some(sym => articleStocks.includes(sym) || text.includes(sym));
+      }
+
+      // 3. Sentiment Match
       const matchSentiment = selectedSentiment === 'ALL' || globalPol === selectedSentiment;
       
+      // 4. Free-Text Search Match
       let matchSearch = true;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
@@ -501,14 +673,34 @@ export default function NewsCatalystTradeHub({
         matchSearch = titleMatch || descMatch || stockMatch;
       }
 
-      return matchCategory && matchSentiment && matchSearch;
+      return matchCategory && matchStock && matchSentiment && matchSearch;
     });
-  }, [cleanNewsList, selectedCategory, selectedSentiment, searchQuery]);
+  }, [cleanNewsList, selectedSectors, selectedStocks, selectedSentiment, searchQuery]);
+
+  // Filtered lists for dropdown menus
+  const filteredSectorOptions = useMemo(() => {
+    if (!sectorFilterQuery.trim()) return SECTOR_CATEGORIES;
+    const q = sectorFilterQuery.toLowerCase();
+    return SECTOR_CATEGORIES.filter(c => c.label.toLowerCase().includes(q) || c.id.toLowerCase().includes(q));
+  }, [sectorFilterQuery]);
+
+  const filteredStockOptions = useMemo(() => {
+    if (!stockFilterQuery.trim()) return availableCompanyOptions;
+    const q = stockFilterQuery.toLowerCase();
+    return availableCompanyOptions.filter(s => 
+      s.symbol.toLowerCase().includes(q) || 
+      (s.name || '').toLowerCase().includes(q) || 
+      (s.sector || '').toLowerCase().includes(q)
+    );
+  }, [availableCompanyOptions, stockFilterQuery]);
+
+  const hasActiveFilters = selectedSectors.length > 0 || selectedStocks.length > 0 || searchQuery.trim() || selectedSentiment !== 'ALL';
 
   return (
     <div className="space-y-5">
       {/* 1. Header & Controls Card */}
-      <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-4 sm:p-6 shadow-sm dark:shadow-md transition-all">
+      <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-4 sm:p-6 shadow-sm dark:shadow-md transition-all relative z-10">
+        
         {/* Top Session & Weekend Date Banner */}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4 pb-3 border-b border-[#E2E8F0] dark:border-[#243044]">
           <div className="flex flex-wrap items-center gap-2">
@@ -554,7 +746,7 @@ export default function NewsCatalystTradeHub({
                 </span>
               </div>
               <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
-                Aggregates all concurrent financial news into a <b>single unified net signal per stock</b> with 100% consistent catalyst sentiment.
+                Search news & signals sector-wise or company-wise with multi-select filtering and unified sentiment intelligence.
               </p>
             </div>
           </div>
@@ -586,16 +778,20 @@ export default function NewsCatalystTradeHub({
           </div>
         </div>
 
-        {/* Search Bar & Quick Ticker Selection Row */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mt-4 pt-3 border-t border-[#E2E8F0] dark:border-[#243044]">
-          <div className="relative flex-1 max-w-md">
+        {/* ========================================================================= */}
+        {/* NEW ENHANCED SEARCH & MULTI-SELECT DROPDOWNS BAR                          */}
+        {/* ========================================================================= */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 mt-4 pt-4 border-t border-[#E2E8F0] dark:border-[#243044]">
+          
+          {/* 1. Free-Text Search Input */}
+          <div className="md:col-span-4 relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#64748B] dark:text-[#94A3B8]" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search stock symbol or news (e.g. PRL, OGDC, LUCK, CEMENT)..."
-              className="w-full pl-9 pr-8 py-2 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] dark:focus:border-[#3B82F6] transition-colors"
+              placeholder="Keyword / headline search (e.g. crude, tax, refinery)..."
+              className="w-full pl-9 pr-8 py-2.5 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] dark:focus:border-[#3B82F6] transition-colors"
             />
             {searchQuery && (
               <button
@@ -607,56 +803,232 @@ export default function NewsCatalystTradeHub({
             )}
           </div>
 
-          {/* Quick Popular Ticker Chips */}
-          <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs">
-            <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8] font-bold shrink-0 mr-1">
-              Quick Find:
-            </span>
-            {['PRL', 'OGDC', 'PPL', 'LUCK', 'MEBL', 'SYS', 'PSO', 'HUBC', 'INDU', 'FFC', 'DGKC', 'CNERGY', 'ATRL'].map(sym => (
-              <button
-                key={sym}
-                onClick={() => setSearchQuery(searchQuery.toUpperCase() === sym ? '' : sym)}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-mono font-bold shrink-0 transition-all cursor-pointer border ${
-                  searchQuery.toUpperCase() === sym 
-                    ? 'bg-[#2563EB] dark:bg-[#3B82F6] text-white border-transparent shadow-sm' 
-                    : 'bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#0F172A] dark:text-[#F8FAFC] hover:border-[#2563EB] border-[#E2E8F0] dark:border-[#243044]'
-                }`}
-              >
-                {sym}
-              </button>
-            ))}
-          </div>
-        </div>
+          {/* 2. Multi-Select Sector Dropdown */}
+          <div className="md:col-span-3 relative" ref={sectorDropdownRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setIsSectorDropdownOpen(!isSectorDropdownOpen);
+                setIsStockDropdownOpen(false);
+              }}
+              className={`w-full py-2.5 px-3 rounded-lg border text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
+                selectedSectors.length > 0 
+                  ? 'bg-[#2563EB]/10 border-[#2563EB] text-[#2563EB] dark:bg-[#3B82F6]/10 dark:border-[#3B82F6] dark:text-[#3B82F6]'
+                  : 'bg-[#F8FAFC] dark:bg-[#0B0F19] border-[#E2E8F0] dark:border-[#243044] text-[#0F172A] dark:text-[#F8FAFC] hover:border-[#CBD5E1]'
+              }`}
+            >
+              <div className="flex items-center space-x-2 truncate">
+                <Layers className="w-4 h-4 shrink-0 text-[#2563EB] dark:text-[#3B82F6]" />
+                <span className="truncate">
+                  {selectedSectors.length === 0 
+                    ? 'All Sectors' 
+                    : `Sectors (${selectedSectors.length} selected)`}
+                </span>
+              </div>
+              <ChevronDown className={`w-4 h-4 ml-1 shrink-0 text-[#64748B] transition-transform duration-200 ${isSectorDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
 
-        {/* Sector & Sentiment Filters Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mt-3 pt-3 border-t border-[#E2E8F0] dark:border-[#243044]">
-          {/* Sector Category Pills */}
-          <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs flex-1">
-            <span className="text-[#64748B] dark:text-[#94A3B8] font-bold flex items-center shrink-0 mr-1">
-              <Filter className="w-3.5 h-3.5 mr-1 text-[#2563EB] dark:text-[#3B82F6]" /> Sector:
-            </span>
-            {categories.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition-all cursor-pointer ${
-                  selectedCategory === cat.id 
-                    ? 'bg-[#2563EB] dark:bg-[#3B82F6] text-white shadow-sm' 
-                    : 'bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] border border-[#E2E8F0] dark:border-[#243044]'
-                }`}
-              >
-                {cat.label}
-              </button>
-            ))}
+            {/* Sector Dropdown Popover */}
+            {isSectorDropdownOpen && (
+              <div className="absolute left-0 top-full mt-1.5 w-full sm:w-80 bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl shadow-2xl z-50 p-3 space-y-2 animate-scale-up">
+                <div className="flex items-center justify-between pb-2 border-b border-[#E2E8F0] dark:border-[#243044]">
+                  <span className="text-xs font-extrabold text-[#0F172A] dark:text-[#F8FAFC] flex items-center">
+                    <Layers className="w-3.5 h-3.5 mr-1.5 text-[#2563EB]" />
+                    Select Industry Sectors
+                  </span>
+                  <div className="flex items-center space-x-2 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSectors(SECTOR_CATEGORIES.map(s => s.id))}
+                      className="text-[#2563EB] dark:text-[#3B82F6] hover:underline font-bold cursor-pointer"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-[#CBD5E1]">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSectors([])}
+                      className="text-[#DC2626] dark:text-[#EF4444] hover:underline font-bold cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sector Search input inside dropdown */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#64748B] dark:text-[#94A3B8]" />
+                  <input
+                    type="text"
+                    value={sectorFilterQuery}
+                    onChange={(e) => setSectorFilterQuery(e.target.value)}
+                    placeholder="Filter sectors..."
+                    className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] text-xs text-[#0F172A] dark:text-[#F8FAFC] focus:outline-none focus:border-[#2563EB]"
+                  />
+                </div>
+
+                {/* Sector Checkboxes List */}
+                <div className="max-h-56 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                  {filteredSectorOptions.map(cat => {
+                    const isChecked = selectedSectors.includes(cat.id);
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => toggleSector(cat.id)}
+                        className={`w-full px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                          isChecked 
+                            ? 'bg-[#2563EB]/10 text-[#2563EB] dark:text-[#3B82F6] dark:bg-[#3B82F6]/10' 
+                            : 'hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC]'
+                        }`}
+                      >
+                        <span className="flex items-center space-x-2 truncate">
+                          <span className="text-sm">{cat.icon}</span>
+                          <span className="truncate">{cat.label}</span>
+                        </span>
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                          isChecked 
+                            ? 'bg-[#2563EB] border-[#2563EB] text-white' 
+                            : 'border-[#CBD5E1] dark:border-[#475569]'
+                        }`}>
+                          {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="pt-2 border-t border-[#E2E8F0] dark:border-[#243044] flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setIsSectorDropdownOpen(false)}
+                    className="px-3 py-1 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs cursor-pointer"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Sentiment Filter Toggle */}
-          <div className="flex items-center space-x-1.5 bg-[#F8FAFC] dark:bg-[#0B0F19] p-1 rounded-lg border border-[#E2E8F0] dark:border-[#243044] text-xs shrink-0 self-start md:self-auto">
+          {/* 3. Multi-Select Stock / Company Dropdown */}
+          <div className="md:col-span-3 relative" ref={stockDropdownRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setIsStockDropdownOpen(!isStockDropdownOpen);
+                setIsSectorDropdownOpen(false);
+              }}
+              className={`w-full py-2.5 px-3 rounded-lg border text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
+                selectedStocks.length > 0 
+                  ? 'bg-[#2563EB]/10 border-[#2563EB] text-[#2563EB] dark:bg-[#3B82F6]/10 dark:border-[#3B82F6] dark:text-[#3B82F6]'
+                  : 'bg-[#F8FAFC] dark:bg-[#0B0F19] border-[#E2E8F0] dark:border-[#243044] text-[#0F172A] dark:text-[#F8FAFC] hover:border-[#CBD5E1]'
+              }`}
+            >
+              <div className="flex items-center space-x-2 truncate">
+                <Building2 className="w-4 h-4 shrink-0 text-[#2563EB] dark:text-[#3B82F6]" />
+                <span className="truncate">
+                  {selectedStocks.length === 0 
+                    ? 'All Companies' 
+                    : `Companies (${selectedStocks.length} selected)`}
+                </span>
+              </div>
+              <ChevronDown className={`w-4 h-4 ml-1 shrink-0 text-[#64748B] transition-transform duration-200 ${isStockDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Company Dropdown Popover */}
+            {isStockDropdownOpen && (
+              <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 w-full sm:w-96 bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl shadow-2xl z-50 p-3 space-y-2 animate-scale-up">
+                <div className="flex items-center justify-between pb-2 border-b border-[#E2E8F0] dark:border-[#243044]">
+                  <span className="text-xs font-extrabold text-[#0F172A] dark:text-[#F8FAFC] flex items-center">
+                    <Building2 className="w-3.5 h-3.5 mr-1.5 text-[#2563EB]" />
+                    Select Companies / Stocks
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStocks([])}
+                    className="text-[#DC2626] dark:text-[#EF4444] hover:underline text-[11px] font-bold cursor-pointer"
+                  >
+                    Clear Selection
+                  </button>
+                </div>
+
+                {/* Search input inside company dropdown */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#64748B] dark:text-[#94A3B8]" />
+                  <input
+                    type="text"
+                    value={stockFilterQuery}
+                    onChange={(e) => setStockFilterQuery(e.target.value)}
+                    placeholder="Search symbol or company (e.g. PRL, OGDC)..."
+                    className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] text-xs text-[#0F172A] dark:text-[#F8FAFC] focus:outline-none focus:border-[#2563EB]"
+                  />
+                </div>
+
+                {/* Company Checkboxes List */}
+                <div className="max-h-64 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                  {filteredStockOptions.length === 0 ? (
+                    <div className="py-4 text-center text-xs text-[#64748B]">
+                      No stock matches "{stockFilterQuery}"
+                    </div>
+                  ) : (
+                    filteredStockOptions.map(st => {
+                      const isChecked = selectedStocks.includes(st.symbol.toUpperCase());
+                      return (
+                        <button
+                          key={st.symbol}
+                          type="button"
+                          onClick={() => toggleStock(st.symbol)}
+                          className={`w-full px-2.5 py-1.5 rounded-lg text-left text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                            isChecked 
+                              ? 'bg-[#2563EB]/10 text-[#2563EB] dark:text-[#3B82F6] dark:bg-[#3B82F6]/10' 
+                              : 'hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC]'
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1 pr-2">
+                            <div className="flex items-center space-x-1.5">
+                              <b className="mono font-extrabold text-[#0F172A] dark:text-[#F8FAFC]">{st.symbol}</b>
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] border border-[#E2E8F0] dark:border-[#243044] truncate max-w-[120px]">
+                                {st.sector}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] truncate mt-0.5">
+                              {st.name}
+                            </p>
+                          </div>
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                            isChecked 
+                              ? 'bg-[#2563EB] border-[#2563EB] text-white' 
+                              : 'border-[#CBD5E1] dark:border-[#475569]'
+                          }`}>
+                            {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-[#E2E8F0] dark:border-[#243044] flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setIsStockDropdownOpen(false)}
+                    className="px-3 py-1 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs cursor-pointer"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 4. Sentiment Filter Buttons */}
+          <div className="md:col-span-2 flex items-center space-x-1 bg-[#F8FAFC] dark:bg-[#0B0F19] p-1 rounded-lg border border-[#E2E8F0] dark:border-[#243044] text-xs">
             <button
               onClick={() => setSelectedSentiment('ALL')}
-              className={`px-2.5 py-1 rounded-md font-bold transition-all cursor-pointer ${
+              className={`flex-1 py-1.5 rounded-md font-bold transition-all text-center cursor-pointer ${
                 selectedSentiment === 'ALL' 
-                  ? 'bg-[#2563EB] dark:bg-[#3B82F6] text-white' 
+                  ? 'bg-[#2563EB] dark:bg-[#3B82F6] text-white shadow-sm' 
                   : 'text-[#64748B] dark:text-[#94A3B8]'
               }`}
             >
@@ -664,28 +1036,141 @@ export default function NewsCatalystTradeHub({
             </button>
             <button
               onClick={() => setSelectedSentiment('POSITIVE')}
-              className={`px-2.5 py-1 rounded-md font-bold transition-all flex items-center space-x-1 cursor-pointer ${
+              title="Bullish Catalysts"
+              className={`flex-1 py-1.5 rounded-md font-bold transition-all flex items-center justify-center space-x-0.5 cursor-pointer ${
                 selectedSentiment === 'POSITIVE' 
-                  ? 'bg-[#16A34A] dark:bg-[#22C55E] text-white' 
+                  ? 'bg-[#16A34A] dark:bg-[#22C55E] text-white shadow-sm' 
                   : 'text-[#16A34A] dark:text-[#22C55E]'
               }`}
             >
               <TrendingUp className="w-3 h-3" />
-              <span>Bullish</span>
+              <span className="hidden xl:inline">Bull</span>
             </button>
             <button
               onClick={() => setSelectedSentiment('NEGATIVE')}
-              className={`px-2.5 py-1 rounded-md font-bold transition-all flex items-center space-x-1 cursor-pointer ${
+              title="Bearish Headwinds"
+              className={`flex-1 py-1.5 rounded-md font-bold transition-all flex items-center justify-center space-x-0.5 cursor-pointer ${
                 selectedSentiment === 'NEGATIVE' 
-                  ? 'bg-[#DC2626] dark:bg-[#EF4444] text-white' 
+                  ? 'bg-[#DC2626] dark:bg-[#EF4444] text-white shadow-sm' 
                   : 'text-[#DC2626] dark:text-[#EF4444]'
               }`}
             >
               <TrendingDown className="w-3 h-3" />
-              <span>Bearish</span>
+              <span className="hidden xl:inline">Bear</span>
             </button>
           </div>
         </div>
+
+        {/* Quick Popular Ticker Chips */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-3 pt-3 border-t border-[#E2E8F0] dark:border-[#243044]">
+          <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs">
+            <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8] font-bold shrink-0 mr-1 flex items-center">
+              <SlidersHorizontal className="w-3 h-3 mr-1 text-[#2563EB]" /> Quick Select:
+            </span>
+            {['PRL', 'OGDC', 'PPL', 'LUCK', 'MEBL', 'SYS', 'PSO', 'HUBC', 'INDU', 'FFC', 'DGKC', 'CNERGY', 'ATRL'].map(sym => {
+              const isSelected = selectedStocks.includes(sym);
+              return (
+                <button
+                  key={sym}
+                  onClick={() => toggleStock(sym)}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-mono font-bold shrink-0 transition-all cursor-pointer border ${
+                    isSelected 
+                      ? 'bg-[#2563EB] dark:bg-[#3B82F6] text-white border-transparent shadow-sm' 
+                      : 'bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#0F172A] dark:text-[#F8FAFC] hover:border-[#2563EB] border-[#E2E8F0] dark:border-[#243044]'
+                  }`}
+                >
+                  {sym} {isSelected && '✓'}
+                </button>
+              );
+            })}
+          </div>
+
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              className="flex items-center space-x-1 text-xs font-bold text-[#DC2626] dark:text-[#EF4444] hover:underline cursor-pointer shrink-0 self-end sm:self-auto"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset All Filters</span>
+            </button>
+          )}
+        </div>
+
+        {/* ========================================================================= */}
+        {/* ACTIVE FILTER BADGES ROW                                                  */}
+        {/* ========================================================================= */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-[#E2E8F0] dark:border-[#243044]">
+            <span className="text-[10px] uppercase tracking-wider font-extrabold text-[#64748B] dark:text-[#94A3B8] mr-1">
+              Active Filters:
+            </span>
+
+            {/* Selected Sector Badges */}
+            {selectedSectors.map(secId => {
+              const catObj = SECTOR_CATEGORIES.find(c => c.id === secId);
+              return (
+                <span
+                  key={secId}
+                  className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#2563EB]/10 text-[#2563EB] dark:bg-[#3B82F6]/10 dark:text-[#3B82F6] border border-[#2563EB]/30"
+                >
+                  <span>{catObj?.icon || '🏢'} {catObj?.label || secId}</span>
+                  <button
+                    onClick={() => toggleSector(secId)}
+                    className="hover:text-[#1D4ED8] p-0.5 rounded-full cursor-pointer ml-1"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              );
+            })}
+
+            {/* Selected Stock Badges */}
+            {selectedStocks.map(sym => (
+              <span
+                key={sym}
+                className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+              >
+                <span>📈 {sym}</span>
+                <button
+                  onClick={() => toggleStock(sym)}
+                  className="hover:text-emerald-800 p-0.5 rounded-full cursor-pointer ml-1"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+
+            {/* Free Search Query Badge */}
+            {searchQuery.trim() && (
+              <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30">
+                <span>🔍 "{searchQuery}"</span>
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="hover:text-purple-800 p-0.5 rounded-full cursor-pointer ml-1"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {/* Sentiment Badge */}
+            {selectedSentiment !== 'ALL' && (
+              <span className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                selectedSentiment === 'POSITIVE'
+                  ? 'bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/30'
+                  : 'bg-[#DC2626]/10 text-[#DC2626] border-[#DC2626]/30'
+              }`}>
+                <span>{selectedSentiment === 'POSITIVE' ? '🟢 Bullish Only' : '🔴 Bearish Only'}</span>
+                <button
+                  onClick={() => setSelectedSentiment('ALL')}
+                  className="p-0.5 rounded-full cursor-pointer ml-1"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ========================================================================= */}
@@ -695,9 +1180,9 @@ export default function NewsCatalystTradeHub({
         <div>
           {filteredStocks.length === 0 ? (
             <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-12 text-center text-[#64748B] dark:text-[#94A3B8]">
-              <p className="font-bold text-sm">No stocks found matching "{searchQuery || selectedCategory}".</p>
+              <p className="font-bold text-sm">No stocks found matching your active filters.</p>
               <button
-                onClick={() => { setSearchQuery(''); setSelectedCategory('ALL'); setSelectedSentiment('ALL'); }}
+                onClick={clearAllFilters}
                 className="mt-3 px-4 py-1.5 rounded-lg bg-[#2563EB] text-white font-bold text-xs cursor-pointer"
               >
                 Reset All Filters
@@ -902,7 +1387,13 @@ export default function NewsCatalystTradeHub({
         <div className="space-y-4">
           {filteredNewsFeed.length === 0 ? (
             <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-12 text-center text-[#64748B] dark:text-[#94A3B8]">
-              <p>No financial news matching this filter. Try clearing the search or category filter.</p>
+              <p>No financial news matching this filter. Try clearing the search or sector filter.</p>
+              <button
+                onClick={clearAllFilters}
+                className="mt-3 px-4 py-1.5 rounded-lg bg-[#2563EB] text-white font-bold text-xs cursor-pointer"
+              >
+                Reset All Filters
+              </button>
             </div>
           ) : (
             filteredNewsFeed.map((item, idx) => {
@@ -955,10 +1446,10 @@ export default function NewsCatalystTradeHub({
                       {upList.map((s, i) => (
                         <button
                           key={`up_${i}`}
-                          onClick={() => { setSearchQuery(s.symbol); setViewMode('NET_STOCK_VIEW'); }}
+                          onClick={() => { toggleStock(s.symbol); setViewMode('NET_STOCK_VIEW'); }}
                           className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border transition-colors cursor-pointer ${
                             isPositive 
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20' 
                               : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 hover:bg-red-500/20'
                           }`}
                         >
@@ -968,10 +1459,10 @@ export default function NewsCatalystTradeHub({
                       {downList.map((s, i) => (
                         <button
                           key={`down_${i}`}
-                          onClick={() => { setSearchQuery(s.symbol); setViewMode('NET_STOCK_VIEW'); }}
+                          onClick={() => { toggleStock(s.symbol); setViewMode('NET_STOCK_VIEW'); }}
                           className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border transition-colors cursor-pointer ${
                             isPositive 
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20' 
                               : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 hover:bg-red-500/20'
                           }`}
                         >
@@ -1024,7 +1515,7 @@ function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculato
   const confidencePct = isBullish ? 88 : 84;
 
   const openingBias = isBullish 
-    ? 'Gap-Up Opening (+1.5% to +3.5%)'
+    ? 'Gap-Up Opening (+1.5% to +3.5%)' 
     : 'Gap-Down / Sell Pressure Opening (-1.0% to -3.0%)';
 
   const circuitLockProbability = isBullish ? '65% (Strong Volume Driven)' : 'Low Risk of Lower Lock';
@@ -1098,146 +1589,110 @@ function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculato
               </div>
             ) : (
               <h4 className="text-sm font-bold leading-snug">
-                {newsItem.title}
+                {newsItem?.title || 'Sector Catalyst Development'}
               </h4>
             )}
           </div>
 
-          {/* 2. Tomorrow's Prediction Matrix Grid */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold flex items-center space-x-2 text-[#0F172A] dark:text-[#F8FAFC]">
-                <Activity className="w-4 h-4 text-[#2563EB] dark:text-[#3B82F6]" />
-                <span>Upcoming Session Market Forecast ({marketSession?.sessionDateFormatted})</span>
-              </h3>
-              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-[#2563EB]/10 text-[#2563EB] dark:bg-[#3B82F6]/10 dark:text-[#3B82F6] border border-[#2563EB]/20">
-                AI Confidence: {confidencePct}%
+          {/* 2. Projected Opening & Price Range Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="p-4 rounded-xl bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] space-y-1">
+              <span className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] tracking-wider">
+                Projected Opening Bias
               </span>
+              <p className={`text-sm font-black mono ${isBullish ? 'text-[#16A34A] dark:text-[#22C55E]' : 'text-[#DC2626] dark:text-[#EF4444]'}`}>
+                {openingBias}
+              </p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3 rounded-xl bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044]">
-                <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] uppercase font-bold block">Current Price</span>
-                <span className="text-base font-extrabold mono text-[#0F172A] dark:text-[#F8FAFC]">PKR {currentPrice.toFixed(2)}</span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044]">
-                <span className="text-[10px] text-[#16A34A] dark:text-[#22C55E] uppercase font-bold block">Expected Day High</span>
-                <span className="text-base font-extrabold mono text-[#16A34A] dark:text-[#22C55E]">PKR {expectedHigh}</span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044]">
-                <span className="text-[10px] text-[#DC2626] dark:text-[#EF4444] uppercase font-bold block">Expected Day Low</span>
-                <span className="text-base font-extrabold mono text-[#DC2626] dark:text-[#EF4444]">PKR {expectedLow}</span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044]">
-                <span className="text-[10px] text-[#2563EB] dark:text-[#3B82F6] uppercase font-bold block">Circuit Lock Chance</span>
-                <span className="text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] mt-0.5 block">{circuitLockProbability}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 3. Actionable Intraday Trade Setup Plan */}
-          <div className="p-4 rounded-xl bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] space-y-3">
-            <h3 className="text-sm font-bold flex items-center space-x-2 text-[#0F172A] dark:text-[#F8FAFC]">
-              <Target className="w-4 h-4 text-[#16A34A] dark:text-[#22C55E]" />
-              <span>Recommended Trade Strategy</span>
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div className="p-3 rounded-lg bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] space-y-1">
-                <span className="text-[10px] font-bold text-[#2563EB] dark:text-[#3B82F6] uppercase block">
-                  {isBullish ? 'Recommended Entry Zone' : 'Exit / Selling Zone'}
-                </span>
-                <span className="text-sm font-bold mono text-[#0F172A] dark:text-[#F8FAFC]">
-                  PKR {trade.entryPriceMin} - {trade.entryPriceMax}
-                </span>
-                <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] block">Time: 09:15 - 09:45 AM</span>
-              </div>
-
-              <div className="p-3 rounded-lg bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] space-y-1">
-                <span className="text-[10px] font-bold text-[#16A34A] dark:text-[#22C55E] uppercase block">
-                  {isBullish ? 'Target 1 (Intraday)' : 'Immediate Downside Target'}
-                </span>
-                <span className="text-sm font-bold mono text-[#16A34A] dark:text-[#22C55E]">
-                  PKR {tomorrowTarget1} (+{(gainPct * 0.5).toFixed(1)}%)
-                </span>
-                <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] block">Swing Target: PKR {tomorrowTarget2} (+{gainPct}%)</span>
-              </div>
-
-              <div className="p-3 rounded-lg bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] space-y-1">
-                <span className="text-[10px] font-bold text-[#DC2626] dark:text-[#EF4444] uppercase block">
-                  Strict Risk Stop-Loss
-                </span>
-                <span className="text-sm font-bold mono text-[#DC2626] dark:text-[#EF4444]">
-                  PKR {stopLoss} (-{stopLossPct}%)
-                </span>
-                <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] block">Trail stop if Target 1 hits</span>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-lg bg-blue-500/10 dark:bg-blue-500/10 border border-blue-500/20 text-xs text-[#2563EB] dark:text-[#60A5FA] flex items-start space-x-2">
-              <Compass className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>
-                <b>Opening Behavior:</b> {openingBias}. Initial 15 minutes may see heavy volume discovery.
+            <div className="p-4 rounded-xl bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] space-y-1">
+              <span className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] tracking-wider">
+                Expected Trading Range
               </span>
+              <p className="text-sm font-black mono text-[#0F172A] dark:text-[#F8FAFC]">
+                PKR {expectedLow} — PKR {expectedHigh}
+              </p>
             </div>
           </div>
 
-          {/* 4. Complete Actionable Trading Summary */}
-          <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-blue-500/10 border border-emerald-500/20 space-y-2">
-            <div className="flex items-center space-x-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-              <Sparkles className="w-4 h-4" />
-              <span>Executive Trading Blueprint & Risk Advisory</span>
+          {/* 3. Key Targets & Stop Loss */}
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="p-3 rounded-xl bg-[#16A34A]/5 border border-[#16A34A]/20 space-y-0.5">
+              <span className="text-[10px] uppercase font-black text-[#16A34A] dark:text-[#22C55E]">Target 1</span>
+              <p className="text-base font-black mono text-[#16A34A] dark:text-[#22C55E]">PKR {tomorrowTarget1}</p>
+              <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Intraday Swing</span>
             </div>
-            
-            <p className="text-xs sm:text-sm text-[#0F172A] dark:text-[#F8FAFC] leading-relaxed font-medium">
-              {isBullish ? (
-                <>
-                  Following the aggregated news catalysts, strong buying momentum is projected for <b>{trade.symbol}</b> in the upcoming session (<b>{marketSession?.sessionDateFormatted}</b>). Traders should plan an entry within the <b>PKR {trade.entryPriceMin} - {trade.entryPriceMax}</b> price band during the opening 30 minutes. Target 1 is <b>PKR {tomorrowTarget1}</b> with a swing objective of <b>PKR {tomorrowTarget2} (+{gainPct}%)</b>. Maintain a strict stop-loss at <b>PKR {stopLoss} (-{stopLossPct}%)</b>.
-                </>
-              ) : (
-                <>
-                  Due to the net negative news catalysts, profit-taking and selling pressure are anticipated for <b>{trade.symbol}</b>. Avoid fresh aggressive long positions. Existing position holders should protect their capital by executing defensive stop-losses or taking profits if price breaches below <b>PKR {stopLoss}</b>.
-                </>
-              )}
-            </p>
+
+            <div className="p-3 rounded-xl bg-[#2563EB]/5 border border-[#2563EB]/20 space-y-0.5">
+              <span className="text-[10px] uppercase font-black text-[#2563EB] dark:text-[#3B82F6]">Target 2 (Catalyst)</span>
+              <p className="text-base font-black mono text-[#2563EB] dark:text-[#3B82F6]">PKR {tomorrowTarget2}</p>
+              <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">+{gainPct}% Max Potential</span>
+            </div>
+
+            <div className="p-3 rounded-xl bg-[#DC2626]/5 border border-[#DC2626]/20 space-y-0.5">
+              <span className="text-[10px] uppercase font-black text-[#DC2626] dark:text-[#EF4444]">Strict Stop Loss</span>
+              <p className="text-base font-black mono text-[#DC2626] dark:text-[#EF4444]">PKR {stopLoss}</p>
+              <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Risk Control</span>
+            </div>
           </div>
 
+          {/* 4. Strategic AI Execution Plan */}
+          <div className="p-4 rounded-xl bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/20 space-y-2">
+            <h5 className="text-xs font-black uppercase tracking-wider text-[#2563EB] dark:text-[#3B82F6] flex items-center">
+              <ShieldCheck className="w-4 h-4 mr-1.5" />
+              Tactical Trade Execution Guidelines
+            </h5>
+            <ul className="text-xs space-y-1.5 text-[#0F172A] dark:text-[#F8FAFC] pl-1">
+              <li className="flex items-start">
+                <span className="text-[#2563EB] font-bold mr-2">1.</span>
+                <span><b>Opening Strategy:</b> {isBullish ? 'Wait 10-15 mins for opening dip around entry zone before executing fresh positions.' : 'Avoid chasing down gaps. Look for technical exit if resistance fails.'}</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-[#2563EB] font-bold mr-2">2.</span>
+                <span><b>Circuit Lock Odds:</b> {circuitLockProbability}</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-[#2563EB] font-bold mr-2">3.</span>
+                <span><b>Catalyst Duration:</b> {isBullish ? '1 to 3 trading sessions momentum carry-over expected.' : 'Immediate defensive posture recommended.'}</span>
+              </li>
+            </ul>
+          </div>
         </div>
 
-        {/* Modal Footer Actions */}
-        <div className="p-5 bg-[#F8FAFC] dark:bg-[#0B0F19] border-t border-[#E2E8F0] dark:border-[#243044] flex flex-col sm:flex-row items-center justify-between gap-3">
-          <button
-            onClick={() => {
-              onClose();
-              onSelectStock(trade.symbol);
-            }}
-            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#151E2E] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] border border-[#E2E8F0] dark:border-[#243044] font-bold text-xs flex items-center justify-center space-x-2 cursor-pointer transition-colors"
-          >
-            <BarChart2 className="w-4 h-4" />
-            <span>Open Technical Chart</span>
-          </button>
+        {/* Modal Footer */}
+        <div className="p-4 bg-[#F8FAFC] dark:bg-[#0B0F19] border-t border-[#E2E8F0] dark:border-[#243044] flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center space-x-2 text-xs text-[#64748B] dark:text-[#94A3B8]">
+            <Activity className="w-4 h-4 text-[#2563EB]" />
+            <span>AI Confidence: <b className="text-[#0F172A] dark:text-[#F8FAFC]">{confidencePct}%</b></span>
+          </div>
 
-          <button
-            onClick={() => {
-              onClose();
-              onOpenCalculator({
-                symbol: trade.symbol,
-                companyName: trade.name,
-                currentPrice: currentPrice,
-                stopLoss: Number(stopLoss),
-                target1: Number(tomorrowTarget2),
-                signal: isBullish ? 'BUY_NOW' : 'SELL_EXIT'
-              });
-            }}
-            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-extrabold text-xs flex items-center justify-center space-x-2 shadow-lg shadow-blue-500/25 cursor-pointer transition-all"
-          >
-            <Zap className="w-4 h-4" />
-            <span>Load Strategy in Order Planner</span>
-            <ArrowRight className="w-4 h-4 ml-1" />
-          </button>
+          <div className="flex items-center space-x-2 w-full sm:w-auto">
+            <button
+              onClick={() => {
+                onClose();
+                onOpenCalculator({
+                  symbol: trade.symbol,
+                  companyName: trade.name,
+                  currentPrice: Number(currentPrice),
+                  stopLoss: Number(stopLoss),
+                  target1: Number(tomorrowTarget2),
+                  signal: isBullish ? 'BUY_NOW' : 'SELL_EXIT'
+                });
+              }}
+              className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+            >
+              Set Trade Order
+            </button>
+            <button
+              onClick={() => {
+                onClose();
+                onSelectStock(trade.symbol);
+              }}
+              className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#FFFFFF] dark:bg-[#151E2E] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] font-bold text-xs border border-[#E2E8F0] dark:border-[#243044] transition-all cursor-pointer"
+            >
+              Open Live Chart
+            </button>
+          </div>
         </div>
 
       </div>
