@@ -176,34 +176,35 @@ export default function Navbar({
       </div>
 
       {/* 2. Main Navigation Bar */}
-      <div className="max-w-[1680px] w-full mx-auto px-2.5 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-2 sm:gap-3">
+      <div className="max-w-[1680px] w-full mx-auto px-2 sm:px-4 lg:px-8">
+        <div className="flex items-center justify-between h-14 sm:h-16 gap-1.5 sm:gap-3">
           
           {/* Brand Left */}
-          <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
-            <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl p-0.5 shadow-sm border ${
+          <div className="flex items-center space-x-1.5 sm:space-x-3 shrink-0">
+            <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl p-0.5 shadow-sm border shrink-0 ${
               isLight ? 'bg-[#2563EB] border-[#1D4ED8]' : 'bg-[#3B82F6] border-[#60A5FA]/40'
             }`}>
-              <div className={`w-full h-full rounded-[8px] sm:rounded-[10px] flex items-center justify-center ${
+              <div className={`w-full h-full rounded-[6px] sm:rounded-[10px] flex items-center justify-center ${
                 isLight ? 'bg-[#FFFFFF]' : 'bg-[#151E2E]'
               }`}>
                 <Terminal className={`w-4 h-4 sm:w-5 sm:h-5 ${isLight ? 'text-[#2563EB]' : 'text-[#3B82F6]'}`} />
               </div>
             </div>
             <div>
-              <div className="flex items-center space-x-1.5 sm:space-x-2">
+              <div className="flex items-center space-x-1 sm:space-x-2">
                 <span className={`font-black text-xs sm:text-base md:text-lg tracking-tight ${
                   isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'
                 }`}>
-                  PSX ALPHA TERMINAL
+                  <span className="inline sm:hidden">PSX ALPHA</span>
+                  <span className="hidden sm:inline">PSX ALPHA TERMINAL</span>
                 </span>
-                <span className={`hidden xs:inline-block text-[8px] sm:text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-md border tracking-wider ${
+                <span className={`hidden md:inline-block text-[8px] sm:text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-md border tracking-wider ${
                   isLight ? 'bg-[#2563EB]/10 text-[#2563EB] border-[#2563EB]/20' : 'bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/30'
                 }`}>
-                  OFFICIAL DPS
+                  DPS
                 </span>
               </div>
-              <p className={`text-[10px] sm:text-[11px] font-medium hidden sm:block ${
+              <p className={`text-[10px] sm:text-[11px] font-medium hidden lg:block ${
                 isLight ? 'text-[#64748B]' : 'text-[#94A3B8]'
               }`}>
                 Pakistan Stock Exchange • Real-Time Market Intelligence & Signals
@@ -212,33 +213,33 @@ export default function Navbar({
           </div>
 
           {/* Right Actions & Controls Group */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {/* Theme Toggle (Light / Dark) */}
             <button
               onClick={onToggleTheme}
-              className={`p-2 rounded-lg border transition-all cursor-pointer flex items-center justify-center shrink-0 ${
+              className={`p-1.5 sm:p-2 rounded-lg border transition-all cursor-pointer flex items-center justify-center shrink-0 ${
                 isLight 
                   ? 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] hover:bg-[#F1F5F9]' 
                   : 'bg-[#0B0F19] border-[#243044] text-[#F8FAFC] hover:bg-[#1E293B]'
               }`}
               title={isLight ? 'Switch to Dark Theme' : 'Switch to Light Theme'}
             >
-              {isLight ? <Moon className="w-4 h-4 text-[#2563EB]" /> : <Sun className="w-4 h-4 text-[#F59E0B]" />}
+              {isLight ? <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#2563EB]" /> : <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#F59E0B]" />}
             </button>
 
             {/* Watchlist */}
             <button
               onClick={onOpenWatchlist}
-              className={`relative p-2 rounded-lg border transition-all cursor-pointer shrink-0 ${
+              className={`relative p-1.5 sm:p-2 rounded-lg border transition-all cursor-pointer shrink-0 ${
                 isLight 
                   ? 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] hover:bg-[#F1F5F9]' 
                   : 'bg-[#0B0F19] border-[#243044] text-[#F8FAFC] hover:bg-[#1E293B]'
               }`}
               title="View Saved Watchlist"
             >
-              <Bookmark className="w-4 h-4" />
+              <Bookmark className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               {watchlistCount > 0 && (
-                <span className={`absolute -top-1 -right-1 w-4 h-4 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow ${
+                <span className={`absolute -top-1 -right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 text-white text-[9px] sm:text-[10px] font-black rounded-full flex items-center justify-center shadow ${
                   isLight ? 'bg-[#2563EB]' : 'bg-[#3B82F6]'
                 }`}>
                   {watchlistCount}
@@ -251,12 +252,12 @@ export default function Navbar({
               <button
                 onClick={onRunScan}
                 disabled={isScanning}
-                className={`hidden md:flex items-center space-x-1.5 px-3 py-2 rounded-lg text-white font-bold text-xs disabled:opacity-50 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                className={`hidden md:flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-white font-bold text-xs disabled:opacity-50 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   isLight ? 'bg-[#2563EB] hover:bg-[#1D4ED8]' : 'bg-[#3B82F6] hover:bg-[#60A5FA]'
                 }`}
                 title="Force Live Market Scan (Admin Only)"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-3 h-3 ${isScanning ? 'animate-spin' : ''}`} />
                 <span>{isScanning ? 'Syncing...' : 'Sync'}</span>
               </button>
             )}
@@ -265,13 +266,14 @@ export default function Navbar({
             {isAdmin && (
               <button
                 onClick={onOpenAdmin}
-                className={`flex items-center space-x-1 px-2.5 sm:px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all border whitespace-nowrap shrink-0 ${
+                className={`flex items-center space-x-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all border whitespace-nowrap shrink-0 ${
                   isLight 
                     ? 'bg-[#F1F5F9] border-[#E2E8F0] text-[#0F172A] hover:bg-[#E2E8F0]' 
                     : 'bg-[#1E293B] border-[#243044] text-[#F8FAFC] hover:bg-[#243044]'
                 }`}
               >
-                <span>👑 Admin</span>
+                <span>👑</span>
+                <span className="hidden xs:inline">Admin</span>
               </button>
             )}
 
@@ -279,14 +281,14 @@ export default function Navbar({
             {!isPro && (
               <button
                 onClick={onOpenUpgrade}
-                className={`flex items-center space-x-1 px-2.5 sm:px-3.5 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all whitespace-nowrap shrink-0 ${
+                className={`flex items-center space-x-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-bold cursor-pointer transition-all whitespace-nowrap shrink-0 ${
                   isLight 
                     ? 'bg-[#D97706] hover:bg-[#B45309] text-white shadow-sm' 
                     : 'bg-[#F59E0B] hover:bg-[#D97706] text-black font-black shadow-sm'
                 }`}
               >
                 <Crown className="w-3.5 h-3.5" />
-                <span>Go Pro</span>
+                <span className="hidden xs:inline">Go Pro</span>
               </button>
             )}
 
@@ -295,13 +297,13 @@ export default function Navbar({
               <button
                 type="button"
                 onClick={onOpenProfile}
-                className={`flex items-center space-x-2 pl-2 pr-2.5 py-1.5 rounded-xl border text-xs cursor-pointer transition-all hover:border-[#2563EB]/50 dark:hover:border-[#3B82F6]/50 shadow-xs shrink-0 ${
+                className={`flex items-center space-x-1 sm:space-x-1.5 p-1 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs cursor-pointer transition-all hover:border-[#2563EB]/50 dark:hover:border-[#3B82F6]/50 shadow-xs shrink-0 ${
                   isLight ? 'bg-[#F8FAFC] hover:bg-[#F1F5F9] border-[#E2E8F0]' : 'bg-[#0B0F19] hover:bg-[#1E293B] border-[#243044]'
                 }`}
                 title="Click to open profile, edit details & sign out"
               >
                 {/* Avatar Initial */}
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs shrink-0 ${
+                <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center font-black text-xs shrink-0 ${
                   isPro 
                     ? (isLight ? 'bg-[#D97706]/15 text-[#D97706] border border-[#D97706]/30' : 'bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/40') 
                     : (isLight ? 'bg-[#2563EB]/15 text-[#2563EB] border border-[#2563EB]/20' : 'bg-[#3B82F6]/20 text-[#3B82F6] border border-[#3B82F6]/30')
@@ -309,8 +311,8 @@ export default function Navbar({
                   {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
                 </div>
 
-                {/* Name & Plan */}
-                <div className="flex flex-col text-left max-w-[85px] sm:max-w-[130px]">
+                {/* Name & Plan (Hidden on very small screens, visible on sm+) */}
+                <div className="hidden sm:flex flex-col text-left max-w-[70px] md:max-w-[110px]">
                   <span className={`font-bold text-[11px] leading-tight truncate ${
                     isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'
                   }`} title={currentUser.name}>
@@ -319,17 +321,17 @@ export default function Navbar({
                   <span className={`text-[9px] font-bold uppercase tracking-wider truncate ${
                     isPro ? (isLight ? 'text-[#D97706]' : 'text-[#F59E0B]') : (isLight ? 'text-[#64748B]' : 'text-[#94A3B8]')
                   }`}>
-                    {isPro ? '⭐ PRO VIP' : 'FREE TIER'}
+                    {isPro ? '⭐ PRO' : 'FREE'}
                   </span>
                 </div>
 
-                <ChevronDown className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-[#64748B]' : 'text-[#94A3B8]'}`} />
+                <ChevronDown className={`w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0 ${isLight ? 'text-[#64748B]' : 'text-[#94A3B8]'}`} />
               </button>
             ) : (
-              <div className="flex items-center space-x-1.5 shrink-0">
+              <div className="flex items-center space-x-1 shrink-0">
                 <button
                   onClick={() => onOpenAuth('login')}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all border whitespace-nowrap ${
+                  className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-bold cursor-pointer transition-all border whitespace-nowrap ${
                     isLight 
                       ? 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] hover:bg-[#F1F5F9]' 
                       : 'bg-[#0B0F19] border-[#243044] text-[#F8FAFC] hover:bg-[#1E293B]'
@@ -339,7 +341,7 @@ export default function Navbar({
                 </button>
                 <button
                   onClick={() => onOpenAuth('signup')}
-                  className={`px-3.5 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all text-white whitespace-nowrap ${
+                  className={`px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg text-xs font-bold cursor-pointer transition-all text-white whitespace-nowrap ${
                     isLight ? 'bg-[#2563EB] hover:bg-[#1D4ED8]' : 'bg-[#3B82F6] hover:bg-[#60A5FA]'
                   }`}
                 >

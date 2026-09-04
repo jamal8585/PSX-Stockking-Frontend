@@ -648,7 +648,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
                   </div>
 
                   {/* Chart Type Toggle & Timeframes */}
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                     <div className="flex items-center space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-800 text-[11px]">
                       <button
                         onClick={() => setChartType('candlestick')}
@@ -668,7 +668,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
                       </button>
                     </div>
 
-                    <div className="flex items-center space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-800 text-[10px] mono">
+                    <div className="flex items-center space-x-0.5 sm:space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-800 text-[10px] mono">
                       {['1D', '5D', '1M', '3M', '1Y'].map(tf => (
                         <button
                           key={tf}
