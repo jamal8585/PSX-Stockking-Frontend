@@ -96,6 +96,55 @@ const STOCK_VOLATILITY_PROFILES = {
   'NML': { gainBase: 12.0, stopLossPct: 4.0, beta: 1.10 }
 };
 
+// Global Deterministic News Sentiment Classifier (Guarantees 100% Consistent Polarities)
+export const evaluateArticleSentiment = (title = '', desc = '') => {
+  const text = (title + ' ' + (desc || '')).toLowerCase();
+
+  const negativeKeywords = [
+    'drop', 'fall', 'slump', 'plunge', 'tumble', 'loss', 'decline', 'deficit', 'crash',
+    'tax hike', 'levy hike', 'tariff hike', 'cost jump', 'shutdown', 'penalty', 'fine',
+    'dispute', 'debt crisis', 'circular debt', 'default', 'curb', 'ban', 'stagnant',
+    'bearish', 'headwind', 'inflation jumps', 'inflation rises', 'warning', 'downside',
+    'probe', 'fraud', 'investigation', 'scam'
+  ];
+
+  const positiveKeywords = [
+    'surge', 'jump', 'rise', 'gain', 'profit', 'dividend', 'growth', 'upgrade', 'rally',
+    'cut rate', 'rate cut', 'rate drops', 'drops to', 'inflation drops', 'inflation falls',
+    'soars', 'record', 'high', 'boost', 'expansion', 'recovery', 'surplus', 'rebound', 'bullish',
+    'deal', 'agreement', 'incentive', 'tax relief', 'subsidy', 'approved', 'imf approval', 'inflow',
+    'reserves rise', 'exports rise', 'sales rise', 'demand accelerates', 'holds above', 'help transform',
+    'modernization', 'package', 'tenders', 'contracts', 'order'
+  ];
+
+  let negScore = 0;
+  let posScore = 0;
+
+  negativeKeywords.forEach(kw => {
+    if (text.includes(kw)) negScore += 1;
+  });
+
+  positiveKeywords.forEach(kw => {
+    if (text.includes(kw)) posScore += 1;
+  });
+
+  if (negScore > posScore) return 'NEGATIVE';
+  if (posScore > negScore) return 'POSITIVE';
+  return 'POSITIVE'; // Default constructive bias
+};
+
+// Filter out non-financial crime, road accidents & judicial political court news
+export const isNonFinancialNews = (title = '', desc = '') => {
+  const text = (title + ' ' + (desc || '')).toLowerCase();
+  const nonFinancialKeywords = [
+    'mir raza', 'judicial commission', 'taxi driver', 'statements of business partner',
+    'murder', 'robbery', 'killed', 'arrested', 'police encounter', 'smuggling bid foiled',
+    'dead in road accident', 'scooty', 'gunpoint', 'firing', 'bail plea', 'court rejects',
+    'kidnapped', 'dacoits', 'extortion', 'rape', 'dead body', 'injured in', 'terrorist'
+  ];
+  return nonFinancialKeywords.some(kw => text.includes(kw));
+};
+
 export default function NewsCatalystTradeHub({ 
   news = [], 
   newsList = [], 
@@ -111,10 +160,13 @@ export default function NewsCatalystTradeHub({
 
   const marketSession = useMemo(() => getPSXMarketSessionInfo(), []);
 
-  const rawList = useMemo(() => {
-    return Array.isArray(news) && news.length > 0 
+  // Filter out any non-financial articles from the news feed
+  const cleanNewsList = useMemo(() => {
+    const raw = Array.isArray(news) && news.length > 0 
       ? news 
       : (Array.isArray(newsList) ? newsList : []);
+
+    return raw.filter(item => !isNonFinancialNews(item.title, item.impactSummary || item.description));
   }, [news, newsList]);
 
   // Helper to dynamically calculate stock-specific trade setup & price targets
@@ -284,85 +336,57 @@ export default function NewsCatalystTradeHub({
       return stockNewsMap.get(upper);
     };
 
-    // 1. Ingest all news items into stock groupings
-    rawList.forEach((newsItem, nIdx) => {
-      const isPositiveNews = newsItem.sentiment === 'POSITIVE';
-      const upList = newsItem.upStocks || (newsItem.tradeSuggestions ? newsItem.tradeSuggestions.filter(t => t.direction === 'UP' || t.action?.startsWith('BUY')) : []);
-      const downList = newsItem.downStocks || (newsItem.tradeSuggestions ? newsItem.tradeSuggestions.filter(t => t.direction === 'DOWN' || t.action === 'SELL_EXIT') : []);
+    const knownTickers = [
+      { sym: 'PRL', name: 'Pakistan Refinery Limited', keywords: ['prl', 'pakistan refinery', 'refinery', 'crude oil'] },
+      { sym: 'OGDC', name: 'Oil & Gas Development Co', keywords: ['ogdc', 'oil & gas development'] },
+      { sym: 'PPL', name: 'Pakistan Petroleum Limited', keywords: ['ppl', 'pakistan petroleum'] },
+      { sym: 'LUCK', name: 'Lucky Cement Limited', keywords: ['luck', 'lucky cement'] },
+      { sym: 'MEBL', name: 'Meezan Bank Limited', keywords: ['mebl', 'meezan'] },
+      { sym: 'SYS', name: 'Systems Limited', keywords: ['sys', 'systems limited', 'it export'] },
+      { sym: 'PSO', name: 'Pakistan State Oil', keywords: ['pso', 'pakistan state oil', 'petroleum'] },
+      { sym: 'HUBC', name: 'The Hub Power Company', keywords: ['hubc', 'hubco', 'power'] },
+      { sym: 'INDU', name: 'Indus Motor Company', keywords: ['indu', 'toyota', 'indus motor'] },
+      { sym: 'FFC', name: 'Fauji Fertilizer Company', keywords: ['ffc', 'fauji fertilizer', 'urea'] },
+      { sym: 'DGKC', name: 'D.G. Khan Cement', keywords: ['dgkc', 'd.g. khan cement'] },
+      { sym: 'CNERGY', name: 'Cynergico PK Limited', keywords: ['cnergy', 'cynergico'] },
+      { sym: 'ATRL', name: 'Attock Refinery Limited', keywords: ['atrl', 'attock refinery'] }
+    ];
 
-      // Tag Up stocks (Positive Impact)
-      upList.forEach(trade => {
-        const sym = (trade?.symbol || '').toUpperCase().trim();
-        const entry = ensureStock(sym, trade?.name, newsItem.category);
-        if (entry) {
-          if (!entry.newsItems.some(n => n.title === newsItem.title)) {
-            entry.newsItems.push({
-              id: `news_${nIdx}`,
-              title: newsItem.title,
-              source: newsItem.source || 'Business Bureau',
-              timeAgo: newsItem.timeAgo || 'Recent',
-              polarity: 'POSITIVE',
-              tagLabel: '(Positive)',
-              tradeReason: trade?.tradeReason || `Positive catalyst: ${newsItem.title}`
-            });
-          }
-        }
-      });
+    // 1. Ingest all clean news items into stock groupings with GUARANTEED CONSISTENT SENTIMENT
+    cleanNewsList.forEach((newsItem, nIdx) => {
+      // Single global sentiment evaluated for this exact news article:
+      const articlePolarity = evaluateArticleSentiment(newsItem.title, newsItem.impactSummary || newsItem.description);
+      const tagLabel = articlePolarity === 'POSITIVE' ? '(Positive)' : '(Negative)';
 
-      // Tag Down stocks (Negative Impact)
-      downList.forEach(trade => {
-        const sym = (trade?.symbol || '').toUpperCase().trim();
-        const entry = ensureStock(sym, trade?.name, newsItem.category);
-        if (entry) {
-          if (!entry.newsItems.some(n => n.title === newsItem.title)) {
-            entry.newsItems.push({
-              id: `news_${nIdx}`,
-              title: newsItem.title,
-              source: newsItem.source || 'Business Bureau',
-              timeAgo: newsItem.timeAgo || 'Recent',
-              polarity: 'NEGATIVE',
-              tagLabel: '(Negative)',
-              tradeReason: trade?.tradeReason || `Downside risk: ${newsItem.title}`
-            });
-          }
-        }
-      });
+      const impactedStockSymbols = new Set();
 
-      // Also scan headlines for major PSX stocks
-      const knownTickers = [
-        { sym: 'PRL', name: 'Pakistan Refinery Limited', keywords: ['prl', 'pakistan refinery', 'refinery', 'crude oil'] },
-        { sym: 'OGDC', name: 'Oil & Gas Development Co', keywords: ['ogdc', 'oil & gas development'] },
-        { sym: 'PPL', name: 'Pakistan Petroleum Limited', keywords: ['ppl', 'pakistan petroleum'] },
-        { sym: 'LUCK', name: 'Lucky Cement Limited', keywords: ['luck', 'lucky cement'] },
-        { sym: 'MEBL', name: 'Meezan Bank Limited', keywords: ['mebl', 'meezan'] },
-        { sym: 'SYS', name: 'Systems Limited', keywords: ['sys', 'systems limited', 'it export'] },
-        { sym: 'PSO', name: 'Pakistan State Oil', keywords: ['pso', 'pakistan state oil', 'petroleum'] },
-        { sym: 'HUBC', name: 'The Hub Power Company', keywords: ['hubc', 'hubco', 'power'] },
-        { sym: 'INDU', name: 'Indus Motor Company', keywords: ['indu', 'toyota', 'indus motor'] },
-        { sym: 'FFC', name: 'Fauji Fertilizer Company', keywords: ['ffc', 'fauji fertilizer', 'urea'] },
-        { sym: 'DGKC', name: 'D.G. Khan Cement', keywords: ['dgkc', 'd.g. khan cement'] },
-        { sym: 'CNERGY', name: 'Cynergico PK Limited', keywords: ['cnergy', 'cynergico'] },
-        { sym: 'ATRL', name: 'Attock Refinery Limited', keywords: ['atrl', 'attock refinery'] }
-      ];
+      // Collect stocks directly mentioned or related to this news:
+      (newsItem.upStocks || []).forEach(s => s?.symbol && impactedStockSymbols.add(s.symbol.toUpperCase().trim()));
+      (newsItem.downStocks || []).forEach(s => s?.symbol && impactedStockSymbols.add(s.symbol.toUpperCase().trim()));
+      (newsItem.tradeSuggestions || []).forEach(s => s?.symbol && impactedStockSymbols.add(s.symbol.toUpperCase().trim()));
 
       const lowerTitle = (newsItem.title || '').toLowerCase();
       knownTickers.forEach(t => {
-        const matches = t.keywords.some(k => lowerTitle.includes(k));
-        if (matches) {
-          const entry = ensureStock(t.sym, t.name, newsItem.category);
-          if (entry && !entry.newsItems.some(n => n.title === newsItem.title)) {
-            entry.newsItems.push({
-              id: `news_${nIdx}`,
-              title: newsItem.title,
-              source: newsItem.source || 'Business Bureau',
-              timeAgo: newsItem.timeAgo || 'Recent',
-              polarity: isPositiveNews ? 'POSITIVE' : 'NEGATIVE',
-              tagLabel: isPositiveNews ? '(Positive)' : '(Negative)',
-              tradeReason: isPositiveNews 
-                ? `Favorable industry catalyst: ${newsItem.title}` 
-                : `Sector headwind: ${newsItem.title}`
-            });
-          }
+        if (t.keywords.some(k => lowerTitle.includes(k))) {
+          impactedStockSymbols.add(t.sym);
+        }
+      });
+
+      // Add to each impacted stock with the EXACT same articlePolarity
+      impactedStockSymbols.forEach(sym => {
+        const entry = ensureStock(sym, sym, newsItem.category);
+        if (entry && !entry.newsItems.some(n => n.title === newsItem.title)) {
+          entry.newsItems.push({
+            id: `news_${nIdx}`,
+            title: newsItem.title,
+            source: newsItem.source || 'Business Bureau',
+            timeAgo: newsItem.timeAgo || 'Recent',
+            polarity: articlePolarity,
+            tagLabel: tagLabel,
+            tradeReason: articlePolarity === 'POSITIVE' 
+              ? `Positive market driver: ${newsItem.title}` 
+              : `Adverse headwind: ${newsItem.title}`
+          });
         }
       });
     });
@@ -438,7 +462,7 @@ export default function NewsCatalystTradeHub({
     });
 
     return results.sort((a, b) => b.totalCount - a.totalCount || b.confidence - a.confidence);
-  }, [rawList, stocks]);
+  }, [cleanNewsList, stocks]);
 
   // Filter Consolidated Stocks by Category, Sentiment, and Search Query
   const filteredStocks = useMemo(() => {
@@ -462,9 +486,10 @@ export default function NewsCatalystTradeHub({
 
   // Filter Chronological News Feed
   const filteredNewsFeed = useMemo(() => {
-    return rawList.filter(n => {
+    return cleanNewsList.filter(n => {
+      const globalPol = evaluateArticleSentiment(n.title, n.impactSummary || n.description);
       const matchCategory = selectedCategory === 'ALL' || n.category === selectedCategory;
-      const matchSentiment = selectedSentiment === 'ALL' || n.sentiment === selectedSentiment;
+      const matchSentiment = selectedSentiment === 'ALL' || globalPol === selectedSentiment;
       
       let matchSearch = true;
       if (searchQuery.trim()) {
@@ -478,7 +503,7 @@ export default function NewsCatalystTradeHub({
 
       return matchCategory && matchSentiment && matchSearch;
     });
-  }, [rawList, selectedCategory, selectedSentiment, searchQuery]);
+  }, [cleanNewsList, selectedCategory, selectedSentiment, searchQuery]);
 
   return (
     <div className="space-y-5">
@@ -529,7 +554,7 @@ export default function NewsCatalystTradeHub({
                 </span>
               </div>
               <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
-                Aggregates all concurrent news articles into a <b>single unified net signal per stock</b> with dynamic volatility price targets and explicit catalyst breakdown.
+                Aggregates all concurrent financial news into a <b>single unified net signal per stock</b> with 100% consistent catalyst sentiment.
               </p>
             </div>
           </div>
@@ -556,7 +581,7 @@ export default function NewsCatalystTradeHub({
               }`}
             >
               <Newspaper className="w-3.5 h-3.5" />
-              <span>Article News Feed ({rawList.length})</span>
+              <span>Financial News Feed ({cleanNewsList.length})</span>
             </button>
           </div>
         </div>
@@ -768,7 +793,7 @@ export default function NewsCatalystTradeHub({
                       </p>
 
                       {/* ========================================================================= */}
-                      {/* MULTI-NEWS IMPACT CATALYSTS LIST (Explicit Positive/Negative Tags)         */}
+                      {/* MULTI-NEWS IMPACT CATALYSTS LIST (Explicit Consistent Positive/Negative)   */}
                       {/* ========================================================================= */}
                       <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-3 border border-[#E2E8F0] dark:border-[#243044] mb-3 space-y-2">
                         <div className="flex items-center justify-between text-xs font-bold">
@@ -782,7 +807,7 @@ export default function NewsCatalystTradeHub({
                           </span>
                         </div>
 
-                        {/* List of News Items with explicit tags */}
+                        {/* List of News Items with guaranteed consistent tags */}
                         <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-0.5">
                           {stockData.newsItems.map((newsItem, nIdx) => {
                             const isPos = newsItem.polarity === 'POSITIVE';
@@ -877,11 +902,12 @@ export default function NewsCatalystTradeHub({
         <div className="space-y-4">
           {filteredNewsFeed.length === 0 ? (
             <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-12 text-center text-[#64748B] dark:text-[#94A3B8]">
-              <p>No news matching this filter. Try clearing the search or category filter.</p>
+              <p>No financial news matching this filter. Try clearing the search or category filter.</p>
             </div>
           ) : (
             filteredNewsFeed.map((item, idx) => {
-              const isPositive = item.sentiment === 'POSITIVE';
+              const articlePol = evaluateArticleSentiment(item.title, item.impactSummary || item.description);
+              const isPositive = articlePol === 'POSITIVE';
               const upList = item.upStocks || (item.tradeSuggestions ? item.tradeSuggestions.filter(t => t.direction === 'UP' || t.action?.startsWith('BUY')) : []);
               const downList = item.downStocks || (item.tradeSuggestions ? item.tradeSuggestions.filter(t => t.direction === 'DOWN' || t.action === 'SELL_EXIT') : []);
 
@@ -899,7 +925,7 @@ export default function NewsCatalystTradeHub({
                           : 'bg-[#DC2626]/10 text-[#DC2626] border-[#DC2626]/20 dark:bg-[#EF4444]/10 dark:text-[#EF4444] dark:border-[#EF4444]/20'
                       }`}>
                         {isPositive ? <TrendingUp className="w-3.5 h-3.5 mr-1" /> : <TrendingDown className="w-3.5 h-3.5 mr-1" />}
-                        {item.sentiment} CATALYST
+                        {articlePol} CATALYST
                       </span>
 
                       <span className="px-2.5 py-1 rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] border border-[#E2E8F0] dark:border-[#243044] font-bold">
@@ -917,7 +943,7 @@ export default function NewsCatalystTradeHub({
                     </div>
                   </div>
 
-                  {/* Headline with Explicit Positive / Negative Tagging for Associated Stocks */}
+                  {/* Headline with Consistent Tagging for Associated Stocks */}
                   <div className="space-y-1.5">
                     <h3 className="text-base sm:text-lg font-bold text-[#0F172A] dark:text-[#F8FAFC] tracking-tight leading-snug">
                       {item.title}
@@ -930,18 +956,26 @@ export default function NewsCatalystTradeHub({
                         <button
                           key={`up_${i}`}
                           onClick={() => { setSearchQuery(s.symbol); setViewMode('NET_STOCK_VIEW'); }}
-                          className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                          className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border transition-colors cursor-pointer ${
+                            isPositive 
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                              : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 hover:bg-red-500/20'
+                          }`}
                         >
-                          {s.symbol} (Positive)
+                          {s.symbol} ({isPositive ? 'Positive' : 'Negative'})
                         </button>
                       ))}
                       {downList.map((s, i) => (
                         <button
                           key={`down_${i}`}
                           onClick={() => { setSearchQuery(s.symbol); setViewMode('NET_STOCK_VIEW'); }}
-                          className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors cursor-pointer"
+                          className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border transition-colors cursor-pointer ${
+                            isPositive 
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                              : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 hover:bg-red-500/20'
+                          }`}
                         >
-                          {s.symbol} (Negative)
+                          {s.symbol} ({isPositive ? 'Positive' : 'Negative'})
                         </button>
                       ))}
                     </div>
