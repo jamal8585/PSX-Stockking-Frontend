@@ -504,40 +504,43 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
             </div>
           </div>
 
-          {/* Navigation Tabs: Chart, Fundamentals, Technicals */}
-          <div className="flex items-center space-x-1 sm:space-x-1.5 bg-[#070B12] p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border border-gray-800 shrink-0 overflow-x-auto scrollbar-none w-full sm:w-auto touch-pan-x">
+          {/* Navigation Tabs: Chart, Fundamentals, Technicals (Responsive 3-Col Equal Layout on Mobile) */}
+          <div className="grid grid-cols-3 sm:flex items-center gap-1 sm:space-x-1.5 bg-[#070B12] p-1 rounded-xl sm:rounded-2xl border border-gray-800 w-full sm:w-auto">
             <button
               onClick={() => setActiveTab('chart')}
-              className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 shrink-0 ${
+              className={`w-full sm:w-auto px-2 sm:px-3.5 py-2 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 whitespace-nowrap ${
                 activeTab === 'chart'
-                  ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/20'
+                  ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
-              <BarChart3 className="w-3.5 h-3.5" />
+              <BarChart3 className="w-3.5 h-3.5 shrink-0" />
               <span>Chart</span>
             </button>
             <button
               onClick={() => setActiveTab('fundamentals')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+              className={`w-full sm:w-auto px-2 sm:px-3.5 py-2 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 whitespace-nowrap ${
                 activeTab === 'fundamentals'
-                  ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/20'
+                  ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
-              <PieChart className="w-3.5 h-3.5" />
+              <PieChart className="w-3.5 h-3.5 shrink-0" />
               <span>Fundamentals</span>
             </button>
             <button
               onClick={() => setActiveTab('technicals')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+              className={`w-full sm:w-auto px-2 sm:px-3.5 py-2 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 whitespace-nowrap ${
                 activeTab === 'technicals'
-                  ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/20'
+                  ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
-              <Activity className="w-3.5 h-3.5" />
-              <span>Technical Intel</span>
+              <Activity className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                <span className="inline sm:hidden">Technicals</span>
+                <span className="hidden sm:inline">Technical Intel</span>
+              </span>
             </button>
           </div>
         </div>
