@@ -28,7 +28,6 @@ import {
   BarChart3,
   RefreshCw,
   Clock,
-  Compass,
   Zap,
   Info,
   Edit3
@@ -153,8 +152,7 @@ export default function TradingViewPSXChart({
     scaleMode: 'auto', // 'auto' | 'percent' | 'log'
     showVolume: true,
     showLegend: true,
-    showWatermark: true,
-    baselinePrice: null
+    showWatermark: true
   });
 
   // 6. Left Drawing Toolbar State
@@ -1085,25 +1083,25 @@ export default function TradingViewPSXChart({
                 <>
                   <div className="flex items-center space-x-1">
                     <span className="text-gray-500">O:</span>
-                    <span className="text-gray-200 font-bold">{activePt.open.toFixed(2)}</span>
+                    <span className="text-gray-200 font-bold">{Number(activePt.open).toFixed(2)}</span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <span className="text-gray-500">H:</span>
-                    <span className="text-emerald-400 font-bold">{activePt.high.toFixed(2)}</span>
+                    <span className="text-emerald-400 font-bold">{Number(activePt.high).toFixed(2)}</span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <span className="text-gray-500">L:</span>
-                    <span className="text-rose-400 font-bold">{activePt.low.toFixed(2)}</span>
+                    <span className="text-rose-400 font-bold">{Number(activePt.low).toFixed(2)}</span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <span className="text-gray-500">C:</span>
                     <span className={`font-black ${activePt.isBull ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      {activePt.close.toFixed(2)}
+                      {Number(activePt.close).toFixed(2)}
                     </span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <span className="text-gray-500">Vol:</span>
-                    <span className="text-cyan-400 font-bold">{(activePt.volume || 0).toLocaleString()}</span>
+                    <span className="text-cyan-400 font-bold">{(Number(activePt.volume) || 0).toLocaleString()}</span>
                   </div>
                 </>
               )}
@@ -1120,22 +1118,22 @@ export default function TradingViewPSXChart({
 
           {/* Active Overlay Indicators Legend */}
           <div className="absolute top-8 left-3 z-10 flex flex-col space-y-0.5 text-[10px] font-mono pointer-events-none">
-            {activeIndicators.sma20 && (
+            {activeIndicators.sma20 && indicatorSeries.sma20 && (
               <span className="text-sky-400">SMA 20: {indicatorSeries.sma20[hoverIndex !== null ? hoverIndex : indicatorSeries.sma20.length - 1]?.toFixed(2) || '—'}</span>
             )}
-            {activeIndicators.sma50 && (
+            {activeIndicators.sma50 && indicatorSeries.sma50 && (
               <span className="text-amber-400">SMA 50: {indicatorSeries.sma50[hoverIndex !== null ? hoverIndex : indicatorSeries.sma50.length - 1]?.toFixed(2) || '—'}</span>
             )}
-            {activeIndicators.sma200 && (
+            {activeIndicators.sma200 && indicatorSeries.sma200 && (
               <span className="text-pink-400">SMA 200: {indicatorSeries.sma200[hoverIndex !== null ? hoverIndex : indicatorSeries.sma200.length - 1]?.toFixed(2) || '—'}</span>
             )}
-            {activeIndicators.ema9 && (
+            {activeIndicators.ema9 && indicatorSeries.ema9 && (
               <span className="text-purple-400">EMA 9: {indicatorSeries.ema9[hoverIndex !== null ? hoverIndex : indicatorSeries.ema9.length - 1]?.toFixed(2) || '—'}</span>
             )}
-            {activeIndicators.bollinger && (
+            {activeIndicators.bollinger && indicatorSeries.bbUpper && (
               <span className="text-indigo-400">BB (20, 2): {indicatorSeries.bbUpper[hoverIndex !== null ? hoverIndex : indicatorSeries.bbUpper.length - 1]?.toFixed(2)} / {indicatorSeries.bbLower[hoverIndex !== null ? hoverIndex : indicatorSeries.bbLower.length - 1]?.toFixed(2)}</span>
             )}
-            {activeIndicators.vwap && (
+            {activeIndicators.vwap && indicatorSeries.vwap && (
               <span className="text-orange-400">VWAP: {indicatorSeries.vwap[hoverIndex !== null ? hoverIndex : indicatorSeries.vwap.length - 1]?.toFixed(2) || '—'}</span>
             )}
           </div>
@@ -1321,13 +1319,13 @@ export default function TradingViewPSXChart({
                   {chartType === 'hlc_area' && (
                     <g>
                       <path
-                        d={`${chartDims.points.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '')} ${chartDims.points.slice().reverse().reduce((acc, pt) => `${acc} L ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '')} Z`}
+                        d={`${chartDims.points.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.yHigh.toFixed(1)}`, '')} ${chartDims.points.slice().reverse().reduce((acc, pt) => `${acc} L ${pt.x.toFixed(1)} ${pt.yLow.toFixed(1)}`, '')} Z`}
                         fill="rgba(56, 189, 248, 0.2)"
                         stroke="#38BDF8"
                         strokeWidth="1"
                       />
                       <path
-                        d={chartDims.points.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '')}
+                        d={chartDims.points.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.yClose.toFixed(1)}`, '')}
                         fill="none"
                         stroke="#0284C7"
                         strokeWidth="2"
@@ -1383,34 +1381,34 @@ export default function TradingViewPSXChart({
               )}
 
               {/* 2. OVERLAY INDICATORS */}
-              {activeIndicators.sma20 && (
+              {activeIndicators.sma20 && indicatorSeries.sma20 && (
                 <path d={buildSvgPath(indicatorSeries.sma20)} fill="none" stroke="#38BDF8" strokeWidth="1.8" />
               )}
-              {activeIndicators.sma50 && (
+              {activeIndicators.sma50 && indicatorSeries.sma50 && (
                 <path d={buildSvgPath(indicatorSeries.sma50)} fill="none" stroke="#F59E0B" strokeWidth="1.8" />
               )}
-              {activeIndicators.sma200 && (
+              {activeIndicators.sma200 && indicatorSeries.sma200 && (
                 <path d={buildSvgPath(indicatorSeries.sma200)} fill="none" stroke="#EC4899" strokeWidth="2" />
               )}
-              {activeIndicators.ema9 && (
+              {activeIndicators.ema9 && indicatorSeries.ema9 && (
                 <path d={buildSvgPath(indicatorSeries.ema9)} fill="none" stroke="#A855F7" strokeWidth="1.5" />
               )}
-              {activeIndicators.ema21 && (
+              {activeIndicators.ema21 && indicatorSeries.ema21 && (
                 <path d={buildSvgPath(indicatorSeries.ema21)} fill="none" stroke="#10B981" strokeWidth="1.5" />
               )}
-              {activeIndicators.bollinger && (
+              {activeIndicators.bollinger && indicatorSeries.bbUpper && indicatorSeries.bbLower && (
                 <g>
                   <path d={buildSvgPath(indicatorSeries.bbUpper)} fill="none" stroke="#6366F1" strokeWidth="1.2" strokeDasharray="3 3" />
                   <path d={buildSvgPath(indicatorSeries.bbLower)} fill="none" stroke="#6366F1" strokeWidth="1.2" strokeDasharray="3 3" />
                 </g>
               )}
-              {activeIndicators.vwap && (
+              {activeIndicators.vwap && indicatorSeries.vwap && (
                 <path d={buildSvgPath(indicatorSeries.vwap)} fill="none" stroke="#F97316" strokeWidth="2" strokeDasharray="4 2" />
               )}
-              {activeIndicators.supertrend && (
+              {activeIndicators.supertrend && indicatorSeries.supertrend && (
                 <path d={buildSvgPath(indicatorSeries.supertrend)} fill="none" stroke="#10B981" strokeWidth="2.5" />
               )}
-              {activeIndicators.sar && (
+              {activeIndicators.sar && indicatorSeries.sar && (
                 <g>
                   {indicatorSeries.sar.map((val, idx) => {
                     if (!chartDims.points[idx]) return null;
@@ -1445,7 +1443,9 @@ export default function TradingViewPSXChart({
                     />
                   ))}
                   {/* Volume 20 MA line */}
-                  <path d={buildSvgPath(indicatorSeries.volumeMA.map(v => (v ? chartDims.minPrice + (v / chartDims.maxVol) * chartDims.priceRange : null)))} fill="none" stroke="#38BDF8" strokeWidth="1" opacity="0.7" />
+                  {indicatorSeries.volumeMA && (
+                    <path d={buildSvgPath(indicatorSeries.volumeMA.map(v => (v ? chartDims.minPrice + (v / chartDims.maxVol) * chartDims.priceRange : null)))} fill="none" stroke="#38BDF8" strokeWidth="1" opacity="0.7" />
+                  )}
                 </g>
               )}
 
@@ -1463,7 +1463,7 @@ export default function TradingViewPSXChart({
                     </text>
 
                     {/* RSI Panel */}
-                    {panel === 'rsi' && (
+                    {panel === 'rsi' && indicatorSeries.rsi && (
                       <g>
                         {/* 70/30 Overbought/Oversold reference levels */}
                         <line x1={paddingLeft} y1={panelTop + subPanelHeight * 0.3} x2={svgWidth - paddingRight} y2={panelTop + subPanelHeight * 0.3} stroke="#EF4444" strokeDasharray="2 2" opacity="0.5" />
@@ -1482,7 +1482,7 @@ export default function TradingViewPSXChart({
                     )}
 
                     {/* MACD Panel */}
-                    {panel === 'macd' && (
+                    {panel === 'macd' && indicatorSeries.macd && (
                       <g>
                         {chartDims.points.map((pt, i) => {
                           const hist = indicatorSeries.macd.hist[i] || 0;
@@ -1599,7 +1599,7 @@ export default function TradingViewPSXChart({
                   <g transform={`translate(${svgWidth - paddingRight + 2}, ${(mouseCoord.y > 0 && mouseCoord.y < svgHeight - paddingBottom ? mouseCoord.y : activePt.y) - 9})`}>
                     <rect width="62" height="18" fill="#0284C7" rx="3" />
                     <text x="31" y="12" fill="#FFFFFF" fontSize="9.5" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
-                      {mouseCoord.price ? mouseCoord.price.toFixed(2) : activePt.close.toFixed(2)}
+                      {mouseCoord.price ? Number(mouseCoord.price).toFixed(2) : Number(activePt.close).toFixed(2)}
                     </text>
                   </g>
 
@@ -1619,7 +1619,7 @@ export default function TradingViewPSXChart({
                 <g transform={`translate(${svgWidth - paddingRight + 2}, ${(chartDims.points[chartDims.points.length - 1]?.y || 100) - 9})`}>
                   <rect width="62" height="18" fill={isBullish ? '#10B981' : '#EF4444'} rx="3" />
                   <text x="31" y="12" fill="#FFFFFF" fontSize="9.5" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
-                    {currentPrice.toFixed(2)}
+                    {Number(currentPrice).toFixed(2)}
                   </text>
                 </g>
               </g>
@@ -1635,7 +1635,7 @@ export default function TradingViewPSXChart({
         </div>
       </div>
 
-      {/* 3. BOTTOM TIMEFRAME RANGES & SCALE CONTROLS TOOLBAR matching screenshot */}
+      {/* 3. BOTTOM TIMEFRAME RANGES & SCALE CONTROLS TOOLBAR */}
       <div className="flex flex-wrap items-center justify-between px-3 py-1.5 bg-[#0A0E1A] border-t border-gray-800 text-[11px] font-mono shrink-0">
         {/* Left: Quick Date Range Buttons (1d, 5d, 1m, 6m, 1y, 3y, All) */}
         <div className="flex items-center space-x-1">
@@ -1896,7 +1896,7 @@ export default function TradingViewPSXChart({
               {Object.entries(officialQuotes || {})
                 .filter(([sym, q]) => {
                   const qry = searchQuery.toLowerCase();
-                  return sym.toLowerCase().includes(qry) || (q.name && q.name.toLowerCase().includes(qry)) || (q.sector && q.sector.toLowerCase().includes(qry));
+                  return sym.toLowerCase().includes(qry) || (q?.name && q.name.toLowerCase().includes(qry)) || (q?.sector && q.sector.toLowerCase().includes(qry));
                 })
                 .slice(0, 25)
                 .map(([sym, q]) => (
@@ -1913,14 +1913,14 @@ export default function TradingViewPSXChart({
                     <div>
                       <div className="flex items-center space-x-2">
                         <span className="font-mono font-black text-white group-hover:text-cyan-400">{sym}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400">{q.sector || 'PSX'}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400">{q?.sector || 'PSX'}</span>
                       </div>
-                      <div className="text-xs text-gray-400 truncate max-w-xs">{q.name || sym}</div>
+                      <div className="text-xs text-gray-400 truncate max-w-xs">{q?.name || sym}</div>
                     </div>
                     <div className="text-right font-mono">
-                      <div className="text-white font-bold">PKR {Number(q.currentPrice || 0).toFixed(2)}</div>
-                      <div className={`text-xs ${Number(q.change || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {Number(q.change || 0) >= 0 ? '+' : ''}{Number(q.changePercent || 0).toFixed(2)}%
+                      <div className="text-white font-bold">PKR {Number(q?.currentPrice || 0).toFixed(2)}</div>
+                      <div className={`text-xs ${Number(q?.change || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {Number(q?.change || 0) >= 0 ? '+' : ''}{Number(q?.changePercent || 0).toFixed(2)}%
                       </div>
                     </div>
                   </button>
@@ -1974,7 +1974,7 @@ export default function TradingViewPSXChart({
                     className="w-full text-left px-3 py-2 rounded-xl hover:bg-gray-800 flex items-center justify-between text-xs"
                   >
                     <span className="font-mono font-bold text-white">{sym}</span>
-                    <span className="text-amber-400 font-mono">PKR {Number(q.currentPrice || 0).toFixed(2)}</span>
+                    <span className="text-amber-400 font-mono">PKR {Number(q?.currentPrice || 0).toFixed(2)}</span>
                   </button>
                 ))}
             </div>

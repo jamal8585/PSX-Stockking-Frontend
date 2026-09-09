@@ -28,72 +28,12 @@ import {
   ArrowRight
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
-import { SECTOR_CATEGORIES, MASTER_STOCKS_LIST } from './NewsCatalystTradeHub';
-
-// Intelligent PSX Market Session & Weekend Calendar Engine
-export function getPSXMarketSessionInfo() {
-  const now = new Date();
-  
-  // Calculate Pakistan Standard Time (PKT is UTC+5)
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const pktDate = new Date(utc + (3600000 * 5));
-  
-  const day = pktDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 5 = Friday, 6 = Saturday
-  const hours = pktDate.getHours();
-  const minutes = pktDate.getMinutes();
-  const timeNum = hours * 100 + minutes;
-
-  let targetDate = new Date(pktDate);
-  let isWeekend = false;
-  let statusBadge = '';
-  let subText = '';
-  let isFridayEod = false;
-
-  if (day === 6) { // Saturday
-    isWeekend = true;
-    targetDate.setDate(pktDate.getDate() + 2); // Monday (+2)
-    statusBadge = '🛑 Weekend Closed (Sat & Sun Off)';
-    subText = `Signals Active for Upcoming Monday Open (${targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })})`;
-  } else if (day === 0) { // Sunday
-    isWeekend = true;
-    targetDate.setDate(pktDate.getDate() + 1); // Monday (+1)
-    statusBadge = '🛑 Weekend Closed (Sunday Off)';
-    subText = `Signals Active for Tomorrow's Monday Open (${targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })})`;
-  } else if (day === 5 && timeNum >= 1600) { // Friday after 04:00 PM (Market Closed)
-    isFridayEod = true;
-    targetDate.setDate(pktDate.getDate() + 3); // Monday (+3)
-    statusBadge = '📅 Friday Session Closed • Weekend Off';
-    subText = `Friday EOD Signals Active for Upcoming Monday Session (${targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })})`;
-  } else if (timeNum >= 1600) { // Mon-Thu after 04:00 PM
-    targetDate.setDate(pktDate.getDate() + 1); // Next day
-    statusBadge = `📅 Post-Market Analysis`;
-    subText = `Actionable for Tomorrow's PSX Market Open (${targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })})`;
-  } else { // Mon-Fri active trading day (00:00 to 16:00 PKT)
-    targetDate = pktDate;
-    statusBadge = `🟢 Active Trading Session: Today, ${pktDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}`;
-    subText = `Effective & Actionable for Today's PSX Market (09:30 AM PKT)`;
-  }
-
-  const sessionDateFormatted = targetDate.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  });
-
-  const cardDateFormatted = (isWeekend || isFridayEod) 
-    ? `For Mon: ${targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}`
-    : `Active: ${targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}`;
-
-  return {
-    isWeekend,
-    isFridayEod,
-    statusBadge,
-    subText,
-    sessionDateFormatted,
-    cardDateFormatted
-  };
-}
+import { 
+  SECTOR_CATEGORIES, 
+  MASTER_STOCKS_LIST, 
+  getPSXMarketSessionInfo 
+} from '../utils/marketSession';
+export { getPSXMarketSessionInfo };
 
 // Generate Last N PSX Trading Days (skips Saturday and Sunday)
 export function getPSXRecentTradingSessions(count = 5) {
