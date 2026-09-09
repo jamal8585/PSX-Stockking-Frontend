@@ -187,6 +187,42 @@ export default function TradingViewPSXChart({
   const svgRef = useRef(null);
   const containerRef = useRef(null);
 
+  // Convert officialQuotes object map to a safe array for fast searching
+  const allStockList = useMemo(() => {
+    if (!officialQuotes) return [];
+    if (Array.isArray(officialQuotes)) return officialQuotes;
+    if (typeof officialQuotes === 'object') return Object.values(officialQuotes);
+    return [];
+  }, []);
+
+  // Filtered search list for Symbol Search Modal
+  const filteredSearchList = useMemo(() => {
+    if (!allStockList || allStockList.length === 0) return [];
+    if (!searchQuery.trim()) return allStockList.slice(0, 40);
+    const q = searchQuery.toLowerCase().trim();
+    return allStockList
+      .filter(item => {
+        const sym = (item?.symbol || '').toLowerCase();
+        const nm = (item?.name || item?.sector || '').toLowerCase();
+        return sym.includes(q) || nm.includes(q);
+      })
+      .slice(0, 40);
+  }, [allStockList, searchQuery]);
+
+  // Filtered compare list for Compare Modal
+  const filteredCompareList = useMemo(() => {
+    if (!allStockList || allStockList.length === 0) return [];
+    if (!compareQuery.trim()) return allStockList.slice(0, 20);
+    const q = compareQuery.toLowerCase().trim();
+    return allStockList
+      .filter(item => {
+        const sym = (item?.symbol || '').toLowerCase();
+        const nm = (item?.name || item?.sector || '').toLowerCase();
+        return sym.includes(q) || nm.includes(q);
+      })
+      .slice(0, 20);
+  }, [allStockList, compareQuery]);
+
   // Update current symbol when prop changes
   useEffect(() => {
     if (symbol) setCurrentSymbol(symbol);
@@ -2083,32 +2119,34 @@ export default function TradingViewPSXChart({
             </div>
 
             <div className="p-2 overflow-y-auto space-y-1 flex-1 max-h-96">
-              {(officialQuotes || [])
-                .filter(q => !searchQuery || q.symbol.toLowerCase().includes(searchQuery.toLowerCase()) || (q.name && q.name.toLowerCase().includes(searchQuery.toLowerCase())))
-                .slice(0, 30)
-                .map(q => (
-                  <button
-                    key={q.symbol}
-                    onClick={() => {
-                      setCurrentSymbol(q.symbol);
-                      if (onSelectStock) onSelectStock(q);
-                      setShowSearchModal(false);
-                      setSearchQuery('');
-                    }}
-                    className="w-full text-left p-2.5 hover:bg-gray-800/80 rounded-xl flex items-center justify-between transition-colors cursor-pointer"
-                  >
-                    <div>
-                      <div className="font-extrabold text-white font-mono text-sm">{q.symbol}</div>
-                      <div className="text-[11px] text-gray-400 truncate max-w-xs">{q.name || q.sector}</div>
+              {filteredSearchList.map(q => (
+                <button
+                  key={q.symbol}
+                  onClick={() => {
+                    setCurrentSymbol(q.symbol);
+                    if (onSelectStock) onSelectStock(q);
+                    setShowSearchModal(false);
+                    setSearchQuery('');
+                  }}
+                  className="w-full text-left p-2.5 hover:bg-gray-800/80 rounded-xl flex items-center justify-between transition-colors cursor-pointer"
+                >
+                  <div>
+                    <div className="font-extrabold text-white font-mono text-sm">{q.symbol}</div>
+                    <div className="text-[11px] text-gray-400 truncate max-w-xs">{q.name || q.sector}</div>
+                  </div>
+                  <div className="text-right font-mono">
+                    <div className="text-sm font-bold text-gray-200">Rs. {Number(q.currentPrice || 0).toFixed(2)}</div>
+                    <div className={`text-[11px] font-bold ${(q.change || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {(q.change || 0) >= 0 ? '+' : ''}{Number(q.change || 0).toFixed(2)} ({(q.changePercent || 0) >= 0 ? '+' : ''}{Number(q.changePercent || 0).toFixed(2)}%)
                     </div>
-                    <div className="text-right font-mono">
-                      <div className="text-sm font-bold text-gray-200">Rs. {Number(q.currentPrice || 0).toFixed(2)}</div>
-                      <div className={`text-[11px] font-bold ${(q.change || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {(q.change || 0) >= 0 ? '+' : ''}{Number(q.change || 0).toFixed(2)} ({(q.changePercent || 0) >= 0 ? '+' : ''}{Number(q.changePercent || 0).toFixed(2)}%)
-                      </div>
-                    </div>
-                  </button>
-                ))}
+                  </div>
+                </button>
+              ))}
+              {filteredSearchList.length === 0 && (
+                <div className="text-center py-8 text-gray-500 text-xs font-mono">
+                  No stocks match "{searchQuery}"
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -2138,23 +2176,25 @@ export default function TradingViewPSXChart({
               />
 
               <div className="max-h-60 overflow-y-auto space-y-1">
-                {(officialQuotes || [])
-                  .filter(q => !compareQuery || q.symbol.toLowerCase().includes(compareQuery.toLowerCase()))
-                  .slice(0, 15)
-                  .map(q => (
-                    <button
-                      key={q.symbol}
-                      onClick={() => {
-                        setCompareSymbol(q.symbol);
-                        setShowCompareModal(false);
-                        setCompareQuery('');
-                      }}
-                      className="w-full text-left p-2 hover:bg-gray-800 rounded-lg flex items-center justify-between text-xs cursor-pointer"
-                    >
-                      <span className="font-mono font-bold text-amber-300">{q.symbol}</span>
-                      <span className="text-gray-400 font-mono">Rs. {Number(q.currentPrice || 0).toFixed(2)}</span>
-                    </button>
-                  ))}
+                {filteredCompareList.map(q => (
+                  <button
+                    key={q.symbol}
+                    onClick={() => {
+                      setCompareSymbol(q.symbol);
+                      setShowCompareModal(false);
+                      setCompareQuery('');
+                    }}
+                    className="w-full text-left p-2 hover:bg-gray-800 rounded-lg flex items-center justify-between text-xs cursor-pointer"
+                  >
+                    <span className="font-mono font-bold text-amber-300">{q.symbol}</span>
+                    <span className="text-gray-400 font-mono">Rs. {Number(q.currentPrice || 0).toFixed(2)}</span>
+                  </button>
+                ))}
+                {filteredCompareList.length === 0 && (
+                  <div className="text-center py-6 text-gray-500 text-xs font-mono">
+                    No matching stocks found
+                  </div>
+                )}
               </div>
 
               {compareSymbol && (
