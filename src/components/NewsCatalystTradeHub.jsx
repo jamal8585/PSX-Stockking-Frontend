@@ -148,6 +148,42 @@ export const isNonFinancialNews = (title = '', desc = '') => {
   return nonFinancialKeywords.some(kw => text.includes(kw));
 };
 
+// Strict PSX Rolling Market Session Cutoff Engine (Discards stale >24-36h weekday / >72h weekend news)
+export function getActiveSessionNewsCutoffDate() {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const pktDate = new Date(utc + (3600000 * 5));
+  
+  const day = pktDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 5 = Friday, 6 = Saturday
+  const hours = pktDate.getHours();
+  const minutes = pktDate.getMinutes();
+  const timeNum = hours * 100 + minutes;
+
+  let maxAgeHours = 36;
+  if (day === 6) { // Saturday
+    maxAgeHours = 48;
+  } else if (day === 0) { // Sunday
+    maxAgeHours = 72;
+  } else if (day === 1 && timeNum < 1600) { // Monday trading session & pre-market
+    maxAgeHours = 80;
+  } else if (day === 5 && timeNum >= 1600) { // Friday post-market
+    maxAgeHours = 36;
+  } else {
+    maxAgeHours = 36;
+  }
+
+  const cutoffMs = Date.now() - (maxAgeHours * 60 * 60 * 1000);
+  return new Date(cutoffMs);
+}
+
+export function isWithinActiveMarketSession(date) {
+  if (!date) return true; // fallback if date is omitted
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return true;
+  const cutoff = getActiveSessionNewsCutoffDate();
+  return d.getTime() >= cutoff.getTime();
+}
+
 export const SECTOR_CATEGORIES = [
   { id: 'OIL_GAS', label: 'Oil, Gas & Refineries', icon: '🛢️' },
   { id: 'COMMERCIAL_BANKS', label: 'Commercial Banks', icon: '🏦' },
@@ -288,13 +324,16 @@ export default function NewsCatalystTradeHub({
 
   const marketSession = useMemo(() => getPSXMarketSessionInfo(), []);
 
-  // Filter out any non-financial articles from the news feed
+  // Filter out any non-financial articles and stale out-of-session news (>24-36h weekday / >72h weekend)
   const cleanNewsList = useMemo(() => {
     const raw = Array.isArray(news) && news.length > 0 
       ? news 
       : (Array.isArray(newsList) ? newsList : []);
 
-    return raw.filter(item => !isNonFinancialNews(item.title, item.impactSummary || item.description));
+    return raw.filter(item => 
+      !isNonFinancialNews(item.title, item.impactSummary || item.description) &&
+      isWithinActiveMarketSession(item.publishedAt)
+    );
   }, [news, newsList]);
 
   // Helper to dynamically calculate stock-specific trade setup & price targets
