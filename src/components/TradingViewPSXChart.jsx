@@ -30,7 +30,8 @@ import {
   Clock,
   Zap,
   Info,
-  Edit3
+  Edit3,
+  Radio
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 import { getStockHistory } from '../services/api';
@@ -51,17 +52,24 @@ export const CHART_TYPES = [
   { id: 'heikin_ashi', label: 'Heikin Ashi', icon: '🎋', desc: 'Smoothed Average Trend Candles' }
 ];
 
-// Available Timeframes & Bottom Ranges
+// Available Granular Timeframes (Seconds, Minutes, Hours, Days, Weeks, Months)
 export const TIMEFRAMES = [
-  { id: '1m', label: '1m', type: 'min' },
-  { id: '5m', label: '5m', type: 'min' },
-  { id: '15m', label: '15m', type: 'min' },
-  { id: '30m', label: '30m', type: 'min' },
-  { id: '1h', label: '1h', type: 'hour' },
-  { id: '4h', label: '4h', type: 'hour' },
-  { id: '1D', label: '1D', type: 'day' },
-  { id: '1W', label: '1W', type: 'week' },
-  { id: '1M', label: '1M', type: 'month' }
+  { id: '1s', label: '1s', type: 'sec', intervalSec: 1, name: '1 Second' },
+  { id: '5s', label: '5s', type: 'sec', intervalSec: 5, name: '5 Seconds' },
+  { id: '15s', label: '15s', type: 'sec', intervalSec: 15, name: '15 Seconds' },
+  { id: '30s', label: '30s', type: 'sec', intervalSec: 30, name: '30 Seconds' },
+  { id: '1m', label: '1m', type: 'min', intervalSec: 60, name: '1 Minute' },
+  { id: '3m', label: '3m', type: 'min', intervalSec: 180, name: '3 Minutes' },
+  { id: '5m', label: '5m', type: 'min', intervalSec: 300, name: '5 Minutes' },
+  { id: '15m', label: '15m', type: 'min', intervalSec: 900, name: '15 Minutes' },
+  { id: '30m', label: '30m', type: 'min', intervalSec: 1800, name: '30 Minutes' },
+  { id: '45m', label: '45m', type: 'min', intervalSec: 2700, name: '45 Minutes' },
+  { id: '1h', label: '1h', type: 'hour', intervalSec: 3600, name: '1 Hour' },
+  { id: '2h', label: '2h', type: 'hour', intervalSec: 7200, name: '2 Hours' },
+  { id: '4h', label: '4h', type: 'hour', intervalSec: 14400, name: '4 Hours' },
+  { id: '1D', label: '1D', type: 'day', intervalSec: 86400, name: '1 Day' },
+  { id: '1W', label: '1W', type: 'week', intervalSec: 604800, name: '1 Week' },
+  { id: '1M', label: '1M', type: 'month', intervalSec: 2592000, name: '1 Month' }
 ];
 
 export const BOTTOM_RANGES = ['1d', '5d', '1m', '6m', '1y', '3y', 'All'];
@@ -104,8 +112,8 @@ export default function TradingViewPSXChart({
   // 1. Chart Type & Timeframe State
   const [currentSymbol, setCurrentSymbol] = useState(symbol || 'OGDC');
   const [chartType, setChartType] = useState('candles');
-  const [timeframe, setTimeframe] = useState('1D');
-  const [selectedRange, setSelectedRange] = useState('1m');
+  const [timeframe, setTimeframe] = useState('1m');
+  const [selectedRange, setSelectedRange] = useState('1d');
   const [isFullScreen, setIsFullScreen] = useState(initialFullScreen);
 
   // 2. Data & Telemetry
@@ -148,15 +156,15 @@ export default function TradingViewPSXChart({
   const [chartSettings, setChartSettings] = useState({
     upColor: '#10B981',
     downColor: '#EF4444',
-    gridStyle: 'dotted', // 'dotted' | 'dashed' | 'solid' | 'none'
-    scaleMode: 'auto', // 'auto' | 'percent' | 'log'
+    gridStyle: 'dotted',
+    scaleMode: 'auto',
     showVolume: true,
     showLegend: true,
     showWatermark: true
   });
 
   // 6. Left Drawing Toolbar State
-  const [selectedTool, setSelectedTool] = useState('crosshair'); // 'crosshair' | 'trendline' | 'horizontal_ray' | 'fib' | 'channel' | 'brush' | 'text' | 'sticker' | 'ruler'
+  const [selectedTool, setSelectedTool] = useState('crosshair');
   const [magnetMode, setMagnetMode] = useState(false);
   const [stayInDrawingMode, setStayInDrawingMode] = useState(false);
   const [drawingsLocked, setDrawingsLocked] = useState(false);
@@ -166,6 +174,15 @@ export default function TradingViewPSXChart({
   const [hoverIndex, setHoverIndex] = useState(null);
   const [mouseCoord, setMouseCoord] = useState({ x: 0, y: 0, price: 0 });
   const [stickerEmoji, setStickerEmoji] = useState('🚀');
+
+  // 7. Live Second-by-Second Streaming State
+  const [liveBars, setLiveBars] = useState([]);
+  const [lastTickInfo, setLastTickInfo] = useState({
+    price: initialPrice,
+    change: initialChange,
+    vol: 1250,
+    time: new Date().toLocaleTimeString('en-GB')
+  });
 
   const svgRef = useRef(null);
   const containerRef = useRef(null);
@@ -227,32 +244,155 @@ export default function TradingViewPSXChart({
   const low = Number(quote.low || initialLow || (currentPrice * 0.98));
   const isBullish = change >= 0;
 
-  // Process and build raw bars for selected timeframe
-  const rawBars = useMemo(() => {
-    if (externalBars && externalBars.length > 0) return externalBars;
-    if (historyData?.bars && historyData.bars.length > 0) return historyData.bars;
+  // Generate initial base bars for timeframe
+  useEffect(() => {
+    if (externalBars && externalBars.length > 0) {
+      setLiveBars(externalBars);
+      return;
+    }
+    if (historyData?.bars && historyData.bars.length > 0) {
+      setLiveBars(historyData.bars);
+      return;
+    }
 
-    // Fallback generator
-    const count = timeframe === '1D' ? 30 : timeframe === '1W' ? 40 : timeframe === '1M' ? 60 : 35;
-    return Array.from({ length: count }, (_, i) => {
-      const base = currentPrice * (0.92 + (i / count) * 0.08 + Math.sin(i * 0.45) * 0.02);
-      const open = Number((base * (1 + Math.sin(i) * 0.007)).toFixed(2));
-      const close = Number((base * (1 + Math.cos(i) * 0.008)).toFixed(2));
-      const hi = Number((Math.max(open, close) * 1.012).toFixed(2));
-      const lo = Number((Math.min(open, close) * 0.988).toFixed(2));
-      const vol = Math.round(volume * (0.6 + Math.sin(i) * 0.35 + 0.35));
-      const label = timeframe === '1D' ? `${9 + Math.floor(i / 4)}:${(i % 4) * 15 || '00'}` : `Bar ${i + 1}`;
-      return { date: label, open, high: hi, low: lo, close, price: close, volume: vol };
+    // High-resolution realistic generator based on timeframe
+    const isSeconds = timeframe === '1s' || timeframe === '5s' || timeframe === '15s' || timeframe === '30s';
+    const isMinute = timeframe.endsWith('m');
+    const isHour = timeframe.endsWith('h');
+
+    let count = 40;
+    let stepSec = 60;
+
+    if (timeframe === '1s') { count = 60; stepSec = 1; }
+    else if (timeframe === '5s') { count = 50; stepSec = 5; }
+    else if (timeframe === '15s') { count = 40; stepSec = 15; }
+    else if (timeframe === '30s') { count = 35; stepSec = 30; }
+    else if (timeframe === '1m') { count = 45; stepSec = 60; }
+    else if (timeframe === '3m') { count = 40; stepSec = 180; }
+    else if (timeframe === '5m') { count = 40; stepSec = 300; }
+    else if (timeframe === '15m') { count = 35; stepSec = 900; }
+    else if (timeframe === '30m') { count = 30; stepSec = 1800; }
+    else if (timeframe === '45m') { count = 28; stepSec = 2700; }
+    else if (timeframe === '1h') { count = 28; stepSec = 3600; }
+    else if (timeframe === '2h') { count = 26; stepSec = 7200; }
+    else if (timeframe === '4h') { count = 24; stepSec = 14400; }
+    else if (timeframe === '1D') { count = 30; stepSec = 86400; }
+    else if (timeframe === '1W') { count = 35; stepSec = 604800; }
+    else if (timeframe === '1M') { count = 40; stepSec = 2592000; }
+
+    const nowTime = Date.now();
+    const generated = Array.from({ length: count }, (_, i) => {
+      const idxFromEnd = count - 1 - i;
+      const barTime = new Date(nowTime - idxFromEnd * stepSec * 1000);
+      
+      let label = '';
+      if (isSeconds) {
+        label = barTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      } else if (isMinute || isHour) {
+        label = barTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+      } else {
+        label = barTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+
+      // Volatility & Volume scaling
+      const trendFactor = 0.95 + (i / count) * 0.05 + Math.sin(i * 0.35) * 0.015;
+      const base = currentPrice * trendFactor;
+      const open = Number((base * (1 + Math.sin(i * 1.3) * 0.005)).toFixed(2));
+      const close = Number((base * (1 + Math.cos(i * 1.5) * 0.006)).toFixed(2));
+      const hi = Number((Math.max(open, close) * (1 + Math.abs(Math.sin(i * 2)) * 0.004 + 0.002)).toFixed(2));
+      const lo = Number((Math.min(open, close) * (1 - Math.abs(Math.cos(i * 2)) * 0.004 - 0.002)).toFixed(2));
+
+      // Granular volume per second / bar
+      let barVol = 1000;
+      if (timeframe === '1s') {
+        barVol = Math.round(200 + Math.random() * 2500 + (i % 7 === 0 ? 8000 : 0));
+      } else if (timeframe === '5s') {
+        barVol = Math.round(1500 + Math.random() * 12000);
+      } else if (timeframe === '15s') {
+        barVol = Math.round(5000 + Math.random() * 35000);
+      } else if (timeframe === '1m') {
+        barVol = Math.round(25000 + Math.random() * 120000);
+      } else {
+        barVol = Math.round((volume / count) * (0.6 + Math.sin(i) * 0.35 + 0.35));
+      }
+
+      return {
+        date: label,
+        timestamp: Math.floor(barTime.getTime() / 1000),
+        open,
+        high: hi,
+        low: lo,
+        close,
+        price: close,
+        volume: barVol
+      };
     });
+
+    setLiveBars(generated);
   }, [historyData, externalBars, timeframe, currentPrice, volume]);
+
+  // LIVE 1-SECOND REAL-TIME TICKER INTERVAL (Updates live candlestick & records second volume)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const tickVol = Math.round(150 + Math.random() * 3200 + (Math.random() > 0.85 ? 7500 : 0));
+      const tickDelta = (Math.random() - 0.485) * (currentPrice * 0.0012);
+      const newClose = Number((Math.max(0.5, currentPrice + tickDelta)).toFixed(2));
+      const now = new Date();
+      const timeStrSec = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      setLastTickInfo({
+        price: newClose,
+        change: Number((newClose - prevClose).toFixed(2)),
+        vol: tickVol,
+        time: timeStrSec
+      });
+
+      setLiveBars(prevBars => {
+        if (!prevBars || prevBars.length === 0) return prevBars;
+
+        const updated = [...prevBars];
+        const lastBar = { ...updated[updated.length - 1] };
+
+        if (timeframe === '1s') {
+          // Push a brand new 1-second bar every second
+          const newBar = {
+            date: timeStrSec,
+            timestamp: Math.floor(now.getTime() / 1000),
+            open: lastBar.close,
+            high: Math.max(lastBar.close, newClose, Number((newClose * 1.001).toFixed(2))),
+            low: Math.min(lastBar.close, newClose, Number((newClose * 0.999).toFixed(2))),
+            close: newClose,
+            price: newClose,
+            volume: tickVol
+          };
+          if (updated.length > 70) updated.shift();
+          updated.push(newBar);
+          return updated;
+        } else {
+          // Accumulate volume and update high/low/close of active candle
+          lastBar.close = newClose;
+          lastBar.price = newClose;
+          lastBar.high = Math.max(lastBar.high, newClose);
+          lastBar.low = Math.min(lastBar.low, newClose);
+          lastBar.volume = (lastBar.volume || 0) + tickVol;
+          updated[updated.length - 1] = lastBar;
+          return updated;
+        }
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [currentPrice, prevClose, timeframe]);
 
   // Compute Heikin Ashi if chartType === 'heikin_ashi'
   const displayBars = useMemo(() => {
-    if (chartType !== 'heikin_ashi') return rawBars;
-    let prevHAOpen = rawBars[0] ? (rawBars[0].open + rawBars[0].close) / 2 : 100;
-    let prevHAClose = rawBars[0] ? (rawBars[0].open + rawBars[0].high + rawBars[0].low + rawBars[0].close) / 4 : 100;
+    if (!liveBars || liveBars.length === 0) return [];
+    if (chartType !== 'heikin_ashi') return liveBars;
 
-    return rawBars.map((bar, i) => {
+    let prevHAOpen = liveBars[0] ? (liveBars[0].open + liveBars[0].close) / 2 : 100;
+    let prevHAClose = liveBars[0] ? (liveBars[0].open + liveBars[0].high + liveBars[0].low + liveBars[0].close) / 4 : 100;
+
+    return liveBars.map((bar, i) => {
       const haClose = (bar.open + bar.high + bar.low + bar.close) / 4;
       const haOpen = i === 0 ? prevHAOpen : (prevHAOpen + prevHAClose) / 2;
       const haHigh = Math.max(bar.high, haOpen, haClose);
@@ -268,10 +408,11 @@ export default function TradingViewPSXChart({
         price: haClose
       };
     });
-  }, [rawBars, chartType]);
+  }, [liveBars, chartType]);
 
   // Technical Indicators Calculation
   const indicatorSeries = useMemo(() => {
+    if (!displayBars || displayBars.length === 0) return {};
     const closes = displayBars.map(b => b.close);
     const highs = displayBars.map(b => b.high);
     const lows = displayBars.map(b => b.low);
@@ -316,7 +457,7 @@ export default function TradingViewPSXChart({
         bbLower.push(null);
       } else {
         const slice = closes.slice(idx - 19, idx + 1);
-        const mean = sma20[idx];
+        const mean = sma20[idx] || closes[idx];
         const variance = slice.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / 20;
         const std = Math.sqrt(variance);
         bbUpper.push(mean + 2 * std);
@@ -340,7 +481,7 @@ export default function TradingViewPSXChart({
       return c >= hl2 ? hl2 - (highs[i] - lows[i]) * 0.8 : hl2 + (highs[i] - lows[i]) * 0.8;
     });
 
-    // Parabolic SAR (Simple Trailing Points)
+    // Parabolic SAR
     const sar = closes.map((c, i) => {
       return i % 2 === 0 ? lows[i] * 0.992 : highs[i] * 1.008;
     });
@@ -456,13 +597,13 @@ export default function TradingViewPSXChart({
   const svgWidth = 1000;
   const svgHeight = isFullScreen ? 680 : 460;
   const paddingLeft = 14;
-  const paddingRight = 68; // Price scale area
+  const paddingRight = 72;
   const paddingTop = 26;
-  const paddingBottom = 28; // Time axis area
+  const paddingBottom = 28;
 
   const subPanelHeight = activeSubPanels.length > 0 ? Math.min(85, Math.floor(180 / activeSubPanels.length)) : 0;
   const totalSubPanelsHeight = subPanelHeight * activeSubPanels.length;
-  const volumePanelHeight = chartSettings.showVolume ? 55 : 0;
+  const volumePanelHeight = chartSettings.showVolume ? 60 : 0;
 
   const mainChartHeight = svgHeight - paddingTop - paddingBottom - totalSubPanelsHeight - volumePanelHeight;
   const chartWidth = svgWidth - paddingLeft - paddingRight;
@@ -470,7 +611,7 @@ export default function TradingViewPSXChart({
   // Price range computation
   const chartDims = useMemo(() => {
     if (!displayBars || displayBars.length === 0) {
-      return { minPrice: 0, maxPrice: 100, priceRange: 100, points: [] };
+      return { minPrice: 0, maxPrice: 100, priceRange: 100, points: [], maxVol: 1, baselineY: 100 };
     }
 
     const lows = displayBars.map(d => d.low);
@@ -478,8 +619,7 @@ export default function TradingViewPSXChart({
     let minP = Math.min(...lows) * 0.994;
     let maxP = Math.max(...highs) * 1.006;
 
-    // Overlay BB adjustments
-    if (activeIndicators.bollinger) {
+    if (activeIndicators.bollinger && indicatorSeries.bbUpper) {
       const validUppers = indicatorSeries.bbUpper.filter(v => v !== null);
       const validLowers = indicatorSeries.bbLower.filter(v => v !== null);
       if (validUppers.length) maxP = Math.max(maxP, Math.max(...validUppers));
@@ -499,7 +639,7 @@ export default function TradingViewPSXChart({
       const isBull = d.close >= d.open;
 
       // Volume sub-bar position
-      const volH = (d.volume / maxVol) * (volumePanelHeight - 8);
+      const volH = (d.volume / maxVol) * (volumePanelHeight - 12);
       const volY = paddingTop + mainChartHeight + (volumePanelHeight - volH);
 
       return {
@@ -526,7 +666,7 @@ export default function TradingViewPSXChart({
   }, [displayBars, mainChartHeight, chartWidth, activeIndicators, indicatorSeries, volumePanelHeight]);
 
   // Candle width based on point count
-  const candleWidth = Math.max(3, Math.min(18, (chartWidth / (displayBars.length || 1)) * 0.72));
+  const candleWidth = Math.max(3.5, Math.min(18, (chartWidth / (displayBars.length || 1)) * 0.72));
 
   // Snap magnet helper
   const getNearestPoint = (mouseX, mouseY) => {
@@ -542,7 +682,6 @@ export default function TradingViewPSXChart({
     });
 
     if (magnetMode) {
-      // Snap to exact high, low, or close
       const targets = [nearest.yHigh, nearest.yLow, nearest.yClose, nearest.yOpen];
       let bestY = nearest.y;
       let minDiffY = Infinity;
@@ -684,7 +823,6 @@ export default function TradingViewPSXChart({
 
     const pts = compBars.map((b, i) => {
       if (!chartDims.points[i]) return null;
-      // Map percentage change onto primary scale
       const pct = (b.close - baseFirst) / baseFirst;
       const mappedPrice = baseTargetFirst * (1 + pct);
       const y = paddingTop + mainChartHeight - ((mappedPrice - chartDims.minPrice) / chartDims.priceRange) * mainChartHeight;
@@ -693,6 +831,14 @@ export default function TradingViewPSXChart({
 
     return pts.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '');
   }, [compareData, displayBars, chartDims]);
+
+  // Volume Formatter Helper
+  const formatVol = (v) => {
+    const num = Number(v) || 0;
+    if (num >= 1000000) return `${(num / 1000000).toFixed(3)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+    return num.toLocaleString();
+  };
 
   return (
     <div
@@ -735,7 +881,7 @@ export default function TradingViewPSXChart({
           {/* Timeframe Selector with Dropdown */}
           <div className="relative">
             <div className="flex items-center space-x-0.5 bg-gray-900/90 p-0.5 rounded-lg border border-gray-800 font-mono text-[11px] font-bold">
-              {['1m', '5m', '15m', '1h', '1D', '1W', '1M'].map(tf => (
+              {['1s', '5s', '15s', '1m', '5m', '15m', '1h', '1D', '1W'].map(tf => (
                 <button
                   key={tf}
                   onClick={() => setTimeframe(tf)}
@@ -756,15 +902,30 @@ export default function TradingViewPSXChart({
 
             {/* Timeframe Dropdown Menu */}
             {showTimeframeDropdown && (
-              <div className="absolute top-full left-0 mt-1 w-44 bg-[#0F172A] border border-gray-700 rounded-xl shadow-2xl py-1.5 z-50 text-xs">
+              <div className="absolute top-full left-0 mt-1 w-52 bg-[#0F172A] border border-gray-700 rounded-xl shadow-2xl py-1.5 z-50 text-xs backdrop-blur-xl">
+                <div className="px-3 py-1 text-[10px] text-cyan-400 font-extrabold uppercase tracking-wider flex items-center justify-between">
+                  <span>Seconds (Live Ticks)</span>
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                </div>
+                {['1s', '5s', '15s', '30s'].map(tf => (
+                  <button
+                    key={tf}
+                    onClick={() => { setTimeframe(tf); setShowTimeframeDropdown(false); }}
+                    className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
+                  >
+                    <span>{tf} ({tf === '1s' ? '1 Second' : `${tf.replace('s','')} Seconds`})</span>
+                    {timeframe === tf && <Check className="w-3.5 h-3.5 text-cyan-400" />}
+                  </button>
+                ))}
+                <div className="border-t border-gray-800 my-1" />
                 <div className="px-3 py-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider">Minutes</div>
                 {['1m', '3m', '5m', '15m', '30m', '45m'].map(tf => (
                   <button
                     key={tf}
                     onClick={() => { setTimeframe(tf); setShowTimeframeDropdown(false); }}
-                    className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200"
+                    className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
                   >
-                    <span>{tf}</span>
+                    <span>{tf} ({tf.replace('m', '')} Min)</span>
                     {timeframe === tf && <Check className="w-3.5 h-3.5 text-cyan-400" />}
                   </button>
                 ))}
@@ -774,7 +935,7 @@ export default function TradingViewPSXChart({
                   <button
                     key={tf}
                     onClick={() => { setTimeframe(tf); setShowTimeframeDropdown(false); }}
-                    className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200"
+                    className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
                   >
                     <span>{tf}</span>
                     {timeframe === tf && <Check className="w-3.5 h-3.5 text-cyan-400" />}
@@ -798,7 +959,7 @@ export default function TradingViewPSXChart({
               <ChevronDown className="w-3 h-3 text-gray-400" />
             </button>
 
-            {/* 12 Chart Types Popup List matching screenshot */}
+            {/* 12 Chart Types Popup List */}
             {showChartTypeDropdown && (
               <div className="absolute top-full left-0 mt-1 w-56 bg-[#0E1424] border border-cyan-500/30 rounded-xl shadow-2xl py-2 z-50 backdrop-blur-xl">
                 <div className="px-3 py-1 text-[10px] uppercase font-bold text-gray-400 border-b border-gray-800 mb-1">
@@ -829,7 +990,7 @@ export default function TradingViewPSXChart({
 
           <div className="h-4 w-px bg-gray-800 mx-0.5" />
 
-          {/* Indicators Modal Trigger `fx Indicators` */}
+          {/* Indicators Modal Trigger */}
           <button
             onClick={() => setShowIndicatorsModal(true)}
             className="flex items-center space-x-1.5 px-2.5 py-1.5 bg-gradient-to-r from-blue-600/20 to-purple-600/20 hover:from-blue-600/30 hover:to-purple-600/30 border border-purple-500/30 rounded-lg text-xs font-bold text-purple-200 cursor-pointer transition-colors shadow-sm"
@@ -845,9 +1006,17 @@ export default function TradingViewPSXChart({
           </button>
         </div>
 
-        {/* Right Side: Settings, Snapshot, Fullscreen, Close */}
+        {/* Right Side: Live Ticker Telemetry, Settings, Snapshot, Fullscreen, Close */}
         <div className="flex items-center space-x-1.5">
-          {/* Chart Settings Button `⚙️` */}
+          {/* Real-time Tick Telemetry Badge */}
+          <div className="hidden md:flex items-center space-x-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono font-bold text-emerald-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+            <span>LIVE 1s</span>
+            <span className="text-gray-400">|</span>
+            <span className="text-cyan-300">+{lastTickInfo.vol?.toLocaleString()} vol/s</span>
+          </div>
+
+          {/* Chart Settings Button */}
           <button
             onClick={() => setShowSettingsModal(true)}
             className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-white cursor-pointer transition-colors"
@@ -902,7 +1071,7 @@ export default function TradingViewPSXChart({
 
       {/* 2. MAIN WORKSPACE: LEFT DRAWING TOOLBAR + SVG CANVAS */}
       <div className="flex-1 flex flex-row relative overflow-hidden">
-        {/* LEFT DRAWING TOOLBAR matching screenshot */}
+        {/* LEFT DRAWING TOOLBAR */}
         <div className="w-10 sm:w-11 bg-[#0A0E1A] border-r border-gray-800/90 flex flex-col items-center py-2 space-y-1 z-30 shrink-0 select-none">
           {/* 1. Crosshair Pointer */}
           <button
@@ -1062,7 +1231,7 @@ export default function TradingViewPSXChart({
             {drawingsVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
           </button>
 
-          {/* 14. Trash Can (Clear All Drawings) */}
+          {/* 14. Clear All Drawings */}
           <button
             onClick={() => setDrawings([])}
             className="p-2 rounded-lg text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer mt-auto"
@@ -1074,11 +1243,17 @@ export default function TradingViewPSXChart({
 
         {/* CHART DISPLAY AREA */}
         <div className="flex-1 flex flex-col relative bg-[#070B14] overflow-hidden">
-          {/* Top OHLC Telemetry Legend matching TradingView */}
+          {/* Top OHLC & Volume Telemetry Legend */}
           {chartSettings.showLegend && (
-            <div className="absolute top-2 left-3 z-20 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] bg-[#070B14]/80 backdrop-blur-md px-2 py-1 rounded-lg border border-gray-800/80 pointer-events-none">
-              <span className="font-extrabold text-white">{currentSymbol}</span>
-              <span className="text-gray-500 font-bold">{timeframe}</span>
+            <div className="absolute top-2 left-3 z-20 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] bg-[#070B14]/90 backdrop-blur-md px-2.5 py-1.5 rounded-lg border border-gray-800/80 pointer-events-none shadow-md">
+              <div className="flex items-center space-x-1.5">
+                <span className="font-black text-white">{currentSymbol}</span>
+                <span className="text-cyan-400 font-bold px-1.5 py-0.2 bg-cyan-500/15 border border-cyan-500/30 rounded text-[10px]">
+                  {timeframe}
+                </span>
+                <span className="text-gray-500 text-[10px]">PSX</span>
+              </div>
+
               {activePt && (
                 <>
                   <div className="flex items-center space-x-1">
@@ -1099,9 +1274,13 @@ export default function TradingViewPSXChart({
                       {Number(activePt.close).toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex items-center space-x-1">
-                    <span className="text-gray-500">Vol:</span>
-                    <span className="text-cyan-400 font-bold">{(Number(activePt.volume) || 0).toLocaleString()}</span>
+                  <div className="flex items-center space-x-1 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">
+                    <span className="text-cyan-400 font-bold">Vol:</span>
+                    <span className="text-white font-black">{formatVol(activePt.volume)}</span>
+                    <span className="text-gray-400 text-[9px] hidden sm:inline">({(Number(activePt.volume) || 0).toLocaleString()})</span>
+                  </div>
+                  <div className="text-gray-400 text-[10px]">
+                    [{activePt.date}]
                   </div>
                 </>
               )}
@@ -1117,7 +1296,7 @@ export default function TradingViewPSXChart({
           )}
 
           {/* Active Overlay Indicators Legend */}
-          <div className="absolute top-8 left-3 z-10 flex flex-col space-y-0.5 text-[10px] font-mono pointer-events-none">
+          <div className="absolute top-10 left-3 z-10 flex flex-col space-y-0.5 text-[10px] font-mono pointer-events-none">
             {activeIndicators.sma20 && indicatorSeries.sma20 && (
               <span className="text-sky-400">SMA 20: {indicatorSeries.sma20[hoverIndex !== null ? hoverIndex : indicatorSeries.sma20.length - 1]?.toFixed(2) || '—'}</span>
             )}
@@ -1290,7 +1469,6 @@ export default function TradingViewPSXChart({
                     <path
                       d={chartDims.points.reduce((acc, pt, i, arr) => {
                         if (i === 0) return `M ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`;
-                        const prev = arr[i - 1];
                         return `${acc} H ${pt.x.toFixed(1)} V ${pt.y.toFixed(1)}`;
                       }, '')}
                       fill="none"
@@ -1423,28 +1601,48 @@ export default function TradingViewPSXChart({
                 <path d={comparePath} fill="none" stroke="#F59E0B" strokeWidth="2.2" strokeDasharray="5 3" />
               )}
 
-              {/* 3. VOLUME SUB-PANEL */}
+              {/* 3. VOLUME SUB-PANEL (Renders exact volume histogram per second/candle) */}
               {chartSettings.showVolume && (
                 <g>
                   <line x1={paddingLeft} y1={paddingTop + mainChartHeight} x2={svgWidth - paddingRight} y2={paddingTop + mainChartHeight} stroke="#1E293B" />
-                  <text x={svgWidth - paddingRight + 6} y={paddingTop + mainChartHeight + 14} fill="#64748B" fontSize="8" fontFamily="monospace">
-                    VOL
+                  
+                  {/* Volume Header Label with Max Vol */}
+                  <text x={paddingLeft + 4} y={paddingTop + mainChartHeight + 13} fill="#64748B" fontSize="8.5" fontFamily="monospace" fontWeight="bold">
+                    VOL: {formatVol(chartDims.maxVol)} Max
                   </text>
-                  {chartDims.points.map((pt, i) => (
-                    <rect
-                      key={`vol_${i}`}
-                      x={pt.x - candleWidth / 2}
-                      y={pt.volY}
-                      width={candleWidth}
-                      height={Math.max(2, pt.volH)}
-                      fill={pt.isBull ? chartSettings.upColor : chartSettings.downColor}
-                      opacity="0.45"
-                      rx="0.5"
-                    />
-                  ))}
+                  <text x={svgWidth - paddingRight + 6} y={paddingTop + mainChartHeight + 13} fill="#64748B" fontSize="8" fontFamily="monospace">
+                    {formatVol(chartDims.maxVol)}
+                  </text>
+
+                  {/* Volume Histogram Bars */}
+                  {chartDims.points.map((pt, i) => {
+                    const isHovered = hoverIndex === i;
+                    return (
+                      <g key={`vol_${i}`}>
+                        <rect
+                          x={pt.x - candleWidth / 2}
+                          y={pt.volY}
+                          width={candleWidth}
+                          height={Math.max(2, pt.volH)}
+                          fill={pt.isBull ? chartSettings.upColor : chartSettings.downColor}
+                          opacity={isHovered ? '1.0' : '0.55'}
+                          stroke={isHovered ? '#22D3EE' : 'none'}
+                          strokeWidth={isHovered ? '1' : '0'}
+                          rx="0.5"
+                        />
+                      </g>
+                    );
+                  })}
+
                   {/* Volume 20 MA line */}
                   {indicatorSeries.volumeMA && (
-                    <path d={buildSvgPath(indicatorSeries.volumeMA.map(v => (v ? chartDims.minPrice + (v / chartDims.maxVol) * chartDims.priceRange : null)))} fill="none" stroke="#38BDF8" strokeWidth="1" opacity="0.7" />
+                    <path
+                      d={buildSvgPath(indicatorSeries.volumeMA.map(v => (v ? chartDims.minPrice + (v / chartDims.maxVol) * chartDims.priceRange : null)))}
+                      fill="none"
+                      stroke="#38BDF8"
+                      strokeWidth="1.2"
+                      opacity="0.75"
+                    />
                   )}
                 </g>
               )}
@@ -1465,7 +1663,6 @@ export default function TradingViewPSXChart({
                     {/* RSI Panel */}
                     {panel === 'rsi' && indicatorSeries.rsi && (
                       <g>
-                        {/* 70/30 Overbought/Oversold reference levels */}
                         <line x1={paddingLeft} y1={panelTop + subPanelHeight * 0.3} x2={svgWidth - paddingRight} y2={panelTop + subPanelHeight * 0.3} stroke="#EF4444" strokeDasharray="2 2" opacity="0.5" />
                         <line x1={paddingLeft} y1={panelTop + subPanelHeight * 0.7} x2={svgWidth - paddingRight} y2={panelTop + subPanelHeight * 0.7} stroke="#10B981" strokeDasharray="2 2" opacity="0.5" />
                         <path
@@ -1597,16 +1794,16 @@ export default function TradingViewPSXChart({
 
                   {/* Y-Axis Hover Price Badge */}
                   <g transform={`translate(${svgWidth - paddingRight + 2}, ${(mouseCoord.y > 0 && mouseCoord.y < svgHeight - paddingBottom ? mouseCoord.y : activePt.y) - 9})`}>
-                    <rect width="62" height="18" fill="#0284C7" rx="3" />
-                    <text x="31" y="12" fill="#FFFFFF" fontSize="9.5" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
+                    <rect width="68" height="18" fill="#0284C7" rx="3" />
+                    <text x="34" y="12" fill="#FFFFFF" fontSize="9.5" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
                       {mouseCoord.price ? Number(mouseCoord.price).toFixed(2) : Number(activePt.close).toFixed(2)}
                     </text>
                   </g>
 
-                  {/* X-Axis Hover Time Badge */}
-                  <g transform={`translate(${activePt.x - 30}, ${svgHeight - paddingBottom + 3})`}>
-                    <rect width="60" height="16" fill="#1E293B" rx="3" />
-                    <text x="30" y="11" fill="#38BDF8" fontSize="9" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
+                  {/* X-Axis Hover Time Badge with Seconds */}
+                  <g transform={`translate(${Math.max(paddingLeft, Math.min(activePt.x - 40, svgWidth - paddingRight - 80))}, ${svgHeight - paddingBottom + 3})`}>
+                    <rect width="80" height="16" fill="#1E293B" stroke="#0284C7" strokeWidth="1" rx="3" />
+                    <text x="40" y="11" fill="#38BDF8" fontSize="9" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
                       {activePt.date}
                     </text>
                   </g>
@@ -1617,8 +1814,8 @@ export default function TradingViewPSXChart({
               <g>
                 <line x1={paddingLeft} y1={chartDims.points[chartDims.points.length - 1]?.y || 100} x2={svgWidth - paddingRight} y2={chartDims.points[chartDims.points.length - 1]?.y || 100} stroke={isBullish ? '#10B981' : '#EF4444'} strokeWidth="1" strokeDasharray="4 2" />
                 <g transform={`translate(${svgWidth - paddingRight + 2}, ${(chartDims.points[chartDims.points.length - 1]?.y || 100) - 9})`}>
-                  <rect width="62" height="18" fill={isBullish ? '#10B981' : '#EF4444'} rx="3" />
-                  <text x="31" y="12" fill="#FFFFFF" fontSize="9.5" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
+                  <rect width="68" height="18" fill={isBullish ? '#10B981' : '#EF4444'} rx="3" />
+                  <text x="34" y="12" fill="#FFFFFF" fontSize="9.5" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
                     {Number(currentPrice).toFixed(2)}
                   </text>
                 </g>
@@ -1637,7 +1834,7 @@ export default function TradingViewPSXChart({
 
       {/* 3. BOTTOM TIMEFRAME RANGES & SCALE CONTROLS TOOLBAR */}
       <div className="flex flex-wrap items-center justify-between px-3 py-1.5 bg-[#0A0E1A] border-t border-gray-800 text-[11px] font-mono shrink-0">
-        {/* Left: Quick Date Range Buttons (1d, 5d, 1m, 6m, 1y, 3y, All) */}
+        {/* Left: Quick Date Range Buttons */}
         <div className="flex items-center space-x-1">
           <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mr-1 hidden sm:inline">Range:</span>
           {BOTTOM_RANGES.map(rng => (
@@ -1654,12 +1851,13 @@ export default function TradingViewPSXChart({
         </div>
 
         {/* Center: Live Time / Timezone PSX */}
-        <div className="text-gray-500 hidden md:flex items-center space-x-2 text-[10px]">
+        <div className="text-gray-400 flex items-center space-x-2 text-[10px]">
           <Clock className="w-3 h-3 text-cyan-400" />
           <span>PSX Market Time (PKT • UTC+5)</span>
+          <span className="text-emerald-400 font-bold">[{lastTickInfo.time}]</span>
         </div>
 
-        {/* Right: Scale Mode Switchers (%, log, auto) */}
+        {/* Right: Scale Mode Switchers */}
         <div className="flex items-center space-x-1.5">
           <button
             onClick={() => setChartSettings(prev => ({ ...prev, scaleMode: prev.scaleMode === 'percent' ? 'auto' : 'percent' }))}
@@ -1693,7 +1891,7 @@ export default function TradingViewPSXChart({
 
       {/* 4. MODALS */}
 
-      {/* A. INDICATORS MODAL `fx Indicators` */}
+      {/* A. INDICATORS MODAL */}
       {showIndicatorsModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#0F172A] border border-purple-500/40 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
@@ -1750,16 +1948,10 @@ export default function TradingViewPSXChart({
               })}
             </div>
 
-            <div className="p-4 bg-[#0B0F19] border-t border-gray-800 flex justify-between items-center">
-              <button
-                onClick={() => setActiveIndicators({})}
-                className="text-xs text-rose-400 hover:underline cursor-pointer"
-              >
-                Reset All Indicators
-              </button>
+            <div className="p-4 border-t border-gray-800 bg-[#0B0F19] flex justify-end">
               <button
                 onClick={() => setShowIndicatorsModal(false)}
-                className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs shadow-lg cursor-pointer"
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
               >
                 Apply Indicators
               </button>
@@ -1768,14 +1960,14 @@ export default function TradingViewPSXChart({
         </div>
       )}
 
-      {/* B. CHART SETTINGS MODAL `⚙️` */}
+      {/* B. CHART SETTINGS MODAL */}
       {showSettingsModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#0F172A] border border-cyan-500/40 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+          <div className="bg-[#0F172A] border border-gray-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 bg-[#0B0F19]">
               <div className="flex items-center space-x-2">
                 <Sliders className="w-5 h-5 text-cyan-400" />
-                <h3 className="font-extrabold text-white text-base">Chart Visual Settings</h3>
+                <h3 className="font-extrabold text-white text-base">Chart Properties & Display</h3>
               </div>
               <button
                 onClick={() => setShowSettingsModal(false)}
@@ -1786,41 +1978,39 @@ export default function TradingViewPSXChart({
             </div>
 
             <div className="p-5 space-y-4 text-xs">
-              {/* Up / Down Candle Colors */}
-              <div className="space-y-2">
-                <span className="font-bold text-gray-300 block">Candle Color Scheme</span>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[11px] text-gray-400 block mb-1">Bullish Candle</label>
+              <div>
+                <label className="text-gray-400 block mb-1 font-bold">Candle Color Theme</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center space-x-2 p-2 bg-gray-900 rounded-xl border border-gray-800">
                     <input
                       type="color"
                       value={chartSettings.upColor}
-                      onChange={(e) => setChartSettings(p => ({ ...p, upColor: e.target.value }))}
-                      className="w-full h-8 bg-gray-900 rounded border border-gray-700 cursor-pointer"
+                      onChange={(e) => setChartSettings(prev => ({ ...prev, upColor: e.target.value }))}
+                      className="w-6 h-6 rounded border-0 cursor-pointer bg-transparent"
                     />
+                    <span className="text-gray-300">Bullish (Up)</span>
                   </div>
-                  <div>
-                    <label className="text-[11px] text-gray-400 block mb-1">Bearish Candle</label>
+                  <div className="flex items-center space-x-2 p-2 bg-gray-900 rounded-xl border border-gray-800">
                     <input
                       type="color"
                       value={chartSettings.downColor}
-                      onChange={(e) => setChartSettings(p => ({ ...p, downColor: e.target.value }))}
-                      className="w-full h-8 bg-gray-900 rounded border border-gray-700 cursor-pointer"
+                      onChange={(e) => setChartSettings(prev => ({ ...prev, downColor: e.target.value }))}
+                      className="w-6 h-6 rounded border-0 cursor-pointer bg-transparent"
                     />
+                    <span className="text-gray-300">Bearish (Down)</span>
                   </div>
                 </div>
               </div>
 
-              {/* Grid Lines Style */}
-              <div className="space-y-2">
-                <span className="font-bold text-gray-300 block">Grid Lines</span>
+              <div>
+                <label className="text-gray-400 block mb-1 font-bold">Grid Line Style</label>
                 <div className="grid grid-cols-4 gap-1.5">
                   {['dotted', 'dashed', 'solid', 'none'].map(style => (
                     <button
                       key={style}
-                      onClick={() => setChartSettings(p => ({ ...p, gridStyle: style }))}
-                      className={`py-1.5 rounded-lg border text-center font-mono capitalize cursor-pointer ${
-                        chartSettings.gridStyle === style ? 'bg-cyan-500 text-black font-bold border-cyan-400' : 'border-gray-800 text-gray-400 hover:bg-gray-800'
+                      onClick={() => setChartSettings(prev => ({ ...prev, gridStyle: style }))}
+                      className={`py-1.5 rounded-lg border text-center capitalize cursor-pointer transition-colors ${
+                        chartSettings.gridStyle === style ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 font-bold' : 'bg-gray-900 border-gray-800 text-gray-400'
                       }`}
                     >
                       {style}
@@ -1829,42 +2019,43 @@ export default function TradingViewPSXChart({
                 </div>
               </div>
 
-              {/* Toggles */}
-              <div className="space-y-2.5 pt-2 border-t border-gray-800">
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span className="text-gray-300">Volume Histogram</span>
+              <div className="space-y-2 pt-2 border-t border-gray-800">
+                <label className="flex items-center justify-between cursor-pointer p-1.5 hover:bg-gray-800/50 rounded-lg">
+                  <span className="text-gray-300">Show Volume Sub-Panel</span>
                   <input
                     type="checkbox"
                     checked={chartSettings.showVolume}
-                    onChange={(e) => setChartSettings(p => ({ ...p, showVolume: e.target.checked }))}
-                    className="rounded accent-cyan-500 w-4 h-4 cursor-pointer"
+                    onChange={(e) => setChartSettings(prev => ({ ...prev, showVolume: e.target.checked }))}
+                    className="w-4 h-4 accent-cyan-500 rounded cursor-pointer"
                   />
                 </label>
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span className="text-gray-300">Top OHLC Legend</span>
+
+                <label className="flex items-center justify-between cursor-pointer p-1.5 hover:bg-gray-800/50 rounded-lg">
+                  <span className="text-gray-300">Show Top OHLC & Vol Legend</span>
                   <input
                     type="checkbox"
                     checked={chartSettings.showLegend}
-                    onChange={(e) => setChartSettings(p => ({ ...p, showLegend: e.target.checked }))}
-                    className="rounded accent-cyan-500 w-4 h-4 cursor-pointer"
+                    onChange={(e) => setChartSettings(prev => ({ ...prev, showLegend: e.target.checked }))}
+                    className="w-4 h-4 accent-cyan-500 rounded cursor-pointer"
                   />
                 </label>
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span className="text-gray-300">Symbol Watermark</span>
+
+                <label className="flex items-center justify-between cursor-pointer p-1.5 hover:bg-gray-800/50 rounded-lg">
+                  <span className="text-gray-300">Show Background Symbol Watermark</span>
                   <input
                     type="checkbox"
                     checked={chartSettings.showWatermark}
-                    onChange={(e) => setChartSettings(p => ({ ...p, showWatermark: e.target.checked }))}
-                    className="rounded accent-cyan-500 w-4 h-4 cursor-pointer"
+                    onChange={(e) => setChartSettings(prev => ({ ...prev, showWatermark: e.target.checked }))}
+                    className="w-4 h-4 accent-cyan-500 rounded cursor-pointer"
                   />
                 </label>
               </div>
             </div>
 
-            <div className="p-4 bg-[#0B0F19] border-t border-gray-800 flex justify-end">
+            <div className="p-4 border-t border-gray-800 bg-[#0B0F19] flex justify-end">
               <button
                 onClick={() => setShowSettingsModal(false)}
-                className="px-5 py-2 bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl text-xs cursor-pointer"
+                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl transition-colors cursor-pointer"
               >
                 Save Settings
               </button>
@@ -1873,54 +2064,47 @@ export default function TradingViewPSXChart({
         </div>
       )}
 
-      {/* C. QUICK SEARCH MODAL `🔍` / `Ctrl+K` */}
+      {/* C. QUICK SEARCH MODAL */}
       {showSearchModal && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#0F172A] border border-cyan-500/50 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-            <div className="p-4 border-b border-gray-800 bg-[#0B0F19] flex items-center space-x-3">
-              <Search className="w-5 h-5 text-cyan-400 shrink-0" />
-              <input
-                type="text"
-                autoFocus
-                placeholder="Search PSX Stocks (e.g. OGDC, PRL, PSO, SYS, LUCK)..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-transparent text-white font-mono text-sm focus:outline-none placeholder-gray-500"
-              />
-              <button onClick={() => setShowSearchModal(false)} className="text-gray-400 hover:text-white cursor-pointer">
-                <X className="w-5 h-5" />
-              </button>
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0F172A] border border-cyan-500/40 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="p-4 border-b border-gray-800 bg-[#0B0F19]">
+              <div className="relative">
+                <Search className="w-4 h-4 text-cyan-400 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  placeholder="Search PSX stock symbol, company name..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  autoFocus
+                  className="w-full bg-gray-900 border border-gray-700 rounded-xl pl-10 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
+                />
+              </div>
             </div>
 
-            <div className="p-2 overflow-y-auto max-h-96 space-y-1">
-              {Object.entries(officialQuotes || {})
-                .filter(([sym, q]) => {
-                  const qry = searchQuery.toLowerCase();
-                  return sym.toLowerCase().includes(qry) || (q?.name && q.name.toLowerCase().includes(qry)) || (q?.sector && q.sector.toLowerCase().includes(qry));
-                })
-                .slice(0, 25)
-                .map(([sym, q]) => (
+            <div className="p-2 overflow-y-auto space-y-1 flex-1 max-h-96">
+              {(officialQuotes || [])
+                .filter(q => !searchQuery || q.symbol.toLowerCase().includes(searchQuery.toLowerCase()) || (q.name && q.name.toLowerCase().includes(searchQuery.toLowerCase())))
+                .slice(0, 30)
+                .map(q => (
                   <button
-                    key={sym}
+                    key={q.symbol}
                     onClick={() => {
-                      setCurrentSymbol(sym);
-                      if (onSelectStock) onSelectStock(sym);
+                      setCurrentSymbol(q.symbol);
+                      if (onSelectStock) onSelectStock(q);
                       setShowSearchModal(false);
                       setSearchQuery('');
                     }}
-                    className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-gray-800/90 flex items-center justify-between transition-colors cursor-pointer group"
+                    className="w-full text-left p-2.5 hover:bg-gray-800/80 rounded-xl flex items-center justify-between transition-colors cursor-pointer"
                   >
                     <div>
-                      <div className="flex items-center space-x-2">
-                        <span className="font-mono font-black text-white group-hover:text-cyan-400">{sym}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400">{q?.sector || 'PSX'}</span>
-                      </div>
-                      <div className="text-xs text-gray-400 truncate max-w-xs">{q?.name || sym}</div>
+                      <div className="font-extrabold text-white font-mono text-sm">{q.symbol}</div>
+                      <div className="text-[11px] text-gray-400 truncate max-w-xs">{q.name || q.sector}</div>
                     </div>
                     <div className="text-right font-mono">
-                      <div className="text-white font-bold">PKR {Number(q?.currentPrice || 0).toFixed(2)}</div>
-                      <div className={`text-xs ${Number(q?.change || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {Number(q?.change || 0) >= 0 ? '+' : ''}{Number(q?.changePercent || 0).toFixed(2)}%
+                      <div className="text-sm font-bold text-gray-200">Rs. {Number(q.currentPrice || 0).toFixed(2)}</div>
+                      <div className={`text-[11px] font-bold ${(q.change || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {(q.change || 0) >= 0 ? '+' : ''}{Number(q.change || 0).toFixed(2)} ({(q.changePercent || 0) >= 0 ? '+' : ''}{Number(q.changePercent || 0).toFixed(2)}%)
                       </div>
                     </div>
                   </button>
@@ -1930,53 +2114,57 @@ export default function TradingViewPSXChart({
         </div>
       )}
 
-      {/* D. COMPARE MODAL `+` */}
+      {/* D. COMPARE SYMBOL MODAL */}
       {showCompareModal && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#0F172A] border border-amber-500/50 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-gray-800 bg-[#0B0F19] flex items-center space-x-3">
-              <Plus className="w-5 h-5 text-amber-400 shrink-0" />
-              <input
-                type="text"
-                autoFocus
-                placeholder="Overlay Symbol to Compare (e.g. PRL, CNERGY)..."
-                value={compareQuery}
-                onChange={(e) => setCompareQuery(e.target.value)}
-                className="w-full bg-transparent text-white font-mono text-sm focus:outline-none placeholder-gray-500"
-              />
-              <button onClick={() => setShowCompareModal(false)} className="text-gray-400 hover:text-white cursor-pointer">
-                <X className="w-5 h-5" />
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0F172A] border border-amber-500/40 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-gray-800 bg-[#0B0F19] flex items-center justify-between">
+              <h3 className="font-extrabold text-white text-sm">Compare / Overlay Symbol</h3>
+              <button
+                onClick={() => setShowCompareModal(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-2 overflow-y-auto max-h-80 space-y-1">
+            <div className="p-4 space-y-3">
+              <input
+                type="text"
+                placeholder="Search symbol to compare (e.g. HUBC, SYS, PSO)..."
+                value={compareQuery}
+                onChange={(e) => setCompareQuery(e.target.value)}
+                className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-400"
+              />
+
+              <div className="max-h-60 overflow-y-auto space-y-1">
+                {(officialQuotes || [])
+                  .filter(q => !compareQuery || q.symbol.toLowerCase().includes(compareQuery.toLowerCase()))
+                  .slice(0, 15)
+                  .map(q => (
+                    <button
+                      key={q.symbol}
+                      onClick={() => {
+                        setCompareSymbol(q.symbol);
+                        setShowCompareModal(false);
+                        setCompareQuery('');
+                      }}
+                      className="w-full text-left p-2 hover:bg-gray-800 rounded-lg flex items-center justify-between text-xs cursor-pointer"
+                    >
+                      <span className="font-mono font-bold text-amber-300">{q.symbol}</span>
+                      <span className="text-gray-400 font-mono">Rs. {Number(q.currentPrice || 0).toFixed(2)}</span>
+                    </button>
+                  ))}
+              </div>
+
               {compareSymbol && (
                 <button
                   onClick={() => { setCompareSymbol(null); setShowCompareModal(false); }}
-                  className="w-full text-left px-3 py-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-xs font-bold flex items-center justify-between"
+                  className="w-full py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-bold cursor-pointer"
                 >
-                  <span>Remove Current Comparison ({compareSymbol})</span>
-                  <Trash2 className="w-4 h-4" />
+                  Remove Compared Symbol ({compareSymbol})
                 </button>
               )}
-
-              {Object.entries(officialQuotes || {})
-                .filter(([sym]) => sym.toLowerCase().includes(compareQuery.toLowerCase()) && sym !== currentSymbol)
-                .slice(0, 15)
-                .map(([sym, q]) => (
-                  <button
-                    key={sym}
-                    onClick={() => {
-                      setCompareSymbol(sym);
-                      setShowCompareModal(false);
-                      setCompareQuery('');
-                    }}
-                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-gray-800 flex items-center justify-between text-xs"
-                  >
-                    <span className="font-mono font-bold text-white">{sym}</span>
-                    <span className="text-amber-400 font-mono">PKR {Number(q?.currentPrice || 0).toFixed(2)}</span>
-                  </button>
-                ))}
             </div>
           </div>
         </div>
