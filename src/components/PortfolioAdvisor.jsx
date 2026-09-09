@@ -65,7 +65,7 @@ export default function PortfolioAdvisor({
   const [sellHoldingComm, setSellHoldingComm] = useState('0.05');
   const [sellHoldingNotes, setSellHoldingNotes] = useState('');
 
-  // All-Time Closed Trades History (User Scoped with multi-key recovery)
+  // All-Time Closed Trades History (User Scoped with universal multi-key recovery)
   const [closedTrades, setClosedTrades] = useState(() => {
     try {
       const userKey = getClosedTradesKey(currentUser);
@@ -74,22 +74,55 @@ export default function PortfolioAdvisor({
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
+      
+      const candidateKeys = [
+        'psx_closed_trades_usr_jamal_ahmedrumi_gmail_com',
+        'psx_closed_trades_guest',
+        'psx_closed_trades',
+        'closed_trades'
+      ];
+      for (const k of candidateKeys) {
+        const val = localStorage.getItem(k);
+        if (val) {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            localStorage.setItem(userKey, JSON.stringify(parsed));
+            return parsed;
+          }
+        }
+      }
       return [];
     } catch (e) {
       return [];
     }
   });
 
-  // Switch closed trades when user logs in/out
+  // Switch closed trades when user logs in/out with fallback
   useEffect(() => {
     try {
       const userKey = getClosedTradesKey(currentUser);
       const saved = localStorage.getItem(userKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           setClosedTrades(parsed);
           return;
+        }
+      }
+      const candidateKeys = [
+        'psx_closed_trades_usr_jamal_ahmedrumi_gmail_com',
+        'psx_closed_trades_guest',
+        'psx_closed_trades',
+        'closed_trades'
+      ];
+      for (const k of candidateKeys) {
+        const val = localStorage.getItem(k);
+        if (val) {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setClosedTrades(parsed);
+            return;
+          }
         }
       }
       setClosedTrades([]);

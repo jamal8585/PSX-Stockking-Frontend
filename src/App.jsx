@@ -50,70 +50,96 @@ export const getUserStorageKey = (prefix, user) => {
   return `${prefix}_guest_default`;
 };
 
-// User-scoped Positions Loader
+// User-scoped Positions Loader with Universal Multi-Tier Fallback & Migration
 export const loadUserPositions = (user) => {
   try {
-    const key = getUserStorageKey('psx_portfolio_positions', user);
-    const saved = localStorage.getItem(key);
+    const primaryKey = getUserStorageKey('psx_portfolio_positions', user);
+    const saved = localStorage.getItem(primaryKey);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
-    // Migration check for primary admin or first user
-    if (user && (user.email === 'jamal.ahmedrumi@gmail.com' || user.role === 'ADMIN')) {
-      const legacyKeys = [
-        'psx_user_portfolio_positions_v1',
-        'psx_user_portfolio_positions',
-        'user_portfolio_positions',
-        'portfolio_positions',
-        'psx_portfolio'
-      ];
-      for (const k of legacyKeys) {
-        const legacy = localStorage.getItem(k);
-        if (legacy) {
-          const parsed = JSON.parse(legacy);
+
+    // Comprehensive fallback search across all legacy & user keys
+    const candidateKeys = [
+      'psx_portfolio_positions_usr_jamal_ahmedrumi_gmail_com',
+      'psx_user_portfolio_positions_v1',
+      'psx_user_portfolio_positions',
+      'psx_portfolio_positions_guest_default',
+      'psx_portfolio_positions',
+      'user_portfolio_positions',
+      'portfolio_positions',
+      'psx_portfolio'
+    ];
+
+    // Scan all keys in localStorage for any portfolio data
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.includes('portfolio') && !candidateKeys.includes(k)) {
+        candidateKeys.push(k);
+      }
+    }
+
+    for (const k of candidateKeys) {
+      try {
+        const val = localStorage.getItem(k);
+        if (val) {
+          const parsed = JSON.parse(val);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            localStorage.setItem(key, JSON.stringify(parsed));
+            localStorage.setItem(primaryKey, JSON.stringify(parsed));
             return parsed;
           }
         }
-      }
+      } catch (_) {}
     }
+
     return [];
   } catch (e) {
     return [];
   }
 };
 
-// User-scoped Watchlist Loader
+// User-scoped Watchlist Loader with Universal Multi-Tier Fallback & Migration
 export const loadUserWatchlist = (user) => {
-  if (!user) return [];
   try {
-    const key = getUserStorageKey('psx_watchlist', user);
-    const saved = localStorage.getItem(key);
+    const primaryKey = getUserStorageKey('psx_watchlist', user);
+    const saved = localStorage.getItem(primaryKey);
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
-    // Migration check for primary admin
-    if (user && (user.email === 'jamal.ahmedrumi@gmail.com' || user.role === 'ADMIN')) {
-      const legacyKeys = [
-        'psx_user_watchlist_v1',
-        'psx_user_watchlist',
-        'psx_watchlist',
-        'user_watchlist'
-      ];
-      for (const k of legacyKeys) {
-        const legacy = localStorage.getItem(k);
-        if (legacy) {
-          const parsed = JSON.parse(legacy);
+
+    // Comprehensive fallback search across all legacy & user keys
+    const candidateKeys = [
+      'psx_watchlist_usr_jamal_ahmedrumi_gmail_com',
+      'psx_user_watchlist_v1',
+      'psx_user_watchlist',
+      'psx_watchlist_guest_default',
+      'psx_watchlist',
+      'user_watchlist'
+    ];
+
+    // Scan all keys in localStorage for any watchlist data
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.includes('watchlist') && !candidateKeys.includes(k)) {
+        candidateKeys.push(k);
+      }
+    }
+
+    for (const k of candidateKeys) {
+      try {
+        const val = localStorage.getItem(k);
+        if (val) {
+          const parsed = JSON.parse(val);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            localStorage.setItem(key, JSON.stringify(parsed));
+            localStorage.setItem(primaryKey, JSON.stringify(parsed));
             return parsed;
           }
         }
-      }
+      } catch (_) {}
     }
+
     return [];
   } catch (e) {
     return [];
@@ -555,21 +581,17 @@ export default function App() {
     signOutSupabase();
     removeAuthToken();
     localStorage.removeItem('psx_user_profile');
-    localStorage.removeItem('psx_watchlist_guest_default');
-    localStorage.removeItem('psx_portfolio_positions_guest_default');
-    localStorage.removeItem('psx_closed_trades_guest');
-    localStorage.removeItem('psx_user_watchlist_v1');
-    localStorage.removeItem('psx_user_portfolio_positions_v1');
-    localStorage.removeItem('psx_user_watchlist');
-    localStorage.removeItem('psx_watchlist');
+    localStorage.removeItem('psx_is_admin_open');
 
     setCurrentUser(null);
     setIsAdminOpen(false);
     
-    // Clear out private data from active state (Zero residual cache)
-    setRawPositions([]);
-    setWatchlist([]);
-    setWatchlistSet(new Set());
+    // Switch to guest workspace seamlessly without deleting persistent records
+    const guestPositions = loadUserPositions(null);
+    const guestWatchlist = loadUserWatchlist(null);
+    setRawPositions(guestPositions);
+    setWatchlist(guestWatchlist);
+    setWatchlistSet(new Set(guestWatchlist.map(w => (typeof w === 'string' ? w : w.symbol).toUpperCase())));
     showToast('Signed out successfully.');
   };
 
@@ -689,6 +711,28 @@ export default function App() {
       }
       if (r.status === 'fulfilled' && r.value?.success) setRecommendations(r.value);
       if (n.status === 'fulfilled' && n.value?.success) setNews(n.value.data);
+      if (w.status === 'fulfilled' && w.value?.success && Array.isArray(w.value.data) && w.value.data.length > 0) {
+        setWatchlist(prev => {
+          if (!prev || prev.length === 0) {
+            setWatchlistSet(new Set(w.value.data.map(i => (typeof i === 'string' ? i : i.symbol).toUpperCase())));
+            return w.value.data;
+          }
+          return prev;
+        });
+      }
+
+      // Sync cloud portfolio if local is empty
+      try {
+        const pRes = await getPortfolio();
+        if (pRes?.success && Array.isArray(pRes.data) && pRes.data.length > 0) {
+          setRawPositions(prev => {
+            if (!prev || prev.length === 0) {
+              return pRes.data;
+            }
+            return prev;
+          });
+        }
+      } catch (_) {}
 
       if (!silent) {
         setCountdown(AUTO_SYNC_SECONDS);

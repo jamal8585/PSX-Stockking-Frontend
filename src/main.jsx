@@ -21,8 +21,8 @@ class ErrorBoundary extends React.Component {
 
   handleResetStorage = () => {
     try {
-      localStorage.clear();
       sessionStorage.clear();
+      localStorage.removeItem('psx_is_admin_open');
     } catch (e) {}
     window.location.reload();
   };
