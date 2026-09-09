@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 import { getStockHistory } from '../services/api';
+import TradingViewPSXChart from './TradingViewPSXChart';
 
 // High-Performance Interactive SVG Stock Chart (Supports both Area and Candlestick OHLC + Volume)
 function InteractiveStockChart({ 
@@ -651,73 +652,21 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
               </div>
             </div>
 
-            {/* Right Column (7 Cols): Multi-Timeframe Candlestick Chart */}
+            {/* Right Column (7 Cols): Multi-Timeframe TradingView Pro Chart Station */}
             <div className="lg:col-span-7 flex flex-col space-y-4">
-              <div className="bg-[#070B12] rounded-2xl p-4 border border-gray-800/90 flex-1 flex flex-col min-h-[380px]">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pb-3 border-b border-gray-800/60">
-                  <div className="flex items-center space-x-2">
-                    <Activity className="w-4 h-4 text-cyan-400" />
-                    <span className="font-extrabold text-white text-xs">
-                      {sym} Interactive {selectedTimeframe} Technical Trajectory
-                    </span>
-                  </div>
-
-                  {/* Chart Type Toggle & Timeframes */}
-                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                    <div className="flex items-center space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-800 text-[11px]">
-                      <button
-                        onClick={() => setChartType('candlestick')}
-                        className={`px-2 py-0.5 rounded font-bold transition-all cursor-pointer ${
-                          chartType === 'candlestick' ? 'bg-cyan-500 text-black' : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        🕯️ Candles
-                      </button>
-                      <button
-                        onClick={() => setChartType('area')}
-                        className={`px-2 py-0.5 rounded font-bold transition-all cursor-pointer ${
-                          chartType === 'area' ? 'bg-cyan-500 text-black' : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        📈 Line
-                      </button>
-                    </div>
-
-                    <div className="flex items-center space-x-0.5 sm:space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-800 text-[10px] mono">
-                      {['1D', '5D', '1M', '3M', '1Y'].map(tf => (
-                        <button
-                          key={tf}
-                          onClick={() => setSelectedTimeframe(tf)}
-                          className={`px-1.5 py-0.5 rounded font-bold cursor-pointer ${
-                            selectedTimeframe === tf ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'
-                          }`}
-                        >
-                          {tf}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Fullscreen Button */}
-                    <button
-                      onClick={() => setIsFullScreen(true)}
-                      className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-cyan-400 hover:bg-gray-800 cursor-pointer transition-colors"
-                      title="Open Fullscreen Chart"
-                    >
-                      <Maximize2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Direct High-Performance SVG Chart */}
-                <div className="w-full h-[280px]">
-                  <InteractiveStockChart 
-                    data={chartData} 
-                    currentPrice={price} 
-                    symbol={sym} 
-                    chartType={chartType} 
-                    isLoading={historyLoading}
-                  />
-                </div>
+              <div className="bg-[#070B12] rounded-2xl border border-gray-800/90 overflow-hidden flex-1 flex flex-col min-h-[480px]">
+                <TradingViewPSXChart
+                  symbol={sym}
+                  companyName={name}
+                  currentPrice={price}
+                  prevClose={prevClose}
+                  change={change}
+                  changePercent={changePercent}
+                  volume={volume}
+                  high={high}
+                  low={low}
+                  onOpenCalculator={onOpenCalculator}
+                />
               </div>
             </div>
           </div>
@@ -1003,86 +952,20 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
 
         {/* 7. Dedicated Fullscreen Chart Modal View */}
         {isFullScreen && (
-          <div className="fixed inset-0 z-[70] bg-[#070B12] flex flex-col p-3 sm:p-6 overflow-x-hidden overflow-y-auto w-full max-w-full">
-            {/* Fullscreen Header */}
-            <div className="flex flex-col gap-2.5 pb-3 sm:pb-4 border-b border-gray-800 shrink-0">
-              {/* Row 1: Stock Title, Symbol & Exit Button */}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center space-x-2 min-w-0 flex-1">
-                  <h2 className="text-base sm:text-2xl font-black text-white truncate">{name}</h2>
-                  <span className="px-2 py-0.5 rounded bg-cyan-500 text-black font-mono font-black text-xs shrink-0">{sym}</span>
-                  <span className="text-xs text-gray-400 font-bold hidden md:inline truncate">{sector}</span>
-                </div>
-                <button
-                  onClick={() => setIsFullScreen(false)}
-                  className="p-1.5 sm:p-2 rounded-xl bg-gray-800 text-gray-300 hover:text-white hover:bg-gray-700 cursor-pointer transition-colors shrink-0 flex items-center space-x-1 text-xs font-bold"
-                  title="Exit Fullscreen"
-                >
-                  <Minimize2 className="w-4 h-4 text-cyan-400" />
-                  <span className="text-cyan-400">Exit</span>
-                </button>
-              </div>
-
-              {/* Row 2: Live Price & Controls */}
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-baseline space-x-2">
-                  <span className="text-lg sm:text-2xl font-black text-white mono">PKR {price.toFixed(2)}</span>
-                  <span className={`font-bold mono text-xs ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {isPositive ? '+' : ''}{change.toFixed(2)} ({isPositive ? '+' : ''}{changePercent.toFixed(2)}%)
-                  </span>
-                </div>
-
-                {/* Toolbar Controls */}
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                  <div className="flex items-center space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-800 text-xs">
-                    <button
-                      onClick={() => setChartType('candlestick')}
-                      className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded font-bold transition-all cursor-pointer ${
-                        chartType === 'candlestick' ? 'bg-cyan-500 text-black' : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      🕯️ Candles
-                    </button>
-                    <button
-                      onClick={() => setChartType('area')}
-                      className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded font-bold transition-all cursor-pointer ${
-                        chartType === 'area' ? 'bg-cyan-500 text-black' : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      📈 Line
-                    </button>
-                  </div>
-
-                  <div className="flex items-center space-x-0.5 sm:space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-800 text-xs mono font-bold">
-                    {['1D', '5D', '1M', '3M', '1Y'].map(tf => (
-                      <button
-                        key={tf}
-                        onClick={() => setSelectedTimeframe(tf)}
-                        className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded cursor-pointer ${
-                          selectedTimeframe === tf ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        {tf}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Fullscreen Chart Area */}
-            <div className="flex-1 w-full pt-2 sm:pt-4 min-h-[300px] sm:min-h-[440px] flex flex-col">
-              <InteractiveStockChart
-                data={chartData}
-                currentPrice={price}
-                symbol={sym}
-                chartType={chartType}
-                isLoading={historyLoading}
-                customWidth={800}
-                customHeight={380}
-              />
-            </div>
-          </div>
+          <TradingViewPSXChart
+            symbol={sym}
+            companyName={name}
+            currentPrice={price}
+            prevClose={prevClose}
+            change={change}
+            changePercent={changePercent}
+            volume={volume}
+            high={high}
+            low={low}
+            initialFullScreen={true}
+            onClose={() => setIsFullScreen(false)}
+            onOpenCalculator={onOpenCalculator}
+          />
         )}
       </div>
     </div>

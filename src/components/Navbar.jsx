@@ -429,6 +429,18 @@ export default function Navbar({
             <BarChart3 className="w-3.5 h-3.5" />
             <span>Full PSX Screener</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('charts')}
+            className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              activeTab === 'charts' 
+                ? (isLight ? 'bg-[#06B6D4] text-black shadow-sm font-black' : 'bg-[#06B6D4] text-black shadow-sm font-black')
+                : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+            }`}
+          >
+            <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
+            <span>TradingView Pro 📊</span>
+          </button>
         </div>
       </div>
     </header>

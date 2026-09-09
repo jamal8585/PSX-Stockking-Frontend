@@ -16,6 +16,7 @@ import AdminDashboard from './components/AdminDashboard';
 import DividendIntelligenceHub from './components/DividendIntelligenceHub';
 import WatchlistHub from './components/WatchlistHub';
 import ProfileModal from './components/ProfileModal';
+import TradingViewPSXChart from './components/TradingViewPSXChart';
 
 import {
   getMarketSummary,
@@ -1002,6 +1003,20 @@ export default function App() {
             onToggleWatchlist={handleToggleWatchlist}
             watchlistSet={watchlistSet}
           />
+        )}
+
+        {/* Tab 7: Full TradingView Pro Station */}
+        {activeTab === 'charts' && (
+          <div className="space-y-4">
+            <div className="bg-[#0B0F19] rounded-2xl border border-gray-800 shadow-2xl overflow-hidden p-2 sm:p-4">
+              <TradingViewPSXChart
+                symbol="OGDC"
+                companyName="Oil & Gas Development Company Ltd"
+                onSelectStock={handleSelectStock}
+                onOpenCalculator={setCalcStock}
+              />
+            </div>
+          </div>
         )}
       </main>
 

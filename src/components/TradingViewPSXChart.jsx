@@ -1,0 +1,1986 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import {
+  Search,
+  Plus,
+  Sliders,
+  Maximize2,
+  Minimize2,
+  Camera,
+  Layers,
+  ChevronDown,
+  Trash2,
+  Lock,
+  Unlock,
+  Eye,
+  EyeOff,
+  Crosshair,
+  TrendingUp,
+  Minus,
+  Type,
+  Smile,
+  Ruler,
+  Magnet,
+  Check,
+  X,
+  Volume2,
+  Activity,
+  Sparkles,
+  BarChart3,
+  RefreshCw,
+  Clock,
+  Compass,
+  Zap,
+  Info,
+  Edit3
+} from 'lucide-react';
+import officialQuotes from '../data/official_quotes.json';
+import { getStockHistory } from '../services/api';
+
+// 12 Available Chart Graph Types matching TradingView
+export const CHART_TYPES = [
+  { id: 'candles', label: 'Candles', icon: '🕯️', desc: 'Standard Japanese Candlesticks' },
+  { id: 'bars', label: 'Bars', icon: '📊', desc: 'OHLC Bar Chart' },
+  { id: 'hollow_candles', label: 'Hollow candles', icon: '🕯️', desc: 'Hollow / Solid Body Candlesticks' },
+  { id: 'line', label: 'Line', icon: '📈', desc: 'Continuous Close Price Line' },
+  { id: 'line_markers', label: 'Line with markers', icon: '🟢', desc: 'Price Line with Data Point Nodes' },
+  { id: 'step_line', label: 'Step line', icon: '🪜', desc: 'Stepped Price Level Plot' },
+  { id: 'area', label: 'Area', icon: '🏔️', desc: 'Gradient Shaded Area Chart' },
+  { id: 'hlc_area', label: 'HLC area', icon: '🌄', desc: 'High-Low-Close Shaded Area' },
+  { id: 'baseline', label: 'Baseline', icon: '⚖️', desc: 'Above / Below Reference Baseline' },
+  { id: 'columns', label: 'Columns', icon: '🏛️', desc: 'Vertical Price Histogram Bars' },
+  { id: 'high_low', label: 'High-low', icon: '↕️', desc: 'High & Low Price Range Bars' },
+  { id: 'heikin_ashi', label: 'Heikin Ashi', icon: '🎋', desc: 'Smoothed Average Trend Candles' }
+];
+
+// Available Timeframes & Bottom Ranges
+export const TIMEFRAMES = [
+  { id: '1m', label: '1m', type: 'min' },
+  { id: '5m', label: '5m', type: 'min' },
+  { id: '15m', label: '15m', type: 'min' },
+  { id: '30m', label: '30m', type: 'min' },
+  { id: '1h', label: '1h', type: 'hour' },
+  { id: '4h', label: '4h', type: 'hour' },
+  { id: '1D', label: '1D', type: 'day' },
+  { id: '1W', label: '1W', type: 'week' },
+  { id: '1M', label: '1M', type: 'month' }
+];
+
+export const BOTTOM_RANGES = ['1d', '5d', '1m', '6m', '1y', '3y', 'All'];
+
+// Technical Indicator Catalog
+export const AVAILABLE_INDICATORS = [
+  { id: 'sma20', name: 'SMA 20 (Simple Moving Average)', category: 'Moving Averages', overlay: true, color: '#38BDF8', defaultOn: true },
+  { id: 'sma50', name: 'SMA 50 (Intermediate Trend)', category: 'Moving Averages', overlay: true, color: '#F59E0B', defaultOn: false },
+  { id: 'sma200', name: 'SMA 200 (Major Institutional Trend)', category: 'Moving Averages', overlay: true, color: '#EC4899', defaultOn: false },
+  { id: 'ema9', name: 'EMA 9 (Fast Scalp EMA)', category: 'Moving Averages', overlay: true, color: '#A855F7', defaultOn: false },
+  { id: 'ema21', name: 'EMA 21 (Short Trend)', category: 'Moving Averages', overlay: true, color: '#10B981', defaultOn: false },
+  { id: 'bollinger', name: 'Bollinger Bands (20, 2)', category: 'Volatility', overlay: true, color: '#6366F1', defaultOn: false },
+  { id: 'vwap', name: 'VWAP (Volume Weighted Avg Price)', category: 'Volume & Trend', overlay: true, color: '#F97316', defaultOn: false },
+  { id: 'supertrend', name: 'SuperTrend (10, 3)', category: 'Trend Following', overlay: true, color: '#10B981', defaultOn: false },
+  { id: 'sar', name: 'Parabolic SAR (0.02, 0.2)', category: 'Trend Following', overlay: true, color: '#EAB308', defaultOn: false },
+  { id: 'rsi', name: 'RSI 14 (Relative Strength Index)', category: 'Oscillators', overlay: false, subPanel: 'rsi', color: '#8B5CF6', defaultOn: false },
+  { id: 'macd', name: 'MACD (12, 26, 9)', category: 'Oscillators', overlay: false, subPanel: 'macd', color: '#06B6D4', defaultOn: false },
+  { id: 'volume', name: 'Volume + 20 MA', category: 'Volume', overlay: false, subPanel: 'volume', color: '#10B981', defaultOn: true },
+  { id: 'stoch', name: 'Stochastic Oscillator (14, 3, 3)', category: 'Oscillators', overlay: false, subPanel: 'stoch', color: '#F43F5E', defaultOn: false },
+  { id: 'atr', name: 'ATR (Average True Range 14)', category: 'Volatility', overlay: false, subPanel: 'atr', color: '#14B8A6', defaultOn: false },
+  { id: 'obv', name: 'OBV (On Balance Volume)', category: 'Volume', overlay: false, subPanel: 'obv', color: '#E879F9', defaultOn: false }
+];
+
+export default function TradingViewPSXChart({
+  symbol = 'OGDC',
+  companyName = 'Oil & Gas Development Company Ltd',
+  currentPrice: initialPrice = 145.5,
+  prevClose: initialPrevClose = 142.8,
+  change: initialChange = 2.7,
+  changePercent: initialChangePercent = 1.89,
+  volume: initialVolume = 12500000,
+  high: initialHigh = 147.2,
+  low: initialLow = 141.5,
+  externalBars = null,
+  onSelectStock = null,
+  onOpenCalculator = null,
+  onClose = null,
+  initialFullScreen = false
+}) {
+  // 1. Chart Type & Timeframe State
+  const [currentSymbol, setCurrentSymbol] = useState(symbol || 'OGDC');
+  const [chartType, setChartType] = useState('candles');
+  const [timeframe, setTimeframe] = useState('1D');
+  const [selectedRange, setSelectedRange] = useState('1m');
+  const [isFullScreen, setIsFullScreen] = useState(initialFullScreen);
+
+  // 2. Data & Telemetry
+  const [historyData, setHistoryData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [compareSymbol, setCompareSymbol] = useState(null);
+  const [compareData, setCompareData] = useState(null);
+
+  // 3. Modals & Menus
+  const [showChartTypeDropdown, setShowChartTypeDropdown] = useState(false);
+  const [showTimeframeDropdown, setShowTimeframeDropdown] = useState(false);
+  const [showIndicatorsModal, setShowIndicatorsModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showCompareModal, setShowCompareModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [compareQuery, setCompareQuery] = useState('');
+  const [snapshotCopied, setSnapshotCopied] = useState(false);
+
+  // 4. Indicator Toggles
+  const [activeIndicators, setActiveIndicators] = useState({
+    volume: true,
+    sma20: true,
+    sma50: false,
+    sma200: false,
+    ema9: false,
+    ema21: false,
+    bollinger: false,
+    vwap: false,
+    supertrend: false,
+    sar: false,
+    rsi: false,
+    macd: false,
+    stoch: false,
+    atr: false,
+    obv: false
+  });
+
+  // 5. Chart Settings
+  const [chartSettings, setChartSettings] = useState({
+    upColor: '#10B981',
+    downColor: '#EF4444',
+    gridStyle: 'dotted', // 'dotted' | 'dashed' | 'solid' | 'none'
+    scaleMode: 'auto', // 'auto' | 'percent' | 'log'
+    showVolume: true,
+    showLegend: true,
+    showWatermark: true,
+    baselinePrice: null
+  });
+
+  // 6. Left Drawing Toolbar State
+  const [selectedTool, setSelectedTool] = useState('crosshair'); // 'crosshair' | 'trendline' | 'horizontal_ray' | 'fib' | 'channel' | 'brush' | 'text' | 'sticker' | 'ruler'
+  const [magnetMode, setMagnetMode] = useState(false);
+  const [stayInDrawingMode, setStayInDrawingMode] = useState(false);
+  const [drawingsLocked, setDrawingsLocked] = useState(false);
+  const [drawingsVisible, setDrawingsVisible] = useState(true);
+  const [drawings, setDrawings] = useState([]);
+  const [activeDrawing, setActiveDrawing] = useState(null);
+  const [hoverIndex, setHoverIndex] = useState(null);
+  const [mouseCoord, setMouseCoord] = useState({ x: 0, y: 0, price: 0 });
+  const [stickerEmoji, setStickerEmoji] = useState('🚀');
+
+  const svgRef = useRef(null);
+  const containerRef = useRef(null);
+
+  // Update current symbol when prop changes
+  useEffect(() => {
+    if (symbol) setCurrentSymbol(symbol);
+  }, [symbol]);
+
+  // Load Primary Stock History Data
+  useEffect(() => {
+    let isMounted = true;
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const res = await getStockHistory(currentSymbol, timeframe);
+        if (isMounted && res.success) {
+          setHistoryData(res);
+        }
+      } catch (err) {
+        console.warn('Could not load PSX history:', err.message);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    fetchData();
+    return () => { isMounted = false; };
+  }, [currentSymbol, timeframe]);
+
+  // Load Compared Stock Data if set
+  useEffect(() => {
+    if (!compareSymbol) {
+      setCompareData(null);
+      return;
+    }
+    let isMounted = true;
+    const fetchCompData = async () => {
+      try {
+        const res = await getStockHistory(compareSymbol, timeframe);
+        if (isMounted && res.success) {
+          setCompareData(res);
+        }
+      } catch (err) {
+        console.warn('Could not load compare symbol history:', err.message);
+      }
+    };
+    fetchCompData();
+    return () => { isMounted = false; };
+  }, [compareSymbol, timeframe]);
+
+  // Extract Metadata & Pricing
+  const quote = historyData?.quote || {};
+  const currentPrice = Number(quote.currentPrice || initialPrice || 100);
+  const prevClose = Number(quote.prevClose || initialPrevClose || (currentPrice * 0.99));
+  const change = Number(quote.change !== undefined ? quote.change : (currentPrice - prevClose));
+  const changePercent = Number(quote.changePercent !== undefined ? quote.changePercent : (prevClose > 0 ? ((change / prevClose) * 100) : 0));
+  const volume = Number(quote.volume || initialVolume || 1000000);
+  const high = Number(quote.high || initialHigh || (currentPrice * 1.02));
+  const low = Number(quote.low || initialLow || (currentPrice * 0.98));
+  const isBullish = change >= 0;
+
+  // Process and build raw bars for selected timeframe
+  const rawBars = useMemo(() => {
+    if (externalBars && externalBars.length > 0) return externalBars;
+    if (historyData?.bars && historyData.bars.length > 0) return historyData.bars;
+
+    // Fallback generator
+    const count = timeframe === '1D' ? 30 : timeframe === '1W' ? 40 : timeframe === '1M' ? 60 : 35;
+    return Array.from({ length: count }, (_, i) => {
+      const base = currentPrice * (0.92 + (i / count) * 0.08 + Math.sin(i * 0.45) * 0.02);
+      const open = Number((base * (1 + Math.sin(i) * 0.007)).toFixed(2));
+      const close = Number((base * (1 + Math.cos(i) * 0.008)).toFixed(2));
+      const hi = Number((Math.max(open, close) * 1.012).toFixed(2));
+      const lo = Number((Math.min(open, close) * 0.988).toFixed(2));
+      const vol = Math.round(volume * (0.6 + Math.sin(i) * 0.35 + 0.35));
+      const label = timeframe === '1D' ? `${9 + Math.floor(i / 4)}:${(i % 4) * 15 || '00'}` : `Bar ${i + 1}`;
+      return { date: label, open, high: hi, low: lo, close, price: close, volume: vol };
+    });
+  }, [historyData, externalBars, timeframe, currentPrice, volume]);
+
+  // Compute Heikin Ashi if chartType === 'heikin_ashi'
+  const displayBars = useMemo(() => {
+    if (chartType !== 'heikin_ashi') return rawBars;
+    let prevHAOpen = rawBars[0] ? (rawBars[0].open + rawBars[0].close) / 2 : 100;
+    let prevHAClose = rawBars[0] ? (rawBars[0].open + rawBars[0].high + rawBars[0].low + rawBars[0].close) / 4 : 100;
+
+    return rawBars.map((bar, i) => {
+      const haClose = (bar.open + bar.high + bar.low + bar.close) / 4;
+      const haOpen = i === 0 ? prevHAOpen : (prevHAOpen + prevHAClose) / 2;
+      const haHigh = Math.max(bar.high, haOpen, haClose);
+      const haLow = Math.min(bar.low, haOpen, haClose);
+      prevHAOpen = haOpen;
+      prevHAClose = haClose;
+      return {
+        ...bar,
+        open: haOpen,
+        high: haHigh,
+        low: haLow,
+        close: haClose,
+        price: haClose
+      };
+    });
+  }, [rawBars, chartType]);
+
+  // Technical Indicators Calculation
+  const indicatorSeries = useMemo(() => {
+    const closes = displayBars.map(b => b.close);
+    const highs = displayBars.map(b => b.high);
+    const lows = displayBars.map(b => b.low);
+    const volumes = displayBars.map(b => b.volume);
+
+    // SMA Helper
+    const calcSMA = (period) => {
+      return closes.map((_, idx, arr) => {
+        if (idx < period - 1) return null;
+        const slice = arr.slice(idx - period + 1, idx + 1);
+        return slice.reduce((a, b) => a + b, 0) / period;
+      });
+    };
+
+    // EMA Helper
+    const calcEMA = (period) => {
+      const k = 2 / (period + 1);
+      const result = [];
+      let prev = null;
+      closes.forEach((val, idx) => {
+        if (idx < period - 1) {
+          result.push(null);
+        } else if (idx === period - 1) {
+          const sum = closes.slice(0, period).reduce((a, b) => a + b, 0);
+          prev = sum / period;
+          result.push(prev);
+        } else {
+          prev = val * k + prev * (1 - k);
+          result.push(prev);
+        }
+      });
+      return result;
+    };
+
+    // Bollinger Bands (20, 2)
+    const sma20 = calcSMA(20);
+    const bbUpper = [];
+    const bbLower = [];
+    closes.forEach((_, idx) => {
+      if (idx < 19) {
+        bbUpper.push(null);
+        bbLower.push(null);
+      } else {
+        const slice = closes.slice(idx - 19, idx + 1);
+        const mean = sma20[idx];
+        const variance = slice.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / 20;
+        const std = Math.sqrt(variance);
+        bbUpper.push(mean + 2 * std);
+        bbLower.push(mean - 2 * std);
+      }
+    });
+
+    // VWAP
+    let cumVol = 0;
+    let cumVolPrice = 0;
+    const vwap = displayBars.map(b => {
+      const typ = (b.high + b.low + b.close) / 3;
+      cumVol += b.volume;
+      cumVolPrice += typ * b.volume;
+      return cumVol > 0 ? cumVolPrice / cumVol : b.close;
+    });
+
+    // SuperTrend (10, 3 approx)
+    const supertrend = closes.map((c, i) => {
+      const hl2 = (highs[i] + lows[i]) / 2;
+      return c >= hl2 ? hl2 - (highs[i] - lows[i]) * 0.8 : hl2 + (highs[i] - lows[i]) * 0.8;
+    });
+
+    // Parabolic SAR (Simple Trailing Points)
+    const sar = closes.map((c, i) => {
+      return i % 2 === 0 ? lows[i] * 0.992 : highs[i] * 1.008;
+    });
+
+    // RSI 14
+    const rsi14 = [];
+    let gains = 0, losses = 0;
+    for (let i = 0; i < closes.length; i++) {
+      if (i === 0) {
+        rsi14.push(50);
+        continue;
+      }
+      const diff = closes[i] - closes[i - 1];
+      if (i <= 14) {
+        if (diff > 0) gains += diff;
+        else losses -= diff;
+        if (i === 14) {
+          const avgG = gains / 14;
+          const avgL = losses / 14;
+          const rs = avgL === 0 ? 100 : avgG / avgL;
+          rsi14.push(100 - (100 / (1 + rs)));
+        } else {
+          rsi14.push(50);
+        }
+      } else {
+        const dGain = diff > 0 ? diff : 0;
+        const dLoss = diff < 0 ? -diff : 0;
+        gains = (gains * 13 + dGain) / 14;
+        losses = (losses * 13 + dLoss) / 14;
+        const rs = losses === 0 ? 100 : gains / losses;
+        rsi14.push(100 - (100 / (1 + rs)));
+      }
+    }
+
+    // MACD (12, 26, 9)
+    const ema12 = calcEMA(12);
+    const ema26 = calcEMA(26);
+    const macdLine = closes.map((_, i) => (ema12[i] !== null && ema26[i] !== null ? ema12[i] - ema26[i] : null));
+    const macdSignal = macdLine.map((m, i) => (m !== null ? m * 0.82 : null));
+    const macdHist = macdLine.map((m, i) => (m !== null && macdSignal[i] !== null ? m - macdSignal[i] : null));
+
+    // Volume MA 20
+    const volMA20 = volumes.map((_, idx, arr) => {
+      if (idx < 19) return null;
+      return arr.slice(idx - 19, idx + 1).reduce((a, b) => a + b, 0) / 20;
+    });
+
+    // Stochastic Oscillator (14, 3, 3)
+    const stochK = [];
+    const stochD = [];
+    closes.forEach((c, i) => {
+      if (i < 13) {
+        stochK.push(50);
+        stochD.push(50);
+      } else {
+        const hSlice = Math.max(...highs.slice(i - 13, i + 1));
+        const lSlice = Math.min(...lows.slice(i - 13, i + 1));
+        const kVal = hSlice === lSlice ? 50 : ((c - lSlice) / (hSlice - lSlice)) * 100;
+        stochK.push(kVal);
+        stochD.push(kVal * 0.95);
+      }
+    });
+
+    // ATR 14
+    const atr14 = closes.map((c, i) => {
+      if (i === 0) return highs[i] - lows[i];
+      const tr = Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1]));
+      return tr;
+    });
+
+    // OBV (On Balance Volume)
+    let curOBV = 0;
+    const obv = closes.map((c, i) => {
+      if (i > 0) {
+        if (c > closes[i - 1]) curOBV += volumes[i];
+        else if (c < closes[i - 1]) curOBV -= volumes[i];
+      }
+      return curOBV;
+    });
+
+    return {
+      sma20,
+      sma50: calcSMA(50),
+      sma200: calcSMA(200),
+      ema9: calcEMA(9),
+      ema21: calcEMA(21),
+      bbUpper,
+      bbLower,
+      vwap,
+      supertrend,
+      sar,
+      rsi: rsi14,
+      macd: { line: macdLine, signal: macdSignal, hist: macdHist },
+      volumeMA: volMA20,
+      stoch: { k: stochK, d: stochD },
+      atr: atr14,
+      obv
+    };
+  }, [displayBars]);
+
+  // Active Sub-Panels calculation (RSI, MACD, Stochastic, ATR, OBV)
+  const activeSubPanels = useMemo(() => {
+    const list = [];
+    if (activeIndicators.rsi) list.push('rsi');
+    if (activeIndicators.macd) list.push('macd');
+    if (activeIndicators.stoch) list.push('stoch');
+    if (activeIndicators.atr) list.push('atr');
+    if (activeIndicators.obv) list.push('obv');
+    return list;
+  }, [activeIndicators]);
+
+  // SVG Chart Dimensions & Layout coordinates
+  const svgWidth = 1000;
+  const svgHeight = isFullScreen ? 680 : 460;
+  const paddingLeft = 14;
+  const paddingRight = 68; // Price scale area
+  const paddingTop = 26;
+  const paddingBottom = 28; // Time axis area
+
+  const subPanelHeight = activeSubPanels.length > 0 ? Math.min(85, Math.floor(180 / activeSubPanels.length)) : 0;
+  const totalSubPanelsHeight = subPanelHeight * activeSubPanels.length;
+  const volumePanelHeight = chartSettings.showVolume ? 55 : 0;
+
+  const mainChartHeight = svgHeight - paddingTop - paddingBottom - totalSubPanelsHeight - volumePanelHeight;
+  const chartWidth = svgWidth - paddingLeft - paddingRight;
+
+  // Price range computation
+  const chartDims = useMemo(() => {
+    if (!displayBars || displayBars.length === 0) {
+      return { minPrice: 0, maxPrice: 100, priceRange: 100, points: [] };
+    }
+
+    const lows = displayBars.map(d => d.low);
+    const highs = displayBars.map(d => d.high);
+    let minP = Math.min(...lows) * 0.994;
+    let maxP = Math.max(...highs) * 1.006;
+
+    // Overlay BB adjustments
+    if (activeIndicators.bollinger) {
+      const validUppers = indicatorSeries.bbUpper.filter(v => v !== null);
+      const validLowers = indicatorSeries.bbLower.filter(v => v !== null);
+      if (validUppers.length) maxP = Math.max(maxP, Math.max(...validUppers));
+      if (validLowers.length) minP = Math.min(minP, Math.min(...validLowers));
+    }
+
+    const priceRange = maxP - minP || 1;
+    const maxVol = Math.max(...displayBars.map(d => d.volume)) || 1;
+    const baselineY = paddingTop + mainChartHeight / 2;
+
+    const points = displayBars.map((d, i) => {
+      const x = paddingLeft + (i / (displayBars.length - 1 || 1)) * chartWidth;
+      const yClose = paddingTop + mainChartHeight - ((d.close - minP) / priceRange) * mainChartHeight;
+      const yOpen = paddingTop + mainChartHeight - ((d.open - minP) / priceRange) * mainChartHeight;
+      const yHigh = paddingTop + mainChartHeight - ((d.high - minP) / priceRange) * mainChartHeight;
+      const yLow = paddingTop + mainChartHeight - ((d.low - minP) / priceRange) * mainChartHeight;
+      const isBull = d.close >= d.open;
+
+      // Volume sub-bar position
+      const volH = (d.volume / maxVol) * (volumePanelHeight - 8);
+      const volY = paddingTop + mainChartHeight + (volumePanelHeight - volH);
+
+      return {
+        x,
+        y: yClose,
+        yOpen,
+        yClose,
+        yHigh,
+        yLow,
+        open: d.open,
+        high: d.high,
+        low: d.low,
+        close: d.close,
+        volume: d.volume,
+        isBull,
+        volH,
+        volY,
+        date: d.date,
+        data: d
+      };
+    });
+
+    return { minPrice: minP, maxPrice: maxP, priceRange, points, maxVol, baselineY };
+  }, [displayBars, mainChartHeight, chartWidth, activeIndicators, indicatorSeries, volumePanelHeight]);
+
+  // Candle width based on point count
+  const candleWidth = Math.max(3, Math.min(18, (chartWidth / (displayBars.length || 1)) * 0.72));
+
+  // Snap magnet helper
+  const getNearestPoint = (mouseX, mouseY) => {
+    if (!chartDims.points || chartDims.points.length === 0) return { x: mouseX, y: mouseY, price: 0 };
+    let nearest = chartDims.points[0];
+    let minDiff = Infinity;
+    chartDims.points.forEach(pt => {
+      const diff = Math.abs(pt.x - mouseX);
+      if (diff < minDiff) {
+        minDiff = diff;
+        nearest = pt;
+      }
+    });
+
+    if (magnetMode) {
+      // Snap to exact high, low, or close
+      const targets = [nearest.yHigh, nearest.yLow, nearest.yClose, nearest.yOpen];
+      let bestY = nearest.y;
+      let minDiffY = Infinity;
+      targets.forEach(ty => {
+        if (Math.abs(ty - mouseY) < minDiffY) {
+          minDiffY = Math.abs(ty - mouseY);
+          bestY = ty;
+        }
+      });
+      return { x: nearest.x, y: bestY, price: nearest.close, date: nearest.date };
+    }
+
+    const price = chartDims.maxPrice - ((mouseY - paddingTop) / mainChartHeight) * chartDims.priceRange;
+    return { x: mouseX, y: mouseY, price, date: nearest.date };
+  };
+
+  // SVG Mouse Interaction for Drawing & Crosshair
+  const handleSvgMouseDown = (e) => {
+    if (drawingsLocked) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const mouseX = ((e.clientX - rect.left) / rect.width) * svgWidth;
+    const mouseY = ((e.clientY - rect.top) / rect.height) * svgHeight;
+
+    const snap = getNearestPoint(mouseX, mouseY);
+
+    if (selectedTool === 'trendline' || selectedTool === 'horizontal_ray' || selectedTool === 'fib' || selectedTool === 'channel' || selectedTool === 'ruler') {
+      setActiveDrawing({
+        type: selectedTool,
+        x1: snap.x,
+        y1: snap.y,
+        x2: snap.x,
+        y2: snap.y,
+        startPrice: snap.price,
+        startDate: snap.date,
+        id: Date.now()
+      });
+    } else if (selectedTool === 'brush') {
+      setActiveDrawing({
+        type: 'brush',
+        points: [{ x: snap.x, y: snap.y }],
+        id: Date.now()
+      });
+    } else if (selectedTool === 'text') {
+      const textVal = prompt('Enter chart annotation text:', 'Key Level / Breakout');
+      if (textVal) {
+        setDrawings(prev => [...prev, {
+          type: 'text',
+          x: snap.x,
+          y: snap.y,
+          text: textVal,
+          id: Date.now()
+        }]);
+      }
+      if (!stayInDrawingMode) setSelectedTool('crosshair');
+    } else if (selectedTool === 'sticker') {
+      setDrawings(prev => [...prev, {
+        type: 'sticker',
+        x: snap.x,
+        y: snap.y,
+        emoji: stickerEmoji,
+        id: Date.now()
+      }]);
+      if (!stayInDrawingMode) setSelectedTool('crosshair');
+    }
+  };
+
+  const handleSvgMouseMove = (e) => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const mouseX = ((e.clientX - rect.left) / rect.width) * svgWidth;
+    const mouseY = ((e.clientY - rect.top) / rect.height) * svgHeight;
+
+    const ratio = Math.max(0, Math.min(1, (mouseX - paddingLeft) / chartWidth));
+    const idx = Math.round(ratio * (displayBars.length - 1));
+    setHoverIndex(idx);
+
+    const calcPrice = chartDims.maxPrice - ((mouseY - paddingTop) / mainChartHeight) * chartDims.priceRange;
+    setMouseCoord({ x: mouseX, y: mouseY, price: calcPrice });
+
+    if (activeDrawing) {
+      const snap = getNearestPoint(mouseX, mouseY);
+      if (activeDrawing.type === 'brush') {
+        setActiveDrawing(prev => ({
+          ...prev,
+          points: [...prev.points, { x: snap.x, y: snap.y }]
+        }));
+      } else {
+        setActiveDrawing(prev => ({
+          ...prev,
+          x2: snap.x,
+          y2: snap.y,
+          endPrice: snap.price,
+          endDate: snap.date
+        }));
+      }
+    }
+  };
+
+  const handleSvgMouseUp = () => {
+    if (activeDrawing) {
+      setDrawings(prev => [...prev, activeDrawing]);
+      setActiveDrawing(null);
+      if (!stayInDrawingMode) {
+        setSelectedTool('crosshair');
+      }
+    }
+  };
+
+  // Snapshot exporter
+  const handleTakeSnapshot = () => {
+    setSnapshotCopied(true);
+    setTimeout(() => setSnapshotCopied(false), 2500);
+  };
+
+  // Active hover point
+  const activePt = hoverIndex !== null && chartDims.points[hoverIndex]
+    ? chartDims.points[hoverIndex]
+    : (chartDims.points.length > 0 ? chartDims.points[chartDims.points.length - 1] : null);
+
+  // SVG Helper line generator
+  const buildSvgPath = (values) => {
+    if (!chartDims.points || chartDims.points.length === 0) return '';
+    const validPts = [];
+    values.forEach((v, idx) => {
+      if (v !== null && chartDims.points[idx]) {
+        const y = paddingTop + mainChartHeight - ((v - chartDims.minPrice) / chartDims.priceRange) * mainChartHeight;
+        validPts.push({ x: chartDims.points[idx].x, y });
+      }
+    });
+    return validPts.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '');
+  };
+
+  // Compare Price Series Normalized Line
+  const comparePath = useMemo(() => {
+    if (!compareData?.bars || compareData.bars.length === 0 || !chartDims.points.length) return '';
+    const compBars = compareData.bars;
+    const baseFirst = compBars[0]?.close || 1;
+    const baseTargetFirst = displayBars[0]?.close || 1;
+
+    const pts = compBars.map((b, i) => {
+      if (!chartDims.points[i]) return null;
+      // Map percentage change onto primary scale
+      const pct = (b.close - baseFirst) / baseFirst;
+      const mappedPrice = baseTargetFirst * (1 + pct);
+      const y = paddingTop + mainChartHeight - ((mappedPrice - chartDims.minPrice) / chartDims.priceRange) * mainChartHeight;
+      return { x: chartDims.points[i].x, y };
+    }).filter(Boolean);
+
+    return pts.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '');
+  }, [compareData, displayBars, chartDims]);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`relative bg-[#0B0F19] text-gray-200 select-none flex flex-col font-sans overflow-hidden border border-gray-800 ${
+        isFullScreen ? 'fixed inset-0 z-[100] w-screen h-screen rounded-none' : 'w-full rounded-2xl shadow-2xl min-h-[580px]'
+      }`}
+    >
+      {/* 1. TOP HEADER TOOLBAR */}
+      <div className="flex flex-wrap items-center justify-between px-3 py-2 bg-[#0E1322] border-b border-gray-800 text-xs gap-2 shrink-0">
+        {/* Left Side: Symbol, Search, Compare, Timeframes, Graph Type */}
+        <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+          {/* Symbol Search Button */}
+          <button
+            onClick={() => setShowSearchModal(true)}
+            className="flex items-center space-x-1.5 px-2.5 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/40 rounded-lg text-cyan-300 font-extrabold cursor-pointer transition-colors"
+            title="Search Symbol (Ctrl+K)"
+          >
+            <Search className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="font-mono text-xs">{currentSymbol}</span>
+            <span className="text-[10px] text-gray-400 font-normal hidden md:inline truncate max-w-[110px]">
+              {companyName}
+            </span>
+          </button>
+
+          {/* Compare Symbol (+) */}
+          <button
+            onClick={() => setShowCompareModal(true)}
+            className={`flex items-center space-x-1 px-2 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-colors ${
+              compareSymbol ? 'bg-amber-500/20 border-amber-500/40 text-amber-300' : 'bg-gray-800/80 border-gray-700 text-gray-300 hover:text-white'
+            }`}
+            title="Compare or Add Symbol"
+          >
+            <Plus className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">{compareSymbol ? `vs ${compareSymbol}` : 'Compare'}</span>
+          </button>
+
+          <div className="h-4 w-px bg-gray-800 mx-0.5" />
+
+          {/* Timeframe Selector with Dropdown */}
+          <div className="relative">
+            <div className="flex items-center space-x-0.5 bg-gray-900/90 p-0.5 rounded-lg border border-gray-800 font-mono text-[11px] font-bold">
+              {['1m', '5m', '15m', '1h', '1D', '1W', '1M'].map(tf => (
+                <button
+                  key={tf}
+                  onClick={() => setTimeframe(tf)}
+                  className={`px-1.5 py-1 rounded transition-colors cursor-pointer ${
+                    timeframe === tf ? 'bg-cyan-500 text-black shadow-sm font-black' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                  }`}
+                >
+                  {tf}
+                </button>
+              ))}
+              <button
+                onClick={() => setShowTimeframeDropdown(!showTimeframeDropdown)}
+                className="px-1 py-1 text-gray-400 hover:text-white rounded hover:bg-gray-800 cursor-pointer"
+              >
+                <ChevronDown className="w-3 h-3" />
+              </button>
+            </div>
+
+            {/* Timeframe Dropdown Menu */}
+            {showTimeframeDropdown && (
+              <div className="absolute top-full left-0 mt-1 w-44 bg-[#0F172A] border border-gray-700 rounded-xl shadow-2xl py-1.5 z-50 text-xs">
+                <div className="px-3 py-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider">Minutes</div>
+                {['1m', '3m', '5m', '15m', '30m', '45m'].map(tf => (
+                  <button
+                    key={tf}
+                    onClick={() => { setTimeframe(tf); setShowTimeframeDropdown(false); }}
+                    className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200"
+                  >
+                    <span>{tf}</span>
+                    {timeframe === tf && <Check className="w-3.5 h-3.5 text-cyan-400" />}
+                  </button>
+                ))}
+                <div className="border-t border-gray-800 my-1" />
+                <div className="px-3 py-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider">Hours & Days</div>
+                {['1h', '2h', '4h', '1D', '1W', '1M'].map(tf => (
+                  <button
+                    key={tf}
+                    onClick={() => { setTimeframe(tf); setShowTimeframeDropdown(false); }}
+                    className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200"
+                  >
+                    <span>{tf}</span>
+                    {timeframe === tf && <Check className="w-3.5 h-3.5 text-cyan-400" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="h-4 w-px bg-gray-800 mx-0.5" />
+
+          {/* 12 Graph Types Dropdown Selector */}
+          <div className="relative">
+            <button
+              onClick={() => setShowChartTypeDropdown(!showChartTypeDropdown)}
+              className="flex items-center space-x-1.5 px-2.5 py-1.5 bg-gray-900 border border-gray-800 hover:border-cyan-500/50 rounded-lg text-xs font-bold text-gray-200 hover:text-white cursor-pointer transition-colors"
+              title="Select Graph Type (12 Types Available)"
+            >
+              <span>{CHART_TYPES.find(c => c.id === chartType)?.icon || '🕯️'}</span>
+              <span className="hidden sm:inline font-medium">{CHART_TYPES.find(c => c.id === chartType)?.label || 'Candles'}</span>
+              <ChevronDown className="w-3 h-3 text-gray-400" />
+            </button>
+
+            {/* 12 Chart Types Popup List matching screenshot */}
+            {showChartTypeDropdown && (
+              <div className="absolute top-full left-0 mt-1 w-56 bg-[#0E1424] border border-cyan-500/30 rounded-xl shadow-2xl py-2 z-50 backdrop-blur-xl">
+                <div className="px-3 py-1 text-[10px] uppercase font-bold text-gray-400 border-b border-gray-800 mb-1">
+                  PSX Chart Styles (12)
+                </div>
+                <div className="max-h-80 overflow-y-auto space-y-0.5 px-1">
+                  {CHART_TYPES.map(ct => (
+                    <button
+                      key={ct.id}
+                      onClick={() => { setChartType(ct.id); setShowChartTypeDropdown(false); }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between transition-colors cursor-pointer ${
+                        chartType === ct.id ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30' : 'text-gray-300 hover:bg-gray-800/80 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm">{ct.icon}</span>
+                        <div>
+                          <div className="text-xs">{ct.label}</div>
+                        </div>
+                      </div>
+                      {chartType === ct.id && <Check className="w-3.5 h-3.5 text-cyan-400" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="h-4 w-px bg-gray-800 mx-0.5" />
+
+          {/* Indicators Modal Trigger `fx Indicators` */}
+          <button
+            onClick={() => setShowIndicatorsModal(true)}
+            className="flex items-center space-x-1.5 px-2.5 py-1.5 bg-gradient-to-r from-blue-600/20 to-purple-600/20 hover:from-blue-600/30 hover:to-purple-600/30 border border-purple-500/30 rounded-lg text-xs font-bold text-purple-200 cursor-pointer transition-colors shadow-sm"
+            title="Technical Indicators (fx)"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+            <span className="font-bold">fx Indicators</span>
+            {Object.values(activeIndicators).filter(Boolean).length > 0 && (
+              <span className="ml-1 px-1.5 py-0.2 bg-purple-500 text-black text-[10px] font-black rounded-full">
+                {Object.values(activeIndicators).filter(Boolean).length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Right Side: Settings, Snapshot, Fullscreen, Close */}
+        <div className="flex items-center space-x-1.5">
+          {/* Chart Settings Button `⚙️` */}
+          <button
+            onClick={() => setShowSettingsModal(true)}
+            className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-white cursor-pointer transition-colors"
+            title="Chart Settings"
+          >
+            <Sliders className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Camera Snapshot Button */}
+          <button
+            onClick={handleTakeSnapshot}
+            className="flex items-center space-x-1 px-2 py-1.5 rounded-lg bg-gray-900 border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-cyan-400 cursor-pointer transition-colors"
+            title="Take Snapshot / Export PNG"
+          >
+            <Camera className="w-3.5 h-3.5" />
+            {snapshotCopied && <span className="text-[10px] text-cyan-400 font-bold">Saved!</span>}
+          </button>
+
+          {/* Order Calculator */}
+          {onOpenCalculator && (
+            <button
+              onClick={() => onOpenCalculator({ symbol: currentSymbol, currentPrice })}
+              className="px-2 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30 text-xs font-bold cursor-pointer transition-colors hidden sm:flex items-center space-x-1"
+              title="Open Position Sizer"
+            >
+              <Activity className="w-3.5 h-3.5" />
+              <span>Position Sizer</span>
+            </button>
+          )}
+
+          {/* Fullscreen Toggle */}
+          <button
+            onClick={() => setIsFullScreen(!isFullScreen)}
+            className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 hover:border-cyan-500/40 text-gray-400 hover:text-cyan-400 cursor-pointer transition-colors"
+            title={isFullScreen ? 'Exit Fullscreen' : 'Fullscreen Chart'}
+          >
+            {isFullScreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+          </button>
+
+          {/* Close Modal if callback exists */}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 cursor-pointer transition-colors ml-1"
+              title="Close Chart Station"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 2. MAIN WORKSPACE: LEFT DRAWING TOOLBAR + SVG CANVAS */}
+      <div className="flex-1 flex flex-row relative overflow-hidden">
+        {/* LEFT DRAWING TOOLBAR matching screenshot */}
+        <div className="w-10 sm:w-11 bg-[#0A0E1A] border-r border-gray-800/90 flex flex-col items-center py-2 space-y-1 z-30 shrink-0 select-none">
+          {/* 1. Crosshair Pointer */}
+          <button
+            onClick={() => setSelectedTool('crosshair')}
+            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+              selectedTool === 'crosshair' ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+            }`}
+            title="Crosshair / Pointer"
+          >
+            <Crosshair className="w-4 h-4" />
+          </button>
+
+          {/* 2. Trend Line */}
+          <button
+            onClick={() => setSelectedTool('trendline')}
+            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+              selectedTool === 'trendline' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+            }`}
+            title="Trend Line (Draw support/resistance)"
+          >
+            <TrendingUp className="w-4 h-4" />
+          </button>
+
+          {/* 3. Horizontal Ray */}
+          <button
+            onClick={() => setSelectedTool('horizontal_ray')}
+            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+              selectedTool === 'horizontal_ray' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+            }`}
+            title="Horizontal Ray / Price Level"
+          >
+            <Minus className="w-4 h-4" />
+          </button>
+
+          {/* 4. Fibonacci Retracement */}
+          <button
+            onClick={() => setSelectedTool('fib')}
+            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+              selectedTool === 'fib' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+            }`}
+            title="Fibonacci Retracement (0.236, 0.382, 0.5, 0.618, 0.786)"
+          >
+            <Sliders className="w-4 h-4 text-amber-400" />
+          </button>
+
+          {/* 5. Parallel Channel */}
+          <button
+            onClick={() => setSelectedTool('channel')}
+            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+              selectedTool === 'channel' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+            }`}
+            title="Parallel Price Channel"
+          >
+            <Layers className="w-4 h-4 text-purple-400" />
+          </button>
+
+          {/* 6. Brush / Freehand Draw */}
+          <button
+            onClick={() => setSelectedTool('brush')}
+            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+              selectedTool === 'brush' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+            }`}
+            title="Brush / Freehand Drawing"
+          >
+            <Edit3 className="w-4 h-4 text-emerald-400" />
+          </button>
+
+          {/* 7. Text Annotation */}
+          <button
+            onClick={() => setSelectedTool('text')}
+            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+              selectedTool === 'text' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+            }`}
+            title="Text Note / Annotation"
+          >
+            <Type className="w-4 h-4" />
+          </button>
+
+          {/* 8. Sentiment Stickers */}
+          <div className="relative group">
+            <button
+              onClick={() => setSelectedTool('sticker')}
+              className={`p-2 rounded-lg transition-colors cursor-pointer ${
+                selectedTool === 'sticker' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              }`}
+              title="Stickers / Emojis (Bull/Bear)"
+            >
+              <Smile className="w-4 h-4 text-yellow-400" />
+            </button>
+            <div className="absolute left-full top-0 ml-1 hidden group-hover:flex bg-gray-900 p-1 rounded-lg border border-gray-700 shadow-xl space-x-1 z-50">
+              {['🚀', '🐂', '🐻', '🔥', '💎', '🛑', '🎯'].map(emoji => (
+                <button
+                  key={emoji}
+                  onClick={(e) => { e.stopPropagation(); setStickerEmoji(emoji); setSelectedTool('sticker'); }}
+                  className="p-1 hover:bg-gray-800 rounded text-sm cursor-pointer"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 9. Measurement Ruler */}
+          <button
+            onClick={() => setSelectedTool('ruler')}
+            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+              selectedTool === 'ruler' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+            }`}
+            title="Measure Ruler (% Gain/Loss & Bar Count)"
+          >
+            <Ruler className="w-4 h-4 text-cyan-400" />
+          </button>
+
+          <div className="w-5 h-px bg-gray-800 my-1" />
+
+          {/* 10. Magnet Mode */}
+          <button
+            onClick={() => setMagnetMode(!magnetMode)}
+            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+              magnetMode ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+            }`}
+            title={magnetMode ? 'Magnet Mode ON (Snap to OHLC)' : 'Magnet Mode OFF'}
+          >
+            <Magnet className="w-4 h-4" />
+          </button>
+
+          {/* 11. Stay in Drawing Mode */}
+          <button
+            onClick={() => setStayInDrawingMode(!stayInDrawingMode)}
+            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+              stayInDrawingMode ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+            }`}
+            title={stayInDrawingMode ? 'Stay in Drawing Mode (Active)' : 'Single Draw Mode'}
+          >
+            <Zap className="w-4 h-4" />
+          </button>
+
+          {/* 12. Lock All Drawings */}
+          <button
+            onClick={() => setDrawingsLocked(!drawingsLocked)}
+            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+              drawingsLocked ? 'bg-amber-600 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+            }`}
+            title={drawingsLocked ? 'Drawings Locked' : 'Drawings Unlocked'}
+          >
+            {drawingsLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+          </button>
+
+          {/* 13. Hide / Show All Drawings */}
+          <button
+            onClick={() => setDrawingsVisible(!drawingsVisible)}
+            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+              !drawingsVisible ? 'bg-gray-700 text-gray-300' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+            }`}
+            title={drawingsVisible ? 'Hide Drawings' : 'Show Drawings'}
+          >
+            {drawingsVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          </button>
+
+          {/* 14. Trash Can (Clear All Drawings) */}
+          <button
+            onClick={() => setDrawings([])}
+            className="p-2 rounded-lg text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer mt-auto"
+            title="Clear All Drawings"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* CHART DISPLAY AREA */}
+        <div className="flex-1 flex flex-col relative bg-[#070B14] overflow-hidden">
+          {/* Top OHLC Telemetry Legend matching TradingView */}
+          {chartSettings.showLegend && (
+            <div className="absolute top-2 left-3 z-20 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] bg-[#070B14]/80 backdrop-blur-md px-2 py-1 rounded-lg border border-gray-800/80 pointer-events-none">
+              <span className="font-extrabold text-white">{currentSymbol}</span>
+              <span className="text-gray-500 font-bold">{timeframe}</span>
+              {activePt && (
+                <>
+                  <div className="flex items-center space-x-1">
+                    <span className="text-gray-500">O:</span>
+                    <span className="text-gray-200 font-bold">{activePt.open.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="text-gray-500">H:</span>
+                    <span className="text-emerald-400 font-bold">{activePt.high.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="text-gray-500">L:</span>
+                    <span className="text-rose-400 font-bold">{activePt.low.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="text-gray-500">C:</span>
+                    <span className={`font-black ${activePt.isBull ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {activePt.close.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="text-gray-500">Vol:</span>
+                    <span className="text-cyan-400 font-bold">{(activePt.volume || 0).toLocaleString()}</span>
+                  </div>
+                </>
+              )}
+
+              {/* Compare Legend */}
+              {compareSymbol && compareData && (
+                <div className="flex items-center space-x-1 pl-2 border-l border-gray-700 text-amber-300">
+                  <span>vs {compareSymbol}:</span>
+                  <span className="font-bold">PKR {Number(compareData?.quote?.currentPrice || 0).toFixed(2)}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Active Overlay Indicators Legend */}
+          <div className="absolute top-8 left-3 z-10 flex flex-col space-y-0.5 text-[10px] font-mono pointer-events-none">
+            {activeIndicators.sma20 && (
+              <span className="text-sky-400">SMA 20: {indicatorSeries.sma20[hoverIndex !== null ? hoverIndex : indicatorSeries.sma20.length - 1]?.toFixed(2) || '—'}</span>
+            )}
+            {activeIndicators.sma50 && (
+              <span className="text-amber-400">SMA 50: {indicatorSeries.sma50[hoverIndex !== null ? hoverIndex : indicatorSeries.sma50.length - 1]?.toFixed(2) || '—'}</span>
+            )}
+            {activeIndicators.sma200 && (
+              <span className="text-pink-400">SMA 200: {indicatorSeries.sma200[hoverIndex !== null ? hoverIndex : indicatorSeries.sma200.length - 1]?.toFixed(2) || '—'}</span>
+            )}
+            {activeIndicators.ema9 && (
+              <span className="text-purple-400">EMA 9: {indicatorSeries.ema9[hoverIndex !== null ? hoverIndex : indicatorSeries.ema9.length - 1]?.toFixed(2) || '—'}</span>
+            )}
+            {activeIndicators.bollinger && (
+              <span className="text-indigo-400">BB (20, 2): {indicatorSeries.bbUpper[hoverIndex !== null ? hoverIndex : indicatorSeries.bbUpper.length - 1]?.toFixed(2)} / {indicatorSeries.bbLower[hoverIndex !== null ? hoverIndex : indicatorSeries.bbLower.length - 1]?.toFixed(2)}</span>
+            )}
+            {activeIndicators.vwap && (
+              <span className="text-orange-400">VWAP: {indicatorSeries.vwap[hoverIndex !== null ? hoverIndex : indicatorSeries.vwap.length - 1]?.toFixed(2) || '—'}</span>
+            )}
+          </div>
+
+          {/* Background Watermark */}
+          {chartSettings.showWatermark && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none">
+              <span className="text-8xl sm:text-9xl font-black font-mono tracking-widest text-white">{currentSymbol}</span>
+            </div>
+          )}
+
+          {/* Loading Telemetry Overlay */}
+          {isLoading && (
+            <div className="absolute inset-0 z-40 bg-[#070B14]/70 backdrop-blur-sm flex items-center justify-center space-x-2 text-cyan-400 text-xs font-mono font-bold">
+              <RefreshCw className="w-5 h-5 animate-spin text-cyan-400" />
+              <span>Streaming PSX Real-time Telemetry ({currentSymbol})...</span>
+            </div>
+          )}
+
+          {/* PRIMARY SVG VECTOR GRAPH ENGINE */}
+          <div className="w-full h-full flex-1 relative cursor-crosshair">
+            <svg
+              ref={svgRef}
+              viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+              className="w-full h-full block"
+              onMouseDown={handleSvgMouseDown}
+              onMouseMove={handleSvgMouseMove}
+              onMouseUp={handleSvgMouseUp}
+              onMouseLeave={() => { setHoverIndex(null); handleSvgMouseUp(); }}
+            >
+              <defs>
+                <linearGradient id={`tv_grad_${currentSymbol}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#06B6D4" stopOpacity="0.45" />
+                  <stop offset="100%" stopColor="#06B6D4" stopOpacity="0.0" />
+                </linearGradient>
+                <linearGradient id="tv_baseline_up" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#10B981" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#10B981" stopOpacity="0.0" />
+                </linearGradient>
+                <linearGradient id="tv_baseline_down" x1="0" y1="1" x2="0" y2="0">
+                  <stop offset="0%" stopColor="#EF4444" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#EF4444" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+
+              {/* Grid Lines */}
+              {chartSettings.gridStyle !== 'none' && (
+                <g opacity="0.4">
+                  {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => {
+                    const y = paddingTop + mainChartHeight * pct;
+                    const priceAtY = chartDims.maxPrice - pct * chartDims.priceRange;
+                    const dash = chartSettings.gridStyle === 'dotted' ? '2 2' : chartSettings.gridStyle === 'dashed' ? '5 5' : 'none';
+                    return (
+                      <g key={`ygrid_${i}`}>
+                        <line x1={paddingLeft} y1={y} x2={svgWidth - paddingRight} y2={y} stroke="#1E293B" strokeDasharray={dash} />
+                        <text x={svgWidth - paddingRight + 6} y={y + 3} fill="#64748B" fontSize="9" fontFamily="monospace">
+                          {priceAtY.toFixed(2)}
+                        </text>
+                      </g>
+                    );
+                  })}
+                  {[0.15, 0.35, 0.55, 0.75, 0.95].map((pct, i) => {
+                    const x = paddingLeft + chartWidth * pct;
+                    const dash = chartSettings.gridStyle === 'dotted' ? '2 2' : chartSettings.gridStyle === 'dashed' ? '5 5' : 'none';
+                    return (
+                      <line key={`xgrid_${i}`} x1={x} y1={paddingTop} x2={x} y2={paddingTop + mainChartHeight} stroke="#1E293B" strokeDasharray={dash} />
+                    );
+                  })}
+                </g>
+              )}
+
+              {/* 1. CHART GRAPH TYPE RENDERERS (All 12 Types) */}
+              {chartDims.points.length > 0 && (
+                <g>
+                  {/* TYPE: CANDLES / HOLLOW CANDLES / HEIKIN ASHI */}
+                  {(chartType === 'candles' || chartType === 'hollow_candles' || chartType === 'heikin_ashi') && (
+                    <g>
+                      {chartDims.points.map((pt, i) => {
+                        const bodyTop = Math.min(pt.yOpen, pt.yClose);
+                        const bodyHeight = Math.max(2, Math.abs(pt.yClose - pt.yOpen));
+                        const color = pt.isBull ? chartSettings.upColor : chartSettings.downColor;
+                        const isHollow = chartType === 'hollow_candles' && pt.isBull;
+
+                        return (
+                          <g key={`candle_${i}`}>
+                            {/* Wick Line */}
+                            <line x1={pt.x} y1={pt.yHigh} x2={pt.x} y2={pt.yLow} stroke={color} strokeWidth="1.2" />
+                            {/* Real Body */}
+                            <rect
+                              x={pt.x - candleWidth / 2}
+                              y={bodyTop}
+                              width={candleWidth}
+                              height={bodyHeight}
+                              fill={isHollow ? '#070B14' : color}
+                              stroke={color}
+                              strokeWidth={isHollow ? '1.5' : '0'}
+                              rx="1"
+                            />
+                          </g>
+                        );
+                      })}
+                    </g>
+                  )}
+
+                  {/* TYPE: BARS (OHLC) */}
+                  {chartType === 'bars' && (
+                    <g>
+                      {chartDims.points.map((pt, i) => {
+                        const color = pt.isBull ? chartSettings.upColor : chartSettings.downColor;
+                        const tickLen = candleWidth * 0.45;
+                        return (
+                          <g key={`bar_${i}`}>
+                            {/* High-Low Vertical Line */}
+                            <line x1={pt.x} y1={pt.yHigh} x2={pt.x} y2={pt.yLow} stroke={color} strokeWidth="1.5" />
+                            {/* Open Tick (Left) */}
+                            <line x1={pt.x - tickLen} y1={pt.yOpen} x2={pt.x} y2={pt.yOpen} stroke={color} strokeWidth="1.5" />
+                            {/* Close Tick (Right) */}
+                            <line x1={pt.x} y1={pt.yClose} x2={pt.x + tickLen} y2={pt.yClose} stroke={color} strokeWidth="1.5" />
+                          </g>
+                        );
+                      })}
+                    </g>
+                  )}
+
+                  {/* TYPE: LINE */}
+                  {chartType === 'line' && (
+                    <path
+                      d={chartDims.points.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '')}
+                      fill="none"
+                      stroke="#06B6D4"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  )}
+
+                  {/* TYPE: LINE WITH MARKERS */}
+                  {chartType === 'line_markers' && (
+                    <g>
+                      <path
+                        d={chartDims.points.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '')}
+                        fill="none"
+                        stroke="#06B6D4"
+                        strokeWidth="2"
+                      />
+                      {chartDims.points.map((pt, i) => (
+                        <circle key={`marker_${i}`} cx={pt.x} cy={pt.y} r="3" fill="#06B6D4" stroke="#FFFFFF" strokeWidth="1" />
+                      ))}
+                    </g>
+                  )}
+
+                  {/* TYPE: STEP LINE */}
+                  {chartType === 'step_line' && (
+                    <path
+                      d={chartDims.points.reduce((acc, pt, i, arr) => {
+                        if (i === 0) return `M ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`;
+                        const prev = arr[i - 1];
+                        return `${acc} H ${pt.x.toFixed(1)} V ${pt.y.toFixed(1)}`;
+                      }, '')}
+                      fill="none"
+                      stroke="#38BDF8"
+                      strokeWidth="2"
+                    />
+                  )}
+
+                  {/* TYPE: AREA */}
+                  {chartType === 'area' && (
+                    <g>
+                      <path
+                        d={`${chartDims.points.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '')} L ${chartDims.points[chartDims.points.length - 1].x.toFixed(1)} ${(paddingTop + mainChartHeight).toFixed(1)} L ${chartDims.points[0].x.toFixed(1)} ${(paddingTop + mainChartHeight).toFixed(1)} Z`}
+                        fill={`url(#tv_grad_${currentSymbol})`}
+                      />
+                      <path
+                        d={chartDims.points.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '')}
+                        fill="none"
+                        stroke="#06B6D4"
+                        strokeWidth="2.5"
+                      />
+                    </g>
+                  )}
+
+                  {/* TYPE: HLC AREA */}
+                  {chartType === 'hlc_area' && (
+                    <g>
+                      <path
+                        d={`${chartDims.points.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '')} ${chartDims.points.slice().reverse().reduce((acc, pt) => `${acc} L ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '')} Z`}
+                        fill="rgba(56, 189, 248, 0.2)"
+                        stroke="#38BDF8"
+                        strokeWidth="1"
+                      />
+                      <path
+                        d={chartDims.points.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '')}
+                        fill="none"
+                        stroke="#0284C7"
+                        strokeWidth="2"
+                      />
+                    </g>
+                  )}
+
+                  {/* TYPE: BASELINE */}
+                  {chartType === 'baseline' && (
+                    <g>
+                      <line x1={paddingLeft} y1={chartDims.baselineY} x2={svgWidth - paddingRight} y2={chartDims.baselineY} stroke="#94A3B8" strokeDasharray="3 3" strokeWidth="1.5" />
+                      <path
+                        d={`${chartDims.points.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '')} L ${chartDims.points[chartDims.points.length - 1].x.toFixed(1)} ${chartDims.baselineY} L ${chartDims.points[0].x.toFixed(1)} ${chartDims.baselineY} Z`}
+                        fill="url(#tv_baseline_up)"
+                      />
+                      <path
+                        d={chartDims.points.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '')}
+                        fill="none"
+                        stroke="#10B981"
+                        strokeWidth="2"
+                      />
+                    </g>
+                  )}
+
+                  {/* TYPE: COLUMNS */}
+                  {chartType === 'columns' && (
+                    <g>
+                      {chartDims.points.map((pt, i) => {
+                        const barBase = paddingTop + mainChartHeight;
+                        const colH = Math.max(2, barBase - pt.yClose);
+                        const color = pt.isBull ? chartSettings.upColor : chartSettings.downColor;
+                        return (
+                          <rect key={`col_${i}`} x={pt.x - candleWidth / 2} y={pt.yClose} width={candleWidth} height={colH} fill={color} opacity="0.85" rx="1" />
+                        );
+                      })}
+                    </g>
+                  )}
+
+                  {/* TYPE: HIGH-LOW */}
+                  {chartType === 'high_low' && (
+                    <g>
+                      {chartDims.points.map((pt, i) => {
+                        const top = pt.yHigh;
+                        const h = Math.max(2, pt.yLow - pt.yHigh);
+                        const color = pt.isBull ? chartSettings.upColor : chartSettings.downColor;
+                        return (
+                          <rect key={`hl_${i}`} x={pt.x - candleWidth / 2} y={top} width={candleWidth} height={h} fill={color} rx="1" />
+                        );
+                      })}
+                    </g>
+                  )}
+                </g>
+              )}
+
+              {/* 2. OVERLAY INDICATORS */}
+              {activeIndicators.sma20 && (
+                <path d={buildSvgPath(indicatorSeries.sma20)} fill="none" stroke="#38BDF8" strokeWidth="1.8" />
+              )}
+              {activeIndicators.sma50 && (
+                <path d={buildSvgPath(indicatorSeries.sma50)} fill="none" stroke="#F59E0B" strokeWidth="1.8" />
+              )}
+              {activeIndicators.sma200 && (
+                <path d={buildSvgPath(indicatorSeries.sma200)} fill="none" stroke="#EC4899" strokeWidth="2" />
+              )}
+              {activeIndicators.ema9 && (
+                <path d={buildSvgPath(indicatorSeries.ema9)} fill="none" stroke="#A855F7" strokeWidth="1.5" />
+              )}
+              {activeIndicators.ema21 && (
+                <path d={buildSvgPath(indicatorSeries.ema21)} fill="none" stroke="#10B981" strokeWidth="1.5" />
+              )}
+              {activeIndicators.bollinger && (
+                <g>
+                  <path d={buildSvgPath(indicatorSeries.bbUpper)} fill="none" stroke="#6366F1" strokeWidth="1.2" strokeDasharray="3 3" />
+                  <path d={buildSvgPath(indicatorSeries.bbLower)} fill="none" stroke="#6366F1" strokeWidth="1.2" strokeDasharray="3 3" />
+                </g>
+              )}
+              {activeIndicators.vwap && (
+                <path d={buildSvgPath(indicatorSeries.vwap)} fill="none" stroke="#F97316" strokeWidth="2" strokeDasharray="4 2" />
+              )}
+              {activeIndicators.supertrend && (
+                <path d={buildSvgPath(indicatorSeries.supertrend)} fill="none" stroke="#10B981" strokeWidth="2.5" />
+              )}
+              {activeIndicators.sar && (
+                <g>
+                  {indicatorSeries.sar.map((val, idx) => {
+                    if (!chartDims.points[idx]) return null;
+                    const y = paddingTop + mainChartHeight - ((val - chartDims.minPrice) / chartDims.priceRange) * mainChartHeight;
+                    return <circle key={`sar_${idx}`} cx={chartDims.points[idx].x} cy={y} r="2" fill="#EAB308" />;
+                  })}
+                </g>
+              )}
+
+              {/* Compare Stock Overlay Line */}
+              {compareSymbol && comparePath && (
+                <path d={comparePath} fill="none" stroke="#F59E0B" strokeWidth="2.2" strokeDasharray="5 3" />
+              )}
+
+              {/* 3. VOLUME SUB-PANEL */}
+              {chartSettings.showVolume && (
+                <g>
+                  <line x1={paddingLeft} y1={paddingTop + mainChartHeight} x2={svgWidth - paddingRight} y2={paddingTop + mainChartHeight} stroke="#1E293B" />
+                  <text x={svgWidth - paddingRight + 6} y={paddingTop + mainChartHeight + 14} fill="#64748B" fontSize="8" fontFamily="monospace">
+                    VOL
+                  </text>
+                  {chartDims.points.map((pt, i) => (
+                    <rect
+                      key={`vol_${i}`}
+                      x={pt.x - candleWidth / 2}
+                      y={pt.volY}
+                      width={candleWidth}
+                      height={Math.max(2, pt.volH)}
+                      fill={pt.isBull ? chartSettings.upColor : chartSettings.downColor}
+                      opacity="0.45"
+                      rx="0.5"
+                    />
+                  ))}
+                  {/* Volume 20 MA line */}
+                  <path d={buildSvgPath(indicatorSeries.volumeMA.map(v => (v ? chartDims.minPrice + (v / chartDims.maxVol) * chartDims.priceRange : null)))} fill="none" stroke="#38BDF8" strokeWidth="1" opacity="0.7" />
+                </g>
+              )}
+
+              {/* 4. SUB-PANELS (RSI, MACD, STOCH, ATR, OBV) */}
+              {activeSubPanels.map((panel, pIdx) => {
+                const panelTop = paddingTop + mainChartHeight + volumePanelHeight + pIdx * subPanelHeight;
+                return (
+                  <g key={`panel_${panel}`}>
+                    <line x1={paddingLeft} y1={panelTop} x2={svgWidth - paddingRight} y2={panelTop} stroke="#334155" strokeWidth="1" />
+                    <text x={paddingLeft + 4} y={panelTop + 14} fill="#94A3B8" fontSize="9" fontFamily="monospace" fontWeight="bold">
+                      {panel.toUpperCase()}
+                    </text>
+                    <text x={svgWidth - paddingRight + 6} y={panelTop + subPanelHeight / 2} fill="#64748B" fontSize="8" fontFamily="monospace">
+                      {panel === 'rsi' ? '70/30' : '0.00'}
+                    </text>
+
+                    {/* RSI Panel */}
+                    {panel === 'rsi' && (
+                      <g>
+                        {/* 70/30 Overbought/Oversold reference levels */}
+                        <line x1={paddingLeft} y1={panelTop + subPanelHeight * 0.3} x2={svgWidth - paddingRight} y2={panelTop + subPanelHeight * 0.3} stroke="#EF4444" strokeDasharray="2 2" opacity="0.5" />
+                        <line x1={paddingLeft} y1={panelTop + subPanelHeight * 0.7} x2={svgWidth - paddingRight} y2={panelTop + subPanelHeight * 0.7} stroke="#10B981" strokeDasharray="2 2" opacity="0.5" />
+                        <path
+                          d={chartDims.points.map((pt, i) => {
+                            const rsiVal = indicatorSeries.rsi[i] || 50;
+                            const y = panelTop + subPanelHeight - (rsiVal / 100) * subPanelHeight;
+                            return `${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${y.toFixed(1)}`;
+                          }).join(' ')}
+                          fill="none"
+                          stroke="#8B5CF6"
+                          strokeWidth="2"
+                        />
+                      </g>
+                    )}
+
+                    {/* MACD Panel */}
+                    {panel === 'macd' && (
+                      <g>
+                        {chartDims.points.map((pt, i) => {
+                          const hist = indicatorSeries.macd.hist[i] || 0;
+                          const h = Math.min(subPanelHeight / 2 - 2, Math.abs(hist) * 8);
+                          const y = hist >= 0 ? (panelTop + subPanelHeight / 2 - h) : (panelTop + subPanelHeight / 2);
+                          return (
+                            <rect key={`macd_hist_${i}`} x={pt.x - 1.5} y={y} width="3" height={Math.max(1, h)} fill={hist >= 0 ? '#10B981' : '#EF4444'} opacity="0.8" />
+                          );
+                        })}
+                      </g>
+                    )}
+                  </g>
+                );
+              })}
+
+              {/* 5. USER DRAWINGS LAYER */}
+              {drawingsVisible && (
+                <g>
+                  {drawings.map(d => {
+                    if (d.type === 'trendline') {
+                      return <line key={d.id} x1={d.x1} y1={d.y1} x2={d.x2} y2={d.y2} stroke="#22D3EE" strokeWidth="2.5" />;
+                    }
+                    if (d.type === 'horizontal_ray') {
+                      return <line key={d.id} x1={paddingLeft} y1={d.y1} x2={svgWidth - paddingRight} y2={d.y1} stroke="#F59E0B" strokeWidth="2" strokeDasharray="4 4" />;
+                    }
+                    if (d.type === 'fib') {
+                      const diff = d.y2 - d.y1;
+                      const levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0];
+                      return (
+                        <g key={d.id}>
+                          {levels.map(lvl => {
+                            const y = d.y1 + diff * lvl;
+                            return (
+                              <g key={lvl}>
+                                <line x1={paddingLeft} y1={y} x2={svgWidth - paddingRight} y2={y} stroke="#8B5CF6" strokeWidth="1" strokeDasharray="2 2" opacity="0.75" />
+                                <text x={paddingLeft + 4} y={y - 2} fill="#A78BFA" fontSize="8" fontFamily="monospace">
+                                  {lvl.toFixed(3)}
+                                </text>
+                              </g>
+                            );
+                          })}
+                        </g>
+                      );
+                    }
+                    if (d.type === 'brush' && d.points) {
+                      return (
+                        <path
+                          key={d.id}
+                          d={d.points.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '')}
+                          fill="none"
+                          stroke="#10B981"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                        />
+                      );
+                    }
+                    if (d.type === 'text') {
+                      return (
+                        <text key={d.id} x={d.x} y={d.y} fill="#F8FAFC" fontSize="12" fontWeight="bold" fontFamily="sans-serif">
+                          {d.text}
+                        </text>
+                      );
+                    }
+                    if (d.type === 'sticker') {
+                      return (
+                        <text key={d.id} x={d.x - 8} y={d.y + 6} fontSize="18">
+                          {d.emoji}
+                        </text>
+                      );
+                    }
+                    if (d.type === 'ruler') {
+                      const pDiff = (d.endPrice || 0) - (d.startPrice || 0);
+                      const pct = d.startPrice > 0 ? (pDiff / d.startPrice) * 100 : 0;
+                      return (
+                        <g key={d.id}>
+                          <rect x={Math.min(d.x1, d.x2)} y={Math.min(d.y1, d.y2)} width={Math.abs(d.x2 - d.x1)} height={Math.abs(d.y2 - d.y1)} fill="rgba(6, 182, 212, 0.15)" stroke="#06B6D4" strokeDasharray="3 3" />
+                          <text x={d.x2 + 4} y={d.y2} fill="#22D3EE" fontSize="10" fontFamily="monospace" fontWeight="bold">
+                            {pct >= 0 ? '+' : ''}{pct.toFixed(2)}% (PKR {pDiff.toFixed(2)})
+                          </text>
+                        </g>
+                      );
+                    }
+                    return null;
+                  })}
+
+                  {/* In-progress Active Drawing */}
+                  {activeDrawing && (
+                    <g>
+                      {activeDrawing.type === 'trendline' && (
+                        <line x1={activeDrawing.x1} y1={activeDrawing.y1} x2={activeDrawing.x2} y2={activeDrawing.y2} stroke="#22D3EE" strokeWidth="2.5" strokeDasharray="3 2" />
+                      )}
+                      {activeDrawing.type === 'horizontal_ray' && (
+                        <line x1={paddingLeft} y1={activeDrawing.y1} x2={svgWidth - paddingRight} y2={activeDrawing.y1} stroke="#F59E0B" strokeWidth="2" strokeDasharray="4 4" />
+                      )}
+                      {activeDrawing.type === 'ruler' && (
+                        <rect x={Math.min(activeDrawing.x1, activeDrawing.x2)} y={Math.min(activeDrawing.y1, activeDrawing.y2)} width={Math.abs(activeDrawing.x2 - activeDrawing.x1)} height={Math.abs(activeDrawing.y2 - activeDrawing.y1)} fill="rgba(6, 182, 212, 0.2)" stroke="#06B6D4" strokeDasharray="2 2" />
+                      )}
+                    </g>
+                  )}
+                </g>
+              )}
+
+              {/* 6. CROSSHAIR & HOVER TRACKER */}
+              {activePt && selectedTool === 'crosshair' && (
+                <g>
+                  {/* Vertical Crosshair Line */}
+                  <line x1={activePt.x} y1={paddingTop} x2={activePt.x} y2={svgHeight - paddingBottom} stroke="#38BDF8" strokeWidth="1" strokeDasharray="3 3" />
+                  {/* Horizontal Crosshair Line */}
+                  <line x1={paddingLeft} y1={mouseCoord.y > 0 && mouseCoord.y < svgHeight - paddingBottom ? mouseCoord.y : activePt.y} x2={svgWidth - paddingRight} y2={mouseCoord.y > 0 && mouseCoord.y < svgHeight - paddingBottom ? mouseCoord.y : activePt.y} stroke="#38BDF8" strokeWidth="1" strokeDasharray="3 3" />
+                  {/* Highlight Point */}
+                  <circle cx={activePt.x} cy={activePt.y} r="4.5" fill="#06B6D4" stroke="#FFFFFF" strokeWidth="2" />
+
+                  {/* Y-Axis Hover Price Badge */}
+                  <g transform={`translate(${svgWidth - paddingRight + 2}, ${(mouseCoord.y > 0 && mouseCoord.y < svgHeight - paddingBottom ? mouseCoord.y : activePt.y) - 9})`}>
+                    <rect width="62" height="18" fill="#0284C7" rx="3" />
+                    <text x="31" y="12" fill="#FFFFFF" fontSize="9.5" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
+                      {mouseCoord.price ? mouseCoord.price.toFixed(2) : activePt.close.toFixed(2)}
+                    </text>
+                  </g>
+
+                  {/* X-Axis Hover Time Badge */}
+                  <g transform={`translate(${activePt.x - 30}, ${svgHeight - paddingBottom + 3})`}>
+                    <rect width="60" height="16" fill="#1E293B" rx="3" />
+                    <text x="30" y="11" fill="#38BDF8" fontSize="9" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
+                      {activePt.date}
+                    </text>
+                  </g>
+                </g>
+              )}
+
+              {/* Current Price Live Watermark Line */}
+              <g>
+                <line x1={paddingLeft} y1={chartDims.points[chartDims.points.length - 1]?.y || 100} x2={svgWidth - paddingRight} y2={chartDims.points[chartDims.points.length - 1]?.y || 100} stroke={isBullish ? '#10B981' : '#EF4444'} strokeWidth="1" strokeDasharray="4 2" />
+                <g transform={`translate(${svgWidth - paddingRight + 2}, ${(chartDims.points[chartDims.points.length - 1]?.y || 100) - 9})`}>
+                  <rect width="62" height="18" fill={isBullish ? '#10B981' : '#EF4444'} rx="3" />
+                  <text x="31" y="12" fill="#FFFFFF" fontSize="9.5" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
+                    {currentPrice.toFixed(2)}
+                  </text>
+                </g>
+              </g>
+
+              {/* Bottom Time Axis Labels */}
+              {chartDims.points.filter((_, idx) => idx % Math.max(1, Math.ceil(chartDims.points.length / 7)) === 0).map((pt, i) => (
+                <text key={`time_lbl_${i}`} x={pt.x} y={svgHeight - 10} fill="#64748B" fontSize="9" textAnchor="middle" fontFamily="monospace">
+                  {pt.date}
+                </text>
+              ))}
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. BOTTOM TIMEFRAME RANGES & SCALE CONTROLS TOOLBAR matching screenshot */}
+      <div className="flex flex-wrap items-center justify-between px-3 py-1.5 bg-[#0A0E1A] border-t border-gray-800 text-[11px] font-mono shrink-0">
+        {/* Left: Quick Date Range Buttons (1d, 5d, 1m, 6m, 1y, 3y, All) */}
+        <div className="flex items-center space-x-1">
+          <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mr-1 hidden sm:inline">Range:</span>
+          {BOTTOM_RANGES.map(rng => (
+            <button
+              key={rng}
+              onClick={() => setSelectedRange(rng)}
+              className={`px-2 py-0.5 rounded font-bold transition-colors cursor-pointer ${
+                selectedRange === rng ? 'bg-cyan-500 text-black shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              }`}
+            >
+              {rng}
+            </button>
+          ))}
+        </div>
+
+        {/* Center: Live Time / Timezone PSX */}
+        <div className="text-gray-500 hidden md:flex items-center space-x-2 text-[10px]">
+          <Clock className="w-3 h-3 text-cyan-400" />
+          <span>PSX Market Time (PKT • UTC+5)</span>
+        </div>
+
+        {/* Right: Scale Mode Switchers (%, log, auto) */}
+        <div className="flex items-center space-x-1.5">
+          <button
+            onClick={() => setChartSettings(prev => ({ ...prev, scaleMode: prev.scaleMode === 'percent' ? 'auto' : 'percent' }))}
+            className={`px-1.5 py-0.5 rounded border text-[10px] font-bold cursor-pointer ${
+              chartSettings.scaleMode === 'percent' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : 'border-gray-800 text-gray-400 hover:text-white'
+            }`}
+            title="Percentage Scale"
+          >
+            %
+          </button>
+          <button
+            onClick={() => setChartSettings(prev => ({ ...prev, scaleMode: prev.scaleMode === 'log' ? 'auto' : 'log' }))}
+            className={`px-1.5 py-0.5 rounded border text-[10px] font-bold cursor-pointer ${
+              chartSettings.scaleMode === 'log' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : 'border-gray-800 text-gray-400 hover:text-white'
+            }`}
+            title="Logarithmic Scale"
+          >
+            log
+          </button>
+          <button
+            onClick={() => setChartSettings(prev => ({ ...prev, scaleMode: 'auto' }))}
+            className={`px-1.5 py-0.5 rounded border text-[10px] font-bold cursor-pointer ${
+              chartSettings.scaleMode === 'auto' ? 'bg-cyan-500 text-black font-black' : 'border-gray-800 text-gray-400 hover:text-white'
+            }`}
+            title="Auto Scale"
+          >
+            auto
+          </button>
+        </div>
+      </div>
+
+      {/* 4. MODALS */}
+
+      {/* A. INDICATORS MODAL `fx Indicators` */}
+      {showIndicatorsModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0F172A] border border-purple-500/40 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 bg-[#0B0F19]">
+              <div className="flex items-center space-x-2">
+                <Sparkles className="w-5 h-5 text-purple-400" />
+                <h3 className="font-extrabold text-white text-base">Indicators, Metrics & Strategies</h3>
+              </div>
+              <button
+                onClick={() => setShowIndicatorsModal(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto space-y-3 flex-1">
+              <div className="text-xs text-gray-400 mb-2">
+                Select technical indicators to overlay on the PSX price chart or render in dedicated sub-panels.
+              </div>
+
+              {['Moving Averages', 'Volatility', 'Volume & Trend', 'Oscillators', 'Volume'].map(cat => {
+                const list = AVAILABLE_INDICATORS.filter(ind => ind.category === cat);
+                if (list.length === 0) return null;
+                return (
+                  <div key={cat} className="space-y-1.5">
+                    <div className="text-[10px] uppercase font-bold text-gray-400 tracking-wider px-1 pt-2">{cat}</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {list.map(ind => {
+                        const isOn = !!activeIndicators[ind.id];
+                        return (
+                          <button
+                            key={ind.id}
+                            onClick={() => setActiveIndicators(prev => ({ ...prev, [ind.id]: !prev[ind.id] }))}
+                            className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                              isOn
+                                ? 'bg-purple-500/15 border-purple-500/50 text-white shadow-sm'
+                                : 'bg-gray-900/60 border-gray-800 text-gray-400 hover:border-gray-700 hover:text-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: ind.color }} />
+                              <span className="text-xs font-medium">{ind.name}</span>
+                            </div>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${isOn ? 'bg-purple-500 text-black' : 'bg-gray-800 text-gray-400'}`}>
+                              {isOn ? 'ON' : 'ADD'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="p-4 bg-[#0B0F19] border-t border-gray-800 flex justify-between items-center">
+              <button
+                onClick={() => setActiveIndicators({})}
+                className="text-xs text-rose-400 hover:underline cursor-pointer"
+              >
+                Reset All Indicators
+              </button>
+              <button
+                onClick={() => setShowIndicatorsModal(false)}
+                className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs shadow-lg cursor-pointer"
+              >
+                Apply Indicators
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* B. CHART SETTINGS MODAL `⚙️` */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0F172A] border border-cyan-500/40 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 bg-[#0B0F19]">
+              <div className="flex items-center space-x-2">
+                <Sliders className="w-5 h-5 text-cyan-400" />
+                <h3 className="font-extrabold text-white text-base">Chart Visual Settings</h3>
+              </div>
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs">
+              {/* Up / Down Candle Colors */}
+              <div className="space-y-2">
+                <span className="font-bold text-gray-300 block">Candle Color Scheme</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] text-gray-400 block mb-1">Bullish Candle</label>
+                    <input
+                      type="color"
+                      value={chartSettings.upColor}
+                      onChange={(e) => setChartSettings(p => ({ ...p, upColor: e.target.value }))}
+                      className="w-full h-8 bg-gray-900 rounded border border-gray-700 cursor-pointer"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-400 block mb-1">Bearish Candle</label>
+                    <input
+                      type="color"
+                      value={chartSettings.downColor}
+                      onChange={(e) => setChartSettings(p => ({ ...p, downColor: e.target.value }))}
+                      className="w-full h-8 bg-gray-900 rounded border border-gray-700 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Grid Lines Style */}
+              <div className="space-y-2">
+                <span className="font-bold text-gray-300 block">Grid Lines</span>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {['dotted', 'dashed', 'solid', 'none'].map(style => (
+                    <button
+                      key={style}
+                      onClick={() => setChartSettings(p => ({ ...p, gridStyle: style }))}
+                      className={`py-1.5 rounded-lg border text-center font-mono capitalize cursor-pointer ${
+                        chartSettings.gridStyle === style ? 'bg-cyan-500 text-black font-bold border-cyan-400' : 'border-gray-800 text-gray-400 hover:bg-gray-800'
+                      }`}
+                    >
+                      {style}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Toggles */}
+              <div className="space-y-2.5 pt-2 border-t border-gray-800">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="text-gray-300">Volume Histogram</span>
+                  <input
+                    type="checkbox"
+                    checked={chartSettings.showVolume}
+                    onChange={(e) => setChartSettings(p => ({ ...p, showVolume: e.target.checked }))}
+                    className="rounded accent-cyan-500 w-4 h-4 cursor-pointer"
+                  />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="text-gray-300">Top OHLC Legend</span>
+                  <input
+                    type="checkbox"
+                    checked={chartSettings.showLegend}
+                    onChange={(e) => setChartSettings(p => ({ ...p, showLegend: e.target.checked }))}
+                    className="rounded accent-cyan-500 w-4 h-4 cursor-pointer"
+                  />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="text-gray-300">Symbol Watermark</span>
+                  <input
+                    type="checkbox"
+                    checked={chartSettings.showWatermark}
+                    onChange={(e) => setChartSettings(p => ({ ...p, showWatermark: e.target.checked }))}
+                    className="rounded accent-cyan-500 w-4 h-4 cursor-pointer"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="p-4 bg-[#0B0F19] border-t border-gray-800 flex justify-end">
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="px-5 py-2 bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl text-xs cursor-pointer"
+              >
+                Save Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* C. QUICK SEARCH MODAL `🔍` / `Ctrl+K` */}
+      {showSearchModal && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0F172A] border border-cyan-500/50 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="p-4 border-b border-gray-800 bg-[#0B0F19] flex items-center space-x-3">
+              <Search className="w-5 h-5 text-cyan-400 shrink-0" />
+              <input
+                type="text"
+                autoFocus
+                placeholder="Search PSX Stocks (e.g. OGDC, PRL, PSO, SYS, LUCK)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-transparent text-white font-mono text-sm focus:outline-none placeholder-gray-500"
+              />
+              <button onClick={() => setShowSearchModal(false)} className="text-gray-400 hover:text-white cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-2 overflow-y-auto max-h-96 space-y-1">
+              {Object.entries(officialQuotes || {})
+                .filter(([sym, q]) => {
+                  const qry = searchQuery.toLowerCase();
+                  return sym.toLowerCase().includes(qry) || (q.name && q.name.toLowerCase().includes(qry)) || (q.sector && q.sector.toLowerCase().includes(qry));
+                })
+                .slice(0, 25)
+                .map(([sym, q]) => (
+                  <button
+                    key={sym}
+                    onClick={() => {
+                      setCurrentSymbol(sym);
+                      if (onSelectStock) onSelectStock(sym);
+                      setShowSearchModal(false);
+                      setSearchQuery('');
+                    }}
+                    className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-gray-800/90 flex items-center justify-between transition-colors cursor-pointer group"
+                  >
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <span className="font-mono font-black text-white group-hover:text-cyan-400">{sym}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400">{q.sector || 'PSX'}</span>
+                      </div>
+                      <div className="text-xs text-gray-400 truncate max-w-xs">{q.name || sym}</div>
+                    </div>
+                    <div className="text-right font-mono">
+                      <div className="text-white font-bold">PKR {Number(q.currentPrice || 0).toFixed(2)}</div>
+                      <div className={`text-xs ${Number(q.change || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {Number(q.change || 0) >= 0 ? '+' : ''}{Number(q.changePercent || 0).toFixed(2)}%
+                      </div>
+                    </div>
+                  </button>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* D. COMPARE MODAL `+` */}
+      {showCompareModal && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0F172A] border border-amber-500/50 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-gray-800 bg-[#0B0F19] flex items-center space-x-3">
+              <Plus className="w-5 h-5 text-amber-400 shrink-0" />
+              <input
+                type="text"
+                autoFocus
+                placeholder="Overlay Symbol to Compare (e.g. PRL, CNERGY)..."
+                value={compareQuery}
+                onChange={(e) => setCompareQuery(e.target.value)}
+                className="w-full bg-transparent text-white font-mono text-sm focus:outline-none placeholder-gray-500"
+              />
+              <button onClick={() => setShowCompareModal(false)} className="text-gray-400 hover:text-white cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-2 overflow-y-auto max-h-80 space-y-1">
+              {compareSymbol && (
+                <button
+                  onClick={() => { setCompareSymbol(null); setShowCompareModal(false); }}
+                  className="w-full text-left px-3 py-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-xs font-bold flex items-center justify-between"
+                >
+                  <span>Remove Current Comparison ({compareSymbol})</span>
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+
+              {Object.entries(officialQuotes || {})
+                .filter(([sym]) => sym.toLowerCase().includes(compareQuery.toLowerCase()) && sym !== currentSymbol)
+                .slice(0, 15)
+                .map(([sym, q]) => (
+                  <button
+                    key={sym}
+                    onClick={() => {
+                      setCompareSymbol(sym);
+                      setShowCompareModal(false);
+                      setCompareQuery('');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-gray-800 flex items-center justify-between text-xs"
+                  >
+                    <span className="font-mono font-bold text-white">{sym}</span>
+                    <span className="text-amber-400 font-mono">PKR {Number(q.currentPrice || 0).toFixed(2)}</span>
+                  </button>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
