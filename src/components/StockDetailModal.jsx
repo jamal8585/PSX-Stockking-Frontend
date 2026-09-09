@@ -466,15 +466,29 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
   const aiVerdict = getExecutiveVerdict();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-md overflow-x-hidden overflow-y-auto w-full max-w-full">
-      <div className="bg-gradient-to-b from-[#0F172A] via-[#0A0F1D] to-[#04070D] border border-cyan-500/40 rounded-xl sm:rounded-3xl w-full max-w-6xl max-h-[94vh] overflow-x-hidden overflow-y-auto shadow-2xl p-3.5 sm:p-6 relative my-auto">
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-3 sm:top-5 right-3 sm:right-5 p-2 rounded-xl bg-gray-800/80 text-gray-400 hover:text-white hover:bg-gray-700 cursor-pointer transition-colors z-10"
-        >
-          <X className="w-5 h-5" />
-        </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-1 sm:p-2 lg:p-3 bg-black/90 backdrop-blur-md overflow-x-hidden overflow-y-auto w-full max-w-full">
+      <div className={`bg-gradient-to-b from-[#0F172A] via-[#0A0F1D] to-[#04070D] border border-cyan-500/40 shadow-2xl relative transition-all duration-200 ${
+        isFullScreen 
+          ? 'fixed inset-0 w-screen h-screen max-w-full max-h-screen rounded-none p-3 sm:p-6 overflow-y-auto z-50 my-0' 
+          : 'w-full max-w-[98vw] 2xl:max-w-[1880px] max-h-[96vh] rounded-xl sm:rounded-3xl p-3 sm:p-5 lg:p-6 overflow-x-hidden overflow-y-auto my-auto'
+      }`}>
+        {/* Actions (Maximize / Fullscreen & Close) */}
+        <div className="absolute top-3 sm:top-5 right-3 sm:right-5 flex items-center space-x-1.5 sm:space-x-2 z-20">
+          <button
+            onClick={() => setIsFullScreen(prev => !prev)}
+            title={isFullScreen ? 'Restore Size' : 'Maximize Fullscreen'}
+            className="p-2 rounded-xl bg-gray-800/80 text-cyan-400 hover:text-white hover:bg-gray-700 cursor-pointer transition-colors"
+          >
+            {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={onClose}
+            title="Close Modal"
+            className="p-2 rounded-xl bg-gray-800/80 text-gray-400 hover:text-white hover:bg-gray-700 cursor-pointer transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
         {/* 1. Header with Sector, Symbol, & Indices Badges */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-gray-800/80 pr-10 sm:pr-12">
@@ -548,9 +562,9 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
 
         {/* 2. Main Tabbed Content Area */}
         {activeTab === 'chart' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 my-5">
-            {/* Left Column (5 Cols): Fundamental Quick Matrix & Sliders */}
-            <div className="lg:col-span-5 space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 my-4">
+            {/* Left Column (4 Cols on lg, 3 Cols on xl): Fundamental Quick Matrix & Sliders */}
+            <div className="lg:col-span-4 xl:col-span-3 space-y-4">
               {/* Live Price Box */}
               <div className="bg-[#070B12] rounded-2xl p-4 border border-gray-800/90">
                 <div className="flex items-baseline justify-between">
@@ -652,9 +666,9 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
               </div>
             </div>
 
-            {/* Right Column (7 Cols): Multi-Timeframe TradingView Pro Chart Station */}
-            <div className="lg:col-span-7 flex flex-col space-y-4">
-              <div className="bg-[#070B12] rounded-2xl border border-gray-800/90 overflow-hidden flex-1 flex flex-col min-h-[480px]">
+            {/* Right Column (8 Cols on lg, 9 Cols on xl): Multi-Timeframe TradingView Pro Chart Station */}
+            <div className="lg:col-span-8 xl:col-span-9 flex flex-col space-y-4">
+              <div className="bg-[#070B12] rounded-2xl border border-gray-800/90 overflow-hidden flex-1 flex flex-col min-h-[560px] lg:min-h-[640px] xl:min-h-[700px]">
                 <TradingViewPSXChart
                   symbol={sym}
                   companyName={name}
