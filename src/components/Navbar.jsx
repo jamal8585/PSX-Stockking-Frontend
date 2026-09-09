@@ -16,7 +16,9 @@ import {
   Coins,
   LogOut,
   ChevronDown,
-  User as UserIcon
+  User as UserIcon,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 
