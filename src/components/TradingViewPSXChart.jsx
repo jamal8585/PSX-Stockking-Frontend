@@ -36,7 +36,9 @@ import {
   ZoomOut,
   RotateCcw,
   Move,
-  PenTool
+  PenTool,
+  Sun,
+  Moon
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 import { getStockHistory } from '../services/api';
@@ -113,9 +115,37 @@ export default function TradingViewPSXChart({
   onSelectStock = null,
   onOpenCalculator = null,
   onClose = null,
-  initialFullScreen = false
+  initialFullScreen = false,
+  theme = null
 }) {
-  // 1. Chart Type & Timeframe State
+  // 1. Chart Theme State ('dark' | 'light')
+  const [chartTheme, setChartTheme] = useState(() => {
+    if (theme) return theme;
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('psx_chart_theme') || localStorage.getItem('psx_theme_preference') || 'dark';
+    }
+    return 'dark';
+  });
+
+  const isLight = chartTheme === 'light';
+
+  useEffect(() => {
+    if (theme) {
+      setChartTheme(theme);
+    }
+  }, [theme]);
+
+  const handleToggleTheme = useCallback((forcedTheme) => {
+    setChartTheme(prev => {
+      const next = typeof forcedTheme === 'string' ? forcedTheme : (prev === 'dark' ? 'light' : 'dark');
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('psx_chart_theme', next);
+      }
+      return next;
+    });
+  }, []);
+
+  // 2. Chart Type & Timeframe State
   const [currentSymbol, setCurrentSymbol] = useState(symbol || 'OGDC');
   const [chartType, setChartType] = useState('candles');
   const [timeframe, setTimeframe] = useState('1m');
@@ -1170,12 +1200,16 @@ export default function TradingViewPSXChart({
   return (
     <div
       ref={containerRef}
-      className={`relative bg-[#0B0F19] text-gray-200 select-none flex flex-col font-sans overflow-hidden border border-gray-800 transition-all ${
+      className={`relative select-none flex flex-col font-sans overflow-hidden border transition-all ${
+        isLight ? 'bg-white text-gray-900 border-gray-200' : 'bg-[#0B0F19] text-gray-200 border-gray-800'
+      } ${
         isFullScreen ? 'fixed inset-0 z-[1000] w-screen h-screen rounded-none' : 'w-full rounded-2xl shadow-2xl min-h-[420px] sm:min-h-[500px] md:min-h-[580px]'
       }`}
     >
       {/* 1. SMART ADAPTIVE MULTI-TIER HEADER TOOLBAR */}
-      <div className="flex flex-col bg-[#0E1322] border-b border-gray-800 text-xs shrink-0 divide-y divide-gray-800/60">
+      <div className={`flex flex-col text-xs shrink-0 divide-y ${
+        isLight ? 'bg-[#F8FAFC] border-b border-gray-200 divide-gray-200' : 'bg-[#0E1322] border-b border-gray-800 divide-gray-800/60'
+      }`}>
         {/* TIER 1: Symbol Search, Compare, Zoom Controls, Settings, Snapshot & Fullscreen */}
         <div className="flex items-center justify-between px-2.5 sm:px-3 py-1.5 gap-1.5 flex-wrap">
           {/* Left: Symbol & Compare */}
@@ -1183,12 +1217,14 @@ export default function TradingViewPSXChart({
             {/* Symbol Search Button */}
             <button
               onClick={() => setShowSearchModal(true)}
-              className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 py-1 bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 rounded-lg text-cyan-300 font-extrabold cursor-pointer transition-colors shadow-xs"
+              className={`flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 py-1 rounded-lg font-extrabold cursor-pointer transition-colors shadow-xs ${
+                isLight ? 'bg-sky-50 hover:bg-sky-100 border border-sky-300 text-sky-700' : 'bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300'
+              }`}
               title="Search Symbol (Ctrl+K)"
             >
-              <Search className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <Search className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-sky-600' : 'text-cyan-400'}`} />
               <span className="font-mono text-xs font-black">{currentSymbol}</span>
-              <span className="text-[10px] text-gray-400 font-normal hidden lg:inline truncate max-w-[150px]">
+              <span className={`text-[10px] font-normal hidden lg:inline truncate max-w-[150px] ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
                 {effectiveCompanyName}
               </span>
             </button>
@@ -1197,7 +1233,9 @@ export default function TradingViewPSXChart({
             <button
               onClick={() => setShowCompareModal(true)}
               className={`flex items-center space-x-1 px-2 py-1 rounded-lg border text-xs font-bold cursor-pointer transition-colors ${
-                compareSymbol ? 'bg-amber-500/20 border-amber-500/40 text-amber-300' : 'bg-gray-800/80 border-gray-700 text-gray-300 hover:text-white'
+                compareSymbol 
+                  ? (isLight ? 'bg-amber-100 border-amber-300 text-amber-800' : 'bg-amber-500/20 border-amber-500/40 text-amber-300')
+                  : (isLight ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100' : 'bg-gray-800/80 border-gray-700 text-gray-300 hover:text-white')
               }`}
               title="Compare or Add Symbol"
             >
@@ -1206,30 +1244,38 @@ export default function TradingViewPSXChart({
             </button>
 
             {/* Live Price Tag Pill */}
-            <div className="hidden xs:flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-gray-900 border border-gray-800 font-mono text-[11px]">
-              <span className="text-gray-400">PKR</span>
-              <span className="font-black text-white">{Number(currentPrice).toFixed(2)}</span>
-              <span className={`text-[10px] font-bold ${isBullish ? 'text-emerald-400' : 'text-rose-400'}`}>
+            <div className={`hidden xs:flex items-center space-x-1 px-2 py-0.5 rounded-lg border font-mono text-[11px] ${
+              isLight ? 'bg-white border-gray-300 text-gray-700' : 'bg-gray-900 border-gray-800 text-gray-300'
+            }`}>
+              <span className={isLight ? 'text-gray-500' : 'text-gray-400'}>PKR</span>
+              <span className={`font-black ${isLight ? 'text-gray-900' : 'text-white'}`}>{Number(currentPrice).toFixed(2)}</span>
+              <span className={`text-[10px] font-bold ${isBullish ? (isLight ? 'text-emerald-600' : 'text-emerald-400') : (isLight ? 'text-rose-600' : 'text-rose-400')}`}>
                 {isBullish ? '+' : ''}{Number(changePercent).toFixed(1)}%
               </span>
             </div>
           </div>
 
           {/* Center/Right: Quick Zoom In/Out Toolbar Pill */}
-          <div className="flex items-center space-x-1 bg-gray-900/90 px-1.5 py-0.5 rounded-lg border border-gray-800 font-mono text-[11px]">
+          <div className={`flex items-center space-x-1 px-1.5 py-0.5 rounded-lg border font-mono text-[11px] ${
+            isLight ? 'bg-white border-gray-300 text-gray-700' : 'bg-gray-900/90 border-gray-800 text-gray-300'
+          }`}>
             <button
               onClick={handleZoomIn}
-              className="p-1 hover:bg-gray-800 text-gray-300 hover:text-cyan-400 rounded cursor-pointer transition-colors"
+              className={`p-1 rounded cursor-pointer transition-colors ${
+                isLight ? 'hover:bg-gray-100 text-gray-600 hover:text-sky-600' : 'hover:bg-gray-800 text-gray-300 hover:text-cyan-400'
+              }`}
               title="Zoom In (Ctrl + Scroll Up)"
             >
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
-            <span className="text-[10px] text-cyan-300 font-bold px-1 min-w-[36px] text-anchor-center text-center">
+            <span className={`text-[10px] font-bold px-1 min-w-[36px] text-center ${isLight ? 'text-sky-600' : 'text-cyan-300'}`}>
               {Math.round(zoomLevel * 100)}%
             </span>
             <button
               onClick={handleZoomOut}
-              className="p-1 hover:bg-gray-800 text-gray-300 hover:text-cyan-400 rounded cursor-pointer transition-colors"
+              className={`p-1 rounded cursor-pointer transition-colors ${
+                isLight ? 'hover:bg-gray-100 text-gray-600 hover:text-sky-600' : 'hover:bg-gray-800 text-gray-300 hover:text-cyan-400'
+              }`}
               title="Zoom Out (Ctrl + Scroll Down)"
             >
               <ZoomOut className="w-3.5 h-3.5" />
@@ -1237,7 +1283,9 @@ export default function TradingViewPSXChart({
             {zoomLevel !== 1.0 && (
               <button
                 onClick={handleResetZoom}
-                className="p-1 hover:bg-gray-800 text-amber-400 hover:text-amber-300 rounded cursor-pointer transition-colors"
+                className={`p-1 rounded cursor-pointer transition-colors ${
+                  isLight ? 'hover:bg-gray-100 text-amber-600' : 'hover:bg-gray-800 text-amber-400 hover:text-amber-300'
+                }`}
                 title="Reset Zoom to 100%"
               >
                 <RotateCcw className="w-3 h-3" />
@@ -1245,20 +1293,20 @@ export default function TradingViewPSXChart({
             )}
           </div>
 
-          {/* Right Action Icons: Settings, Snapshot, Fullscreen, Close */}
+          {/* Right Action Icons: Status, H/C Lines, Theme, Mobile Draw, Settings, Snapshot, Fullscreen, Close */}
           <div className="flex items-center space-x-1">
             {/* Real-time PSX Market Status Badge (Accurate Real-Time PKT Schedule) */}
             {marketStatus.isOpen ? (
               <div 
-                className="hidden sm:flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono font-bold text-emerald-400 shrink-0"
+                className="hidden sm:flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono font-bold text-emerald-500 shrink-0"
                 title={`PSX Market Open • ${marketStatus.subText} • ${marketStatus.pktTimeString}`}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
                 <span>LIVE 1s</span>
               </div>
             ) : (
               <div 
-                className="hidden sm:flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-rose-500/15 border border-rose-500/40 text-[10px] font-mono font-bold text-rose-400 shrink-0"
+                className="hidden sm:flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-rose-500/15 border border-rose-500/40 text-[10px] font-mono font-bold text-rose-500 shrink-0"
                 title={`PSX Market Closed • ${marketStatus.subText} • ${marketStatus.pktTimeString}`}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
@@ -1270,18 +1318,35 @@ export default function TradingViewPSXChart({
             <button
               onClick={() => setShowPriceLevels(!showPriceLevels)}
               className={`px-1.5 py-0.5 rounded-lg border text-[10px] font-mono font-bold cursor-pointer transition-colors ${
-                showPriceLevels ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-xs' : 'bg-gray-900 border-gray-800 text-gray-400 hover:text-white'
+                showPriceLevels
+                  ? (isLight ? 'bg-sky-100 text-sky-700 border-sky-300 shadow-xs' : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-xs')
+                  : (isLight ? 'bg-white border-gray-300 text-gray-600 hover:text-gray-900' : 'bg-gray-900 border-gray-800 text-gray-400 hover:text-white')
               }`}
               title="Toggle Day High, Day Close & Day Low Lines"
             >
               H/C Lines
             </button>
 
+            {/* Theme Toggle Button (Light / Dark) */}
+            <button
+              onClick={handleToggleTheme}
+              className={`p-1.5 rounded-lg border cursor-pointer transition-all flex items-center justify-center ${
+                isLight
+                  ? 'bg-amber-100 border-amber-300 text-amber-700 hover:bg-amber-200 shadow-xs'
+                  : 'bg-gray-900 border-gray-800 text-amber-400 hover:bg-gray-800 hover:text-amber-300'
+              }`}
+              title={isLight ? 'Switch to Dark Theme (🌙 Night)' : 'Switch to Light Theme (☀️ Day)'}
+            >
+              {isLight ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            </button>
+
             {/* Mobile Drawing Tools Toggle Button */}
             <button
               onClick={() => setShowMobileDrawingTools(!showMobileDrawingTools)}
               className={`p-1.5 rounded-lg border cursor-pointer transition-colors md:hidden ${
-                showMobileDrawingTools ? 'bg-cyan-500 text-black border-cyan-400 shadow-sm' : 'bg-gray-900 border-gray-800 text-gray-400 hover:text-white'
+                showMobileDrawingTools 
+                  ? (isLight ? 'bg-sky-600 text-white border-sky-600 shadow-sm' : 'bg-cyan-500 text-black border-cyan-400 shadow-sm') 
+                  : (isLight ? 'bg-white border-gray-300 text-gray-600 hover:text-gray-900' : 'bg-gray-900 border-gray-800 text-gray-400 hover:text-white')
               }`}
               title="Toggle Drawing Tools"
             >
@@ -1291,8 +1356,10 @@ export default function TradingViewPSXChart({
             {/* Chart Settings Button */}
             <button
               onClick={() => setShowSettingsModal(true)}
-              className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-white cursor-pointer transition-colors"
-              title="Chart Settings"
+              className={`p-1.5 rounded-lg border cursor-pointer transition-colors ${
+                isLight ? 'bg-white border-gray-300 hover:border-gray-400 text-gray-600 hover:text-gray-900' : 'bg-gray-900 border-gray-800 hover:border-gray-700 text-gray-400 hover:text-white'
+              }`}
+              title="Chart Settings & Properties"
             >
               <Sliders className="w-3.5 h-3.5" />
             </button>
@@ -1300,7 +1367,9 @@ export default function TradingViewPSXChart({
             {/* Camera Snapshot Button */}
             <button
               onClick={handleTakeSnapshot}
-              className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-cyan-400 cursor-pointer transition-colors"
+              className={`p-1.5 rounded-lg border cursor-pointer transition-colors ${
+                isLight ? 'bg-white border-gray-300 hover:border-sky-500 text-gray-600 hover:text-sky-600' : 'bg-gray-900 border-gray-800 hover:border-gray-700 text-gray-400 hover:text-cyan-400'
+              }`}
               title="Take Snapshot / Export PNG"
             >
               <Camera className="w-3.5 h-3.5" />
@@ -1310,7 +1379,9 @@ export default function TradingViewPSXChart({
             {onOpenCalculator && (
               <button
                 onClick={() => onOpenCalculator({ symbol: currentSymbol, currentPrice })}
-                className="p-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30 text-xs font-bold cursor-pointer transition-colors hidden sm:flex items-center space-x-1"
+                className={`p-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-colors hidden sm:flex items-center space-x-1 ${
+                  isLight ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100' : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30'
+                }`}
                 title="Open Position Sizer Calculator"
               >
                 <Activity className="w-3.5 h-3.5" />
@@ -1321,7 +1392,9 @@ export default function TradingViewPSXChart({
             {/* Fullscreen Toggle */}
             <button
               onClick={() => setIsFullScreen(!isFullScreen)}
-              className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 hover:border-cyan-500/40 text-gray-400 hover:text-cyan-400 cursor-pointer transition-colors"
+              className={`p-1.5 rounded-lg border cursor-pointer transition-colors ${
+                isLight ? 'bg-white border-gray-300 hover:border-sky-500 text-gray-600 hover:text-sky-600' : 'bg-gray-900 border-gray-800 hover:border-cyan-500/40 text-gray-400 hover:text-cyan-400'
+              }`}
               title={isFullScreen ? 'Exit Fullscreen' : 'Fullscreen Chart'}
             >
               {isFullScreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
@@ -1331,7 +1404,7 @@ export default function TradingViewPSXChart({
             {onClose && (
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 cursor-pointer transition-colors ml-1"
+                className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 cursor-pointer transition-colors ml-1"
                 title="Close Chart"
               >
                 <X className="w-3.5 h-3.5" />
@@ -1341,17 +1414,23 @@ export default function TradingViewPSXChart({
         </div>
 
         {/* TIER 2: Timeframe Ribbon, 12 Chart Styles Selector, Indicators Trigger */}
-        <div className="flex items-center justify-between px-2.5 sm:px-3 py-1 gap-2 relative z-30">
+        <div className={`flex items-center justify-between px-2.5 sm:px-3 py-1 gap-2 relative z-30 ${isLight ? 'bg-[#F8FAFC]' : 'bg-[#0B0F19]'}`}>
           {/* Left: Timeframe Selector Ribbon */}
           <div className="flex items-center space-x-1 shrink-0">
-            <div className="flex items-center space-x-0.5 bg-gray-900/90 p-0.5 rounded-lg border border-gray-800 font-mono text-[11px] font-bold">
+            <div className={`flex items-center space-x-0.5 p-0.5 rounded-lg border font-mono text-[11px] font-bold ${
+              isLight ? 'bg-gray-100 border-gray-300' : 'bg-gray-900/90 border-gray-800'
+            }`}>
               <div className="flex items-center space-x-0.5 overflow-x-auto no-scrollbar max-w-[210px] xs:max-w-none">
                 {['1s', '5s', '1m', '5m', '15m', '1h', '1D', '1W'].map(tf => (
                   <button
                     key={tf}
                     onClick={() => handleSelectTimeframe(tf)}
                     className={`px-1.5 py-0.5 rounded transition-colors cursor-pointer text-[10px] sm:text-[11px] shrink-0 ${
-                      timeframe === tf ? 'bg-cyan-500 text-black shadow-xs font-black' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                      timeframe === tf
+                        ? 'bg-cyan-500 text-black shadow-xs font-black'
+                        : isLight
+                          ? 'text-gray-600 hover:text-black hover:bg-gray-200'
+                          : 'text-gray-400 hover:text-white hover:bg-gray-800'
                     }`}
                   >
                     {tf}
@@ -1366,7 +1445,11 @@ export default function TradingViewPSXChart({
                     setShowChartTypeDropdown(false);
                   }}
                   className={`px-1 py-0.5 rounded cursor-pointer flex items-center transition-colors ${
-                    showTimeframeDropdown ? 'bg-cyan-500 text-black font-bold' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                    showTimeframeDropdown
+                      ? 'bg-cyan-500 text-black font-bold'
+                      : isLight
+                        ? 'text-gray-600 hover:text-black hover:bg-gray-200'
+                        : 'text-gray-400 hover:text-white hover:bg-gray-800'
                   }`}
                   title="More Timeframes (1s to 1M)"
                 >
@@ -1377,9 +1460,13 @@ export default function TradingViewPSXChart({
                 {showTimeframeDropdown && (
                   <div 
                     onClick={(e) => e.stopPropagation()}
-                    className="absolute top-full left-0 mt-1.5 w-52 bg-[#0F172A] border border-cyan-500/40 rounded-xl shadow-2xl py-2 z-[9999] text-xs backdrop-blur-2xl max-h-80 overflow-y-auto ring-1 ring-black/50"
+                    className={`absolute top-full left-0 mt-1.5 w-52 rounded-xl shadow-2xl py-2 z-[9999] text-xs backdrop-blur-2xl max-h-80 overflow-y-auto ring-1 ${
+                      isLight ? 'bg-white border border-gray-200 text-gray-800 ring-black/10' : 'bg-[#0F172A] border border-cyan-500/40 text-gray-200 ring-black/50'
+                    }`}
                   >
-                    <div className="px-3 py-1 text-[10px] text-cyan-400 font-extrabold uppercase tracking-wider flex items-center justify-between">
+                    <div className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider flex items-center justify-between ${
+                      isLight ? 'text-sky-600' : 'text-cyan-400'
+                    }`}>
                       <span>Seconds (Live Ticks)</span>
                       <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
                     </div>
@@ -1387,31 +1474,41 @@ export default function TradingViewPSXChart({
                       <button
                         key={tf}
                         onClick={() => handleSelectTimeframe(tf)}
-                        className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
+                        className={`w-full text-left px-3 py-1.5 flex items-center justify-between cursor-pointer ${
+                          isLight ? 'hover:bg-gray-100 text-gray-800' : 'hover:bg-gray-800 text-gray-200'
+                        }`}
                       >
                         <span>{tf} ({tf === '1s' ? '1 Second' : `${tf.replace('s','')} Sec`})</span>
                         {timeframe === tf && <Check className="w-3.5 h-3.5 text-cyan-400" />}
                       </button>
                     ))}
-                    <div className="border-t border-gray-800 my-1" />
-                    <div className="px-3 py-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider">Minutes</div>
+                    <div className={`border-t my-1 ${isLight ? 'border-gray-200' : 'border-gray-800'}`} />
+                    <div className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                      isLight ? 'text-gray-500' : 'text-gray-400'
+                    }`}>Minutes</div>
                     {['1m', '3m', '5m', '15m', '30m', '45m'].map(tf => (
                       <button
                         key={tf}
                         onClick={() => handleSelectTimeframe(tf)}
-                        className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
+                        className={`w-full text-left px-3 py-1.5 flex items-center justify-between cursor-pointer ${
+                          isLight ? 'hover:bg-gray-100 text-gray-800' : 'hover:bg-gray-800 text-gray-200'
+                        }`}
                       >
                         <span>{tf} ({tf.replace('m', '')} Min)</span>
                         {timeframe === tf && <Check className="w-3.5 h-3.5 text-cyan-400" />}
                       </button>
                     ))}
-                    <div className="border-t border-gray-800 my-1" />
-                    <div className="px-3 py-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider">Hours & Days</div>
+                    <div className={`border-t my-1 ${isLight ? 'border-gray-200' : 'border-gray-800'}`} />
+                    <div className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                      isLight ? 'text-gray-500' : 'text-gray-400'
+                    }`}>Hours & Days</div>
                     {['1h', '2h', '4h', '1D', '1W', '1M'].map(tf => (
                       <button
                         key={tf}
                         onClick={() => handleSelectTimeframe(tf)}
-                        className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
+                        className={`w-full text-left px-3 py-1.5 flex items-center justify-between cursor-pointer ${
+                          isLight ? 'hover:bg-gray-100 text-gray-800' : 'hover:bg-gray-800 text-gray-200'
+                        }`}
                       >
                         <span>{tf} ({tf === '1D' ? '1 Day (Daily)' : (tf === '1W' ? '1 Week' : (tf === '1M' ? '1 Month' : tf))})</span>
                         {timeframe === tf && <Check className="w-3.5 h-3.5 text-cyan-400" />}
@@ -1433,21 +1530,31 @@ export default function TradingViewPSXChart({
                   setShowChartTypeDropdown(prev => !prev);
                   setShowTimeframeDropdown(false);
                 }}
-                className="flex items-center space-x-1 px-2 py-1 bg-gray-900 border border-gray-800 hover:border-cyan-500/50 rounded-lg text-xs font-bold text-gray-200 hover:text-white cursor-pointer transition-colors"
+                className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-bold cursor-pointer transition-colors border ${
+                  isLight
+                    ? 'bg-white border-gray-300 text-gray-800 hover:border-sky-500 shadow-xs'
+                    : 'bg-gray-900 border-gray-800 hover:border-cyan-500/50 text-gray-200 hover:text-white'
+                }`}
                 title="Select Graph Type (12 Styles)"
               >
                 <span>{CHART_TYPES.find(c => c.id === chartType)?.icon || '🕯️'}</span>
                 <span className="hidden sm:inline font-medium text-[11px]">{CHART_TYPES.find(c => c.id === chartType)?.label || 'Candles'}</span>
-                <ChevronDown className="w-3 h-3 text-gray-400" />
+                <ChevronDown className={`w-3 h-3 ${isLight ? 'text-gray-500' : 'text-gray-400'}`} />
               </button>
 
               {/* 12 Chart Types Popup List */}
               {showChartTypeDropdown && (
                 <div 
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute top-full right-0 sm:left-0 mt-1.5 w-52 sm:w-56 bg-[#0E1424] border border-cyan-500/40 rounded-xl shadow-2xl py-2 z-[9999] backdrop-blur-2xl ring-1 ring-black/50"
+                  className={`absolute top-full right-0 sm:left-0 mt-1.5 w-52 sm:w-56 rounded-xl shadow-2xl py-2 z-[9999] backdrop-blur-2xl ring-1 ${
+                    isLight
+                      ? 'bg-white border border-gray-200 text-gray-800 ring-black/10'
+                      : 'bg-[#0E1424] border border-cyan-500/40 text-gray-200 ring-black/50'
+                  }`}
                 >
-                  <div className="px-3 py-1 text-[10px] uppercase font-bold text-gray-400 border-b border-gray-800 mb-1">
+                  <div className={`px-3 py-1 text-[10px] uppercase font-bold border-b mb-1 ${
+                    isLight ? 'text-gray-500 border-gray-200' : 'text-gray-400 border-gray-800'
+                  }`}>
                     PSX Chart Styles (12)
                   </div>
                   <div className="max-h-72 overflow-y-auto space-y-0.5 px-1">
@@ -1456,7 +1563,9 @@ export default function TradingViewPSXChart({
                         key={ct.id}
                         onClick={() => { setChartType(ct.id); setShowChartTypeDropdown(false); }}
                         className={`w-full text-left px-2 py-1 rounded-lg flex items-center justify-between transition-colors cursor-pointer ${
-                          chartType === ct.id ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30' : 'text-gray-300 hover:bg-gray-800/80 hover:text-white'
+                          chartType === ct.id
+                            ? (isLight ? 'bg-sky-50 text-sky-700 font-bold border border-sky-300' : 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30')
+                            : (isLight ? 'text-gray-700 hover:bg-gray-100 hover:text-black' : 'text-gray-300 hover:bg-gray-800/80 hover:text-white')
                         }`}
                       >
                         <div className="flex items-center space-x-2">
@@ -1474,7 +1583,11 @@ export default function TradingViewPSXChart({
             {/* Indicators Modal Trigger */}
             <button
               onClick={() => setShowIndicatorsModal(true)}
-              className="flex items-center space-x-1 px-2 py-1 bg-gradient-to-r from-blue-600/20 to-purple-600/20 hover:from-blue-600/30 hover:to-purple-600/30 border border-purple-500/30 rounded-lg text-xs font-bold text-purple-200 cursor-pointer transition-colors shadow-xs"
+              className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-xs border ${
+                isLight
+                  ? 'bg-purple-50 hover:bg-purple-100 border-purple-300 text-purple-700'
+                  : 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 hover:from-blue-600/30 hover:to-purple-600/30 border-purple-500/30 text-purple-200'
+              }`}
               title="Technical Indicators (fx)"
             >
               <Sparkles className="w-3.5 h-3.5 text-purple-400" />
@@ -1489,58 +1602,68 @@ export default function TradingViewPSXChart({
         </div>
 
         {/* TIER 3: MULTI-TIMEFRAME HIGH & CLOSE INTELLIGENCE RIBBON */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-1 sm:gap-2 px-2.5 sm:px-3 py-1.5 bg-[#080C16] border-t border-gray-800/80 text-[10px] sm:text-[11px] font-mono shrink-0">
+        <div className={`grid grid-cols-2 lg:grid-cols-4 gap-1 sm:gap-2 px-2.5 sm:px-3 py-1.5 border-t text-[10px] sm:text-[11px] font-mono shrink-0 ${
+          isLight ? 'bg-slate-100/80 border-gray-200' : 'bg-[#080C16] border-gray-800/80'
+        }`}>
           {/* Day Card */}
-          <div className="flex items-center justify-between bg-gray-900/80 px-2 py-1 rounded-lg border border-gray-800">
+          <div className={`flex items-center justify-between px-2 py-1 rounded-lg border ${
+            isLight ? 'bg-white border-gray-200 shadow-xs' : 'bg-gray-900/80 border-gray-800'
+          }`}>
             <div className="flex items-center space-x-1">
-              <span className="text-[10px] font-black text-cyan-400">📅 DAY</span>
-              <span className={`text-[9px] font-black ${isBullish ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <span className={`text-[10px] font-black ${isLight ? 'text-sky-700' : 'text-cyan-400'}`}>📅 DAY</span>
+              <span className={`text-[9px] font-black ${isBullish ? 'text-emerald-500' : 'text-rose-500'}`}>
                 {isBullish ? '▲' : '▼'} {changePercent.toFixed(1)}%
               </span>
             </div>
             <div className="flex items-center space-x-1.5 sm:space-x-2">
-              <span className="text-gray-400 text-[10px]">H: <b className="text-emerald-400">{dayHighNum.toFixed(2)}</b></span>
-              <span className="text-gray-400 text-[10px]">C: <b className="text-cyan-300">{dayCloseNum.toFixed(2)}</b></span>
+              <span className={`text-[10px] ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>H: <b className="text-emerald-500">{dayHighNum.toFixed(2)}</b></span>
+              <span className={`text-[10px] ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>C: <b className={isLight ? 'text-sky-600 font-bold' : 'text-cyan-300'}>{dayCloseNum.toFixed(2)}</b></span>
             </div>
           </div>
 
           {/* Week Card */}
-          <div className="flex items-center justify-between bg-gray-900/80 px-2 py-1 rounded-lg border border-gray-800">
+          <div className={`flex items-center justify-between px-2 py-1 rounded-lg border ${
+            isLight ? 'bg-white border-gray-200 shadow-xs' : 'bg-gray-900/80 border-gray-800'
+          }`}>
             <div className="flex items-center space-x-1">
-              <span className="text-[10px] font-black text-indigo-400">📊 WEEK</span>
-              <span className={`text-[9px] font-black ${weekChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <span className={`text-[10px] font-black ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`}>📊 WEEK</span>
+              <span className={`text-[9px] font-black ${weekChangePercent >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                 {weekChangePercent >= 0 ? '+' : ''}{weekChangePercent.toFixed(1)}%
               </span>
             </div>
             <div className="flex items-center space-x-1.5 sm:space-x-2">
-              <span className="text-gray-400 text-[10px]">H: <b className="text-emerald-400">{weekHighNum.toFixed(2)}</b></span>
-              <span className="text-gray-400 text-[10px]">C: <b className="text-cyan-300">{weekCloseNum.toFixed(2)}</b></span>
+              <span className={`text-[10px] ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>H: <b className="text-emerald-500">{weekHighNum.toFixed(2)}</b></span>
+              <span className={`text-[10px] ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>C: <b className={isLight ? 'text-sky-600 font-bold' : 'text-cyan-300'}>{weekCloseNum.toFixed(2)}</b></span>
             </div>
           </div>
 
           {/* Month Card */}
-          <div className="flex items-center justify-between bg-gray-900/80 px-2 py-1 rounded-lg border border-gray-800">
+          <div className={`flex items-center justify-between px-2 py-1 rounded-lg border ${
+            isLight ? 'bg-white border-gray-200 shadow-xs' : 'bg-gray-900/80 border-gray-800'
+          }`}>
             <div className="flex items-center space-x-1">
-              <span className="text-[10px] font-black text-purple-400">📈 MONTH</span>
-              <span className={`text-[9px] font-black ${monthChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <span className={`text-[10px] font-black ${isLight ? 'text-purple-600' : 'text-purple-400'}`}>📈 MONTH</span>
+              <span className={`text-[9px] font-black ${monthChangePercent >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                 {monthChangePercent >= 0 ? '+' : ''}{monthChangePercent.toFixed(1)}%
               </span>
             </div>
             <div className="flex items-center space-x-1.5 sm:space-x-2">
-              <span className="text-gray-400 text-[10px]">H: <b className="text-emerald-400">{monthHighNum.toFixed(2)}</b></span>
-              <span className="text-gray-400 text-[10px]">C: <b className="text-cyan-300">{monthCloseNum.toFixed(2)}</b></span>
+              <span className={`text-[10px] ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>H: <b className="text-emerald-500">{monthHighNum.toFixed(2)}</b></span>
+              <span className={`text-[10px] ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>C: <b className={isLight ? 'text-sky-600 font-bold' : 'text-cyan-300'}>{monthCloseNum.toFixed(2)}</b></span>
             </div>
           </div>
 
           {/* 52-Week Card */}
-          <div className="flex items-center justify-between bg-gray-900/80 px-2 py-1 rounded-lg border border-gray-800">
+          <div className={`flex items-center justify-between px-2 py-1 rounded-lg border ${
+            isLight ? 'bg-white border-gray-200 shadow-xs' : 'bg-gray-900/80 border-gray-800'
+          }`}>
             <div className="flex items-center space-x-1">
-              <span className="text-[10px] font-black text-amber-400">🏆 52W</span>
+              <span className={`text-[10px] font-black ${isLight ? 'text-amber-600' : 'text-amber-400'}`}>🏆 52W</span>
               <span className="text-[9px] text-gray-500 font-bold hidden xs:inline">RANGE</span>
             </div>
             <div className="flex items-center space-x-1.5 sm:space-x-2">
-              <span className="text-gray-400 text-[10px]">H: <b className="text-amber-400">{week52High}</b></span>
-              <span className="text-gray-400 text-[10px]">L: <b className="text-rose-400">{week52Low}</b></span>
+              <span className={`text-[10px] ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>H: <b className={isLight ? 'text-amber-600' : 'text-amber-400'}>{week52High}</b></span>
+              <span className={`text-[10px] ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>L: <b className="text-rose-500">{week52Low}</b></span>
             </div>
           </div>
         </div>
@@ -1552,13 +1675,19 @@ export default function TradingViewPSXChart({
         <div
           className={`${
             showMobileDrawingTools ? 'flex absolute top-0 left-0 bottom-0 shadow-2xl z-40' : 'hidden md:flex'
-          } w-10 sm:w-11 bg-[#0A0E1A] border-r border-gray-800/90 flex-col items-center py-2 space-y-1 z-30 shrink-0 select-none overflow-y-auto`}
+          } w-10 sm:w-11 ${
+            isLight ? 'bg-slate-50 border-gray-200' : 'bg-[#0A0E1A] border-gray-800/90'
+          } border-r flex-col items-center py-2 space-y-1 z-30 shrink-0 select-none overflow-y-auto`}
         >
           {/* 1. Crosshair Pointer */}
           <button
             onClick={() => setSelectedTool('crosshair')}
             className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
-              selectedTool === 'crosshair' ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              selectedTool === 'crosshair'
+                ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
+                : isLight
+                  ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
             title="Crosshair / Pointer"
           >
@@ -1569,7 +1698,11 @@ export default function TradingViewPSXChart({
           <button
             onClick={() => setSelectedTool('pan')}
             className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
-              selectedTool === 'pan' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              selectedTool === 'pan'
+                ? 'bg-cyan-500 text-black shadow-md'
+                : isLight
+                  ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
             title="Pan / Drag Chart"
           >
@@ -1580,7 +1713,11 @@ export default function TradingViewPSXChart({
           <button
             onClick={() => setSelectedTool('trendline')}
             className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
-              selectedTool === 'trendline' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              selectedTool === 'trendline'
+                ? 'bg-cyan-500 text-black shadow-md'
+                : isLight
+                  ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
             title="Trend Line (Draw support/resistance)"
           >
@@ -1591,7 +1728,11 @@ export default function TradingViewPSXChart({
           <button
             onClick={() => setSelectedTool('horizontal_ray')}
             className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
-              selectedTool === 'horizontal_ray' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              selectedTool === 'horizontal_ray'
+                ? 'bg-cyan-500 text-black shadow-md'
+                : isLight
+                  ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
             title="Horizontal Ray / Price Level"
           >
@@ -1602,40 +1743,56 @@ export default function TradingViewPSXChart({
           <button
             onClick={() => setSelectedTool('fib')}
             className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
-              selectedTool === 'fib' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              selectedTool === 'fib'
+                ? 'bg-cyan-500 text-black shadow-md'
+                : isLight
+                  ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
             title="Fibonacci Retracement"
           >
-            <Sliders className="w-4 h-4 text-amber-400" />
+            <Sliders className="w-4 h-4 text-amber-500" />
           </button>
 
           {/* 5. Parallel Channel */}
           <button
             onClick={() => setSelectedTool('channel')}
             className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
-              selectedTool === 'channel' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              selectedTool === 'channel'
+                ? 'bg-cyan-500 text-black shadow-md'
+                : isLight
+                  ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
             title="Parallel Price Channel"
           >
-            <Layers className="w-4 h-4 text-purple-400" />
+            <Layers className="w-4 h-4 text-purple-500" />
           </button>
 
           {/* 6. Brush / Freehand Draw */}
           <button
             onClick={() => setSelectedTool('brush')}
             className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
-              selectedTool === 'brush' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              selectedTool === 'brush'
+                ? 'bg-cyan-500 text-black shadow-md'
+                : isLight
+                  ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
             title="Brush / Freehand Drawing"
           >
-            <Edit3 className="w-4 h-4 text-emerald-400" />
+            <Edit3 className="w-4 h-4 text-emerald-500" />
           </button>
 
           {/* 7. Text Annotation */}
           <button
             onClick={() => setSelectedTool('text')}
             className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
-              selectedTool === 'text' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              selectedTool === 'text'
+                ? 'bg-cyan-500 text-black shadow-md'
+                : isLight
+                  ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
             title="Text Note / Annotation"
           >
@@ -1647,18 +1804,24 @@ export default function TradingViewPSXChart({
             <button
               onClick={() => setSelectedTool('sticker')}
               className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
-                selectedTool === 'sticker' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                selectedTool === 'sticker'
+                  ? 'bg-cyan-500 text-black shadow-md'
+                  : isLight
+                    ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
               }`}
               title="Stickers / Emojis"
             >
-              <Smile className="w-4 h-4 text-yellow-400" />
+              <Smile className="w-4 h-4 text-yellow-500" />
             </button>
-            <div className="absolute left-full top-0 ml-1 hidden group-hover:flex bg-gray-900 p-1 rounded-lg border border-gray-700 shadow-xl space-x-1 z-50">
+            <div className={`absolute left-full top-0 ml-1 hidden group-hover:flex p-1 rounded-lg border shadow-xl space-x-1 z-50 ${
+              isLight ? 'bg-white border-gray-200 shadow-lg' : 'bg-gray-900 border-gray-700 shadow-xl'
+            }`}>
               {['🚀', '🐂', '🐻', '🔥', '💎', '🛑', '🎯'].map(emoji => (
                 <button
                   key={emoji}
                   onClick={(e) => { e.stopPropagation(); setStickerEmoji(emoji); setSelectedTool('sticker'); }}
-                  className="p-1 hover:bg-gray-800 rounded text-sm cursor-pointer"
+                  className={`p-1 rounded text-sm cursor-pointer ${isLight ? 'hover:bg-gray-100' : 'hover:bg-gray-800'}`}
                 >
                   {emoji}
                 </button>
@@ -1670,20 +1833,28 @@ export default function TradingViewPSXChart({
           <button
             onClick={() => setSelectedTool('ruler')}
             className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
-              selectedTool === 'ruler' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              selectedTool === 'ruler'
+                ? 'bg-cyan-500 text-black shadow-md'
+                : isLight
+                  ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
             title="Measure Ruler (% Gain/Loss & Bar Count)"
           >
-            <Ruler className="w-4 h-4 text-cyan-400" />
+            <Ruler className="w-4 h-4 text-cyan-500" />
           </button>
 
-          <div className="w-5 h-px bg-gray-800 my-1" />
+          <div className={`w-5 h-px my-1 ${isLight ? 'bg-gray-200' : 'bg-gray-800'}`} />
 
           {/* 10. Magnet Mode */}
           <button
             onClick={() => setMagnetMode(!magnetMode)}
             className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
-              magnetMode ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+              magnetMode
+                ? 'bg-indigo-600 text-white'
+                : isLight
+                  ? 'text-gray-400 hover:text-gray-700 hover:bg-gray-200'
+                  : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
             }`}
             title={magnetMode ? 'Magnet Mode ON' : 'Magnet Mode OFF'}
           >
@@ -1694,7 +1865,11 @@ export default function TradingViewPSXChart({
           <button
             onClick={() => setDrawingsLocked(!drawingsLocked)}
             className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
-              drawingsLocked ? 'bg-amber-600 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+              drawingsLocked
+                ? 'bg-amber-600 text-white'
+                : isLight
+                  ? 'text-gray-400 hover:text-gray-700 hover:bg-gray-200'
+                  : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
             }`}
             title={drawingsLocked ? 'Drawings Locked' : 'Drawings Unlocked'}
           >
@@ -1704,7 +1879,7 @@ export default function TradingViewPSXChart({
           {/* 12. Clear All Drawings */}
           <button
             onClick={() => setDrawings([])}
-            className="p-1.5 sm:p-2 rounded-lg text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer mt-auto"
+            className="p-1.5 sm:p-2 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer mt-auto"
             title="Clear All Drawings"
           >
             <Trash2 className="w-4 h-4" />
@@ -1712,13 +1887,17 @@ export default function TradingViewPSXChart({
         </div>
 
         {/* CHART CANVAS DISPLAY AREA */}
-        <div className="flex-1 flex flex-col relative bg-[#070B14] overflow-hidden">
+        <div className={`flex-1 flex flex-col relative overflow-hidden ${isLight ? 'bg-white' : 'bg-[#070B14]'}`}>
           {/* Top OHLC & Volume Telemetry Legend (Clean & Compact on Mobile) */}
           {chartSettings.showLegend && (
-            <div className="absolute top-2 left-2 sm:left-3 z-20 flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-0.5 font-mono text-[9.5px] sm:text-[11px] bg-[#070B14]/90 backdrop-blur-md px-2 py-1 rounded-lg border border-gray-800/80 pointer-events-none shadow-md max-w-[calc(100%-16px)]">
+            <div className={`absolute top-2 left-2 sm:left-3 z-20 flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-0.5 font-mono text-[9.5px] sm:text-[11px] backdrop-blur-md px-2 py-1 rounded-lg border pointer-events-none max-w-[calc(100%-16px)] ${
+              isLight ? 'bg-white/95 border-gray-200 text-gray-800 shadow-sm' : 'bg-[#070B14]/90 border-gray-800/80 text-gray-200 shadow-md'
+            }`}>
               <div className="flex items-center space-x-1">
-                <span className="font-black text-white">{currentSymbol}</span>
-                <span className="text-cyan-400 font-bold px-1 py-0.2 bg-cyan-500/15 border border-cyan-500/30 rounded text-[9px]">
+                <span className={`font-black ${isLight ? 'text-gray-900' : 'text-white'}`}>{currentSymbol}</span>
+                <span className={`font-bold px-1 py-0.2 rounded text-[9px] border ${
+                  isLight ? 'text-sky-700 bg-sky-100 border-sky-300' : 'text-cyan-400 bg-cyan-500/15 border-cyan-500/30'
+                }`}>
                   {timeframe}
                 </span>
               </div>
@@ -1726,41 +1905,43 @@ export default function TradingViewPSXChart({
               {activePt && (
                 <>
                   <div className="flex items-center space-x-0.5">
-                    <span className="text-gray-500">O:</span>
-                    <span className="text-gray-200 font-bold">{Number(activePt.open).toFixed(2)}</span>
+                    <span className={isLight ? 'text-gray-400' : 'text-gray-500'}>O:</span>
+                    <span className={`font-bold ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>{Number(activePt.open).toFixed(2)}</span>
                   </div>
                   <div className="flex items-center space-x-0.5">
-                    <span className="text-emerald-400 font-bold">
+                    <span className="text-emerald-500 font-bold">
                       {timeframe === '1D' ? 'Day High:' : (timeframe === '1W' ? 'Wk High:' : (timeframe === '1M' ? 'Mo High:' : 'H:'))}
                     </span>
-                    <span className="text-emerald-400 font-black">{Number(activePt.high).toFixed(2)}</span>
+                    <span className="text-emerald-500 font-black">{Number(activePt.high).toFixed(2)}</span>
                   </div>
                   <div className="flex items-center space-x-0.5">
-                    <span className="text-rose-400 font-bold">
+                    <span className="text-rose-500 font-bold">
                       {timeframe === '1D' ? 'Day Low:' : (timeframe === '1W' ? 'Wk Low:' : (timeframe === '1M' ? 'Mo Low:' : 'L:'))}
                     </span>
-                    <span className="text-rose-400 font-bold">{Number(activePt.low).toFixed(2)}</span>
+                    <span className="text-rose-500 font-bold">{Number(activePt.low).toFixed(2)}</span>
                   </div>
                   <div className="flex items-center space-x-0.5">
-                    <span className="text-cyan-400 font-bold">
+                    <span className={`font-bold ${isLight ? 'text-sky-600' : 'text-cyan-400'}`}>
                       {timeframe === '1D' ? 'Day Close:' : (timeframe === '1W' ? 'Wk Close:' : (timeframe === '1M' ? 'Mo Close:' : 'C:'))}
                     </span>
-                    <span className={`font-black ${activePt.isBull ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    <span className={`font-black ${activePt.isBull ? 'text-emerald-500' : 'text-rose-500'}`}>
                       {Number(activePt.close).toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex items-center space-x-1 bg-cyan-500/10 px-1 py-0.2 rounded border border-cyan-500/20">
-                    <span className="text-cyan-400 font-bold">Vol:</span>
-                    <span className="text-white font-black">{formatVol(activePt.volume)}</span>
+                  <div className={`flex items-center space-x-1 px-1 py-0.2 rounded border ${
+                    isLight ? 'bg-sky-50 border-sky-200' : 'bg-cyan-500/10 border-cyan-500/20'
+                  }`}>
+                    <span className={`font-bold ${isLight ? 'text-sky-700' : 'text-cyan-400'}`}>Vol:</span>
+                    <span className={`font-black ${isLight ? 'text-gray-900' : 'text-white'}`}>{formatVol(activePt.volume)}</span>
                   </div>
-                  <div className="text-gray-400 text-[9px] hidden sm:inline">
+                  <div className={`${isLight ? 'text-gray-500' : 'text-gray-400'} text-[9px] hidden sm:inline`}>
                     [{activePt.date}]
                   </div>
                 </>
               )}
 
               {compareSymbol && compareData && (
-                <div className="flex items-center space-x-1 pl-1.5 border-l border-gray-700 text-amber-300">
+                <div className={`flex items-center space-x-1 pl-1.5 border-l ${isLight ? 'border-gray-300 text-amber-700' : 'border-gray-700 text-amber-300'}`}>
                   <span>vs {compareSymbol}:</span>
                   <span className="font-bold">PKR {Number(compareData?.quote?.currentPrice || 0).toFixed(2)}</span>
                 </div>
@@ -1771,49 +1952,61 @@ export default function TradingViewPSXChart({
           {/* Active Overlay Indicators Legend */}
           <div className="absolute top-10 left-2 sm:left-3 z-10 flex flex-col space-y-0.5 text-[9px] sm:text-[10px] font-mono pointer-events-none">
             {activeIndicators.sma20 && indicatorSeries.sma20 && (
-              <span className="text-sky-400">SMA 20: {indicatorSeries.sma20[hoverIndex !== null ? hoverIndex : indicatorSeries.sma20.length - 1]?.toFixed(2) || '—'}</span>
+              <span className={isLight ? 'text-sky-600 font-semibold' : 'text-sky-400'}>SMA 20: {indicatorSeries.sma20[hoverIndex !== null ? hoverIndex : indicatorSeries.sma20.length - 1]?.toFixed(2) || '—'}</span>
             )}
             {activeIndicators.sma50 && indicatorSeries.sma50 && (
-              <span className="text-amber-400">SMA 50: {indicatorSeries.sma50[hoverIndex !== null ? hoverIndex : indicatorSeries.sma50.length - 1]?.toFixed(2) || '—'}</span>
+              <span className={isLight ? 'text-amber-600 font-semibold' : 'text-amber-400'}>SMA 50: {indicatorSeries.sma50[hoverIndex !== null ? hoverIndex : indicatorSeries.sma50.length - 1]?.toFixed(2) || '—'}</span>
             )}
             {activeIndicators.ema9 && indicatorSeries.ema9 && (
-              <span className="text-purple-400">EMA 9: {indicatorSeries.ema9[hoverIndex !== null ? hoverIndex : indicatorSeries.ema9.length - 1]?.toFixed(2) || '—'}</span>
+              <span className={isLight ? 'text-purple-600 font-semibold' : 'text-purple-400'}>EMA 9: {indicatorSeries.ema9[hoverIndex !== null ? hoverIndex : indicatorSeries.ema9.length - 1]?.toFixed(2) || '—'}</span>
             )}
             {activeIndicators.bollinger && indicatorSeries.bbUpper && (
-              <span className="text-indigo-400">BB (20, 2): {indicatorSeries.bbUpper[hoverIndex !== null ? hoverIndex : indicatorSeries.bbUpper.length - 1]?.toFixed(2)} / {indicatorSeries.bbLower[hoverIndex !== null ? hoverIndex : indicatorSeries.bbLower.length - 1]?.toFixed(2)}</span>
+              <span className={isLight ? 'text-indigo-600 font-semibold' : 'text-indigo-400'}>BB (20, 2): {indicatorSeries.bbUpper[hoverIndex !== null ? hoverIndex : indicatorSeries.bbUpper.length - 1]?.toFixed(2)} / {indicatorSeries.bbLower[hoverIndex !== null ? hoverIndex : indicatorSeries.bbLower.length - 1]?.toFixed(2)}</span>
             )}
           </div>
 
           {/* Background Watermark */}
           {chartSettings.showWatermark && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none">
-              <span className="text-7xl sm:text-9xl font-black font-mono tracking-widest text-white">{currentSymbol}</span>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+              <span className={`text-7xl sm:text-9xl font-black font-mono tracking-widest ${
+                isLight ? 'text-gray-900 opacity-[0.035]' : 'text-white opacity-[0.03]'
+              }`}>{currentSymbol}</span>
             </div>
           )}
 
           {/* Loading Telemetry Overlay */}
           {isLoading && (
-            <div className="absolute inset-0 z-40 bg-[#070B14]/70 backdrop-blur-sm flex items-center justify-center space-x-2 text-cyan-400 text-xs font-mono font-bold">
+            <div className={`absolute inset-0 z-40 backdrop-blur-sm flex items-center justify-center space-x-2 text-xs font-mono font-bold ${
+              isLight ? 'bg-white/80 text-sky-700' : 'bg-[#070B14]/70 text-cyan-400'
+            }`}>
               <RefreshCw className="w-5 h-5 animate-spin text-cyan-400" />
               <span>Streaming PSX Telemetry ({currentSymbol})...</span>
             </div>
           )}
 
           {/* Floating On-Canvas Quick Zoom Controller Dock */}
-          <div className="absolute bottom-3 right-3 z-20 flex items-center space-x-1 bg-[#0B0F19]/90 backdrop-blur-md px-2 py-1 rounded-xl border border-gray-800 shadow-xl">
+          <div className={`absolute bottom-3 right-3 z-20 flex items-center space-x-1 backdrop-blur-md px-2 py-1 rounded-xl border shadow-xl ${
+            isLight ? 'bg-white/95 border-gray-200 text-gray-800 shadow-md' : 'bg-[#0B0F19]/90 border-gray-800 text-gray-300 shadow-xl'
+          }`}>
             <button
               onClick={handleZoomIn}
-              className="p-1 rounded hover:bg-gray-800 text-gray-400 hover:text-cyan-400 cursor-pointer transition-colors"
+              className={`p-1 rounded cursor-pointer transition-colors ${
+                isLight ? 'hover:bg-gray-100 text-gray-600 hover:text-sky-600' : 'hover:bg-gray-800 text-gray-400 hover:text-cyan-400'
+              }`}
               title="Zoom In"
             >
               <ZoomIn className="w-4 h-4" />
             </button>
-            <span className="text-[10px] font-mono font-bold text-gray-300 min-w-[32px] text-center">
+            <span className={`text-[10px] font-mono font-bold min-w-[32px] text-center ${
+              isLight ? 'text-gray-800' : 'text-gray-300'
+            }`}>
               {Math.round(zoomLevel * 100)}%
             </span>
             <button
               onClick={handleZoomOut}
-              className="p-1 rounded hover:bg-gray-800 text-gray-400 hover:text-cyan-400 cursor-pointer transition-colors"
+              className={`p-1 rounded cursor-pointer transition-colors ${
+                isLight ? 'hover:bg-gray-100 text-gray-600 hover:text-sky-600' : 'hover:bg-gray-800 text-gray-400 hover:text-cyan-400'
+              }`}
               title="Zoom Out"
             >
               <ZoomOut className="w-4 h-4" />
@@ -1821,7 +2014,7 @@ export default function TradingViewPSXChart({
             {zoomLevel !== 1.0 && (
               <button
                 onClick={handleResetZoom}
-                className="p-1 rounded hover:bg-gray-800 text-amber-400 hover:text-amber-300 cursor-pointer transition-colors"
+                className="p-1 rounded hover:bg-gray-800 text-amber-500 hover:text-amber-600 cursor-pointer transition-colors"
                 title="Reset View"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -1861,17 +2054,20 @@ export default function TradingViewPSXChart({
                 </linearGradient>
               </defs>
 
+              {/* Background Canvas Layer */}
+              <rect width={svgWidth} height={svgHeight} fill={isLight ? '#FFFFFF' : '#070B14'} />
+
               {/* Grid Lines */}
               {chartSettings.gridStyle !== 'none' && (
-                <g opacity="0.4">
+                <g opacity={isLight ? '0.6' : '0.4'}>
                   {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => {
                     const y = paddingTop + mainChartHeight * pct;
                     const priceAtY = chartDims.maxPrice - pct * chartDims.priceRange;
                     const dash = chartSettings.gridStyle === 'dotted' ? '2 2' : chartSettings.gridStyle === 'dashed' ? '5 5' : 'none';
                     return (
                       <g key={`ygrid_${i}`}>
-                        <line x1={paddingLeft} y1={y} x2={svgWidth - paddingRight} y2={y} stroke="#1E293B" strokeDasharray={dash} />
-                        <text x={svgWidth - paddingRight + 6} y={y + 3} fill="#64748B" fontSize="9" fontFamily="monospace">
+                        <line x1={paddingLeft} y1={y} x2={svgWidth - paddingRight} y2={y} stroke={isLight ? '#E2E8F0' : '#1E293B'} strokeDasharray={dash} />
+                        <text x={svgWidth - paddingRight + 6} y={y + 3} fill={isLight ? '#475569' : '#64748B'} fontSize="9" fontFamily="monospace">
                           {priceAtY.toFixed(2)}
                         </text>
                       </g>
@@ -1881,7 +2077,7 @@ export default function TradingViewPSXChart({
                     const x = paddingLeft + chartWidth * pct;
                     const dash = chartSettings.gridStyle === 'dotted' ? '2 2' : chartSettings.gridStyle === 'dashed' ? '5 5' : 'none';
                     return (
-                      <line key={`xgrid_${i}`} x1={x} y1={paddingTop} x2={x} y2={paddingTop + mainChartHeight} stroke="#1E293B" strokeDasharray={dash} />
+                      <line key={`xgrid_${i}`} x1={x} y1={paddingTop} x2={x} y2={paddingTop + mainChartHeight} stroke={isLight ? '#E2E8F0' : '#1E293B'} strokeDasharray={dash} />
                     );
                   })}
                 </g>
@@ -1907,7 +2103,7 @@ export default function TradingViewPSXChart({
                               y={bodyTop}
                               width={candleWidth}
                               height={bodyHeight}
-                              fill={isHollow ? '#070B14' : color}
+                              fill={isHollow ? (isLight ? '#FFFFFF' : '#070B14') : color}
                               stroke={color}
                               strokeWidth={isHollow ? '1.5' : '0'}
                               rx="1"
@@ -2233,7 +2429,7 @@ export default function TradingViewPSXChart({
                     }
                     if (d.type === 'text') {
                       return (
-                        <text key={d.id} x={d.x} y={d.y} fill="#F8FAFC" fontSize="12" fontWeight="bold" fontFamily="sans-serif">
+                        <text key={d.id} x={d.x} y={d.y} fill={isLight ? '#0F172A' : '#F8FAFC'} fontSize="12" fontWeight="bold" fontFamily="sans-serif">
                           {d.text}
                         </text>
                       );
@@ -2293,8 +2489,8 @@ export default function TradingViewPSXChart({
 
                   {/* X-Axis Hover Time Badge */}
                   <g transform={`translate(${Math.max(paddingLeft, Math.min(activePt.x - 38, svgWidth - paddingRight - 76))}, ${svgHeight - paddingBottom + 3})`}>
-                    <rect width="76" height="16" fill="#1E293B" stroke="#0284C7" strokeWidth="1" rx="3" />
-                    <text x="38" y="11" fill="#38BDF8" fontSize="9" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
+                    <rect width="76" height="16" fill={isLight ? '#F1F5F9' : '#1E293B'} stroke="#0284C7" strokeWidth="1" rx="3" />
+                    <text x="38" y="11" fill={isLight ? '#0369A1' : '#38BDF8'} fontSize="9" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
                       {activePt.date}
                     </text>
                   </g>
@@ -2373,7 +2569,7 @@ export default function TradingViewPSXChart({
 
               {/* Bottom Time Axis Labels */}
               {chartDims.points.filter((_, idx) => idx % Math.max(1, Math.ceil(chartDims.points.length / 6)) === 0).map((pt, i) => (
-                <text key={`time_lbl_${i}`} x={pt.x} y={svgHeight - 8} fill="#64748B" fontSize="9" textAnchor="middle" fontFamily="monospace">
+                <text key={`time_lbl_${i}`} x={pt.x} y={svgHeight - 8} fill={isLight ? '#475569' : '#64748B'} fontSize="9" textAnchor="middle" fontFamily="monospace">
                   {pt.date}
                 </text>
               ))}
@@ -2383,7 +2579,9 @@ export default function TradingViewPSXChart({
       </div>
 
       {/* 3. BOTTOM TIMEFRAME RANGES & SCALE CONTROLS TOOLBAR (Responsive) */}
-      <div className="flex flex-wrap items-center justify-between px-2.5 sm:px-3 py-1 bg-[#0A0E1A] border-t border-gray-800 text-[10px] sm:text-[11px] font-mono shrink-0 gap-1.5">
+      <div className={`flex flex-wrap items-center justify-between px-2.5 sm:px-3 py-1 text-[10px] sm:text-[11px] font-mono shrink-0 gap-1.5 ${
+        isLight ? 'bg-slate-50 border-t border-gray-200' : 'bg-[#0A0E1A] border-t border-gray-800'
+      }`}>
         {/* Left: Quick Date Range Buttons */}
         <div className="flex items-center space-x-1">
           <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mr-0.5 hidden xs:inline">Range:</span>
@@ -2392,7 +2590,11 @@ export default function TradingViewPSXChart({
               key={rng}
               onClick={() => handleSelectRange(rng)}
               className={`px-1.5 sm:px-2 py-0.5 rounded font-bold transition-colors cursor-pointer text-[10px] sm:text-[11px] ${
-                selectedRange === rng ? 'bg-cyan-500 text-black shadow-xs font-black' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                selectedRange === rng
+                  ? 'bg-cyan-500 text-black shadow-xs font-black'
+                  : isLight
+                    ? 'text-gray-600 hover:text-black hover:bg-gray-200'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
               }`}
             >
               {rng}
@@ -2401,18 +2603,20 @@ export default function TradingViewPSXChart({
         </div>
 
         {/* Center: Live Time PSX */}
-        <div className="text-gray-400 hidden sm:flex items-center space-x-1.5 text-[10px]">
-          <Clock className="w-3 h-3 text-cyan-400" />
+        <div className={`${isLight ? 'text-gray-600' : 'text-gray-400'} hidden sm:flex items-center space-x-1.5 text-[10px]`}>
+          <Clock className="w-3 h-3 text-cyan-500" />
           <span>PSX Market Time</span>
-          <span className="text-emerald-400 font-bold">[{lastTickInfo.time}]</span>
+          <span className="text-emerald-500 font-bold">[{lastTickInfo.time}]</span>
         </div>
 
         {/* Right: Scale Mode Switchers */}
         <div className="flex items-center space-x-1">
           <button
             onClick={() => setChartSettings(prev => ({ ...prev, scaleMode: prev.scaleMode === 'percent' ? 'auto' : 'percent' }))}
-            className={`px-1.5 py-0.5 rounded border text-[9px] sm:text-[10px] font-bold cursor-pointer ${
-              chartSettings.scaleMode === 'percent' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : 'border-gray-800 text-gray-400 hover:text-white'
+            className={`px-1.5 py-0.5 rounded border text-[9px] sm:text-[10px] font-bold cursor-pointer transition-colors ${
+              chartSettings.scaleMode === 'percent'
+                ? (isLight ? 'bg-sky-100 text-sky-700 border-sky-300' : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40')
+                : (isLight ? 'border-gray-300 text-gray-600 hover:text-black hover:bg-gray-200' : 'border-gray-800 text-gray-400 hover:text-white')
             }`}
             title="Percentage Scale"
           >
@@ -2420,8 +2624,10 @@ export default function TradingViewPSXChart({
           </button>
           <button
             onClick={() => setChartSettings(prev => ({ ...prev, scaleMode: prev.scaleMode === 'log' ? 'auto' : 'log' }))}
-            className={`px-1.5 py-0.5 rounded border text-[9px] sm:text-[10px] font-bold cursor-pointer ${
-              chartSettings.scaleMode === 'log' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : 'border-gray-800 text-gray-400 hover:text-white'
+            className={`px-1.5 py-0.5 rounded border text-[9px] sm:text-[10px] font-bold cursor-pointer transition-colors ${
+              chartSettings.scaleMode === 'log'
+                ? (isLight ? 'bg-sky-100 text-sky-700 border-sky-300' : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40')
+                : (isLight ? 'border-gray-300 text-gray-600 hover:text-black hover:bg-gray-200' : 'border-gray-800 text-gray-400 hover:text-white')
             }`}
             title="Logarithmic Scale"
           >
@@ -2429,8 +2635,10 @@ export default function TradingViewPSXChart({
           </button>
           <button
             onClick={() => setChartSettings(prev => ({ ...prev, scaleMode: 'auto' }))}
-            className={`px-1.5 py-0.5 rounded border text-[9px] sm:text-[10px] font-bold cursor-pointer ${
-              chartSettings.scaleMode === 'auto' ? 'bg-cyan-500 text-black font-black' : 'border-gray-800 text-gray-400 hover:text-white'
+            className={`px-1.5 py-0.5 rounded border text-[9px] sm:text-[10px] font-bold cursor-pointer transition-colors ${
+              chartSettings.scaleMode === 'auto'
+                ? 'bg-cyan-500 text-black font-black'
+                : (isLight ? 'border-gray-300 text-gray-600 hover:text-black hover:bg-gray-200' : 'border-gray-800 text-gray-400 hover:text-white')
             }`}
             title="Auto Scale"
           >
@@ -2444,22 +2652,28 @@ export default function TradingViewPSXChart({
       {/* A. INDICATORS MODAL */}
       {showIndicatorsModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-[#0F172A] border border-purple-500/40 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-gray-800 bg-[#0B0F19]">
+          <div className={`border rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] ${
+            isLight ? 'bg-white border-purple-200 text-gray-900' : 'bg-[#0F172A] border-purple-500/40 text-white'
+          }`}>
+            <div className={`flex items-center justify-between px-4 sm:px-5 py-3.5 border-b ${
+              isLight ? 'bg-gray-50 border-gray-200' : 'bg-[#0B0F19] border-gray-800'
+            }`}>
               <div className="flex items-center space-x-2">
-                <Sparkles className="w-5 h-5 text-purple-400" />
-                <h3 className="font-extrabold text-white text-sm sm:text-base">Technical Indicators (fx)</h3>
+                <Sparkles className="w-5 h-5 text-purple-500" />
+                <h3 className={`font-extrabold text-sm sm:text-base ${isLight ? 'text-gray-900' : 'text-white'}`}>Technical Indicators (fx)</h3>
               </div>
               <button
                 onClick={() => setShowIndicatorsModal(false)}
-                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 cursor-pointer"
+                className={`p-1 rounded-lg cursor-pointer ${
+                  isLight ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-200' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="p-3 sm:p-4 overflow-y-auto space-y-3 flex-1">
-              <div className="text-xs text-gray-400 mb-1">
+              <div className={`text-xs mb-1 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
                 Select technical indicators to overlay on the price chart or render in dedicated sub-panels.
               </div>
 
@@ -2468,7 +2682,9 @@ export default function TradingViewPSXChart({
                 if (list.length === 0) return null;
                 return (
                   <div key={cat} className="space-y-1.5">
-                    <div className="text-[10px] uppercase font-bold text-gray-400 tracking-wider px-1 pt-1.5">{cat}</div>
+                    <div className={`text-[10px] uppercase font-bold tracking-wider px-1 pt-1.5 ${
+                      isLight ? 'text-gray-500' : 'text-gray-400'
+                    }`}>{cat}</div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
                       {list.map(ind => {
                         const isOn = !!activeIndicators[ind.id];
@@ -2478,15 +2694,23 @@ export default function TradingViewPSXChart({
                             onClick={() => setActiveIndicators(prev => ({ ...prev, [ind.id]: !prev[ind.id] }))}
                             className={`p-2 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
                               isOn
-                                ? 'bg-purple-500/15 border-purple-500/50 text-white shadow-sm'
-                                : 'bg-gray-900/60 border-gray-800 text-gray-400 hover:border-gray-700 hover:text-gray-200'
+                                ? 'bg-purple-500/15 border-purple-500/50 text-purple-700 dark:text-white shadow-xs font-semibold'
+                                : isLight
+                                  ? 'bg-gray-50 border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50/50'
+                                  : 'bg-gray-900/60 border-gray-800 text-gray-400 hover:border-gray-700 hover:text-gray-200'
                             }`}
                           >
                             <div className="flex items-center space-x-2 truncate">
                               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: ind.color }} />
                               <span className="text-xs font-medium truncate">{ind.name}</span>
                             </div>
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ml-1 ${isOn ? 'bg-purple-500 text-black font-black' : 'bg-gray-800 text-gray-400'}`}>
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ml-1 ${
+                              isOn
+                                ? 'bg-purple-600 text-white font-black'
+                                : isLight
+                                  ? 'bg-gray-200 text-gray-600'
+                                  : 'bg-gray-800 text-gray-400'
+                            }`}>
                               {isOn ? 'ON' : 'ADD'}
                             </span>
                           </button>
@@ -2498,10 +2722,12 @@ export default function TradingViewPSXChart({
               })}
             </div>
 
-            <div className="p-3 sm:p-4 border-t border-gray-800 bg-[#0B0F19] flex justify-end">
+            <div className={`p-3 sm:p-4 border-t flex justify-end ${
+              isLight ? 'bg-gray-50 border-gray-200' : 'bg-[#0B0F19] border-gray-800'
+            }`}>
               <button
                 onClick={() => setShowIndicatorsModal(false)}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-xs"
               >
                 Apply Indicators
               </button>
@@ -2513,54 +2739,101 @@ export default function TradingViewPSXChart({
       {/* B. CHART SETTINGS MODAL */}
       {showSettingsModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-[#0F172A] border border-gray-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-gray-800 bg-[#0B0F19]">
+          <div className={`border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden ${
+            isLight ? 'bg-white border-gray-300 text-gray-900' : 'bg-[#0F172A] border-gray-700 text-white'
+          }`}>
+            <div className={`flex items-center justify-between px-4 sm:px-5 py-3.5 border-b ${
+              isLight ? 'bg-gray-50 border-gray-200' : 'bg-[#0B0F19] border-gray-800'
+            }`}>
               <div className="flex items-center space-x-2">
-                <Sliders className="w-5 h-5 text-cyan-400" />
-                <h3 className="font-extrabold text-white text-sm sm:text-base">Chart Properties</h3>
+                <Sliders className="w-5 h-5 text-cyan-500" />
+                <h3 className={`font-extrabold text-sm sm:text-base ${isLight ? 'text-gray-900' : 'text-white'}`}>Chart Settings & Properties</h3>
               </div>
               <button
                 onClick={() => setShowSettingsModal(false)}
-                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 cursor-pointer"
+                className={`p-1 rounded-lg cursor-pointer ${
+                  isLight ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-200' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="p-4 sm:p-5 space-y-4 text-xs">
+              {/* Theme Preference Selection */}
               <div>
-                <label className="text-gray-400 block mb-1 font-bold">Candle Color Theme</label>
+                <label className={`${isLight ? 'text-gray-700' : 'text-gray-400'} block mb-1.5 font-bold`}>
+                  Chart Color Theme
+                </label>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-center space-x-2 p-2 bg-gray-900 rounded-xl border border-gray-800">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleTheme('dark')}
+                    className={`p-2.5 rounded-xl border flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                      !isLight
+                        ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 font-bold ring-2 ring-cyan-500/30'
+                        : isLight
+                          ? 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'
+                          : 'bg-gray-900 border-gray-800 text-gray-400'
+                    }`}
+                  >
+                    <Moon className="w-4 h-4 text-cyan-400" />
+                    <span className="font-semibold text-xs">Dark Theme</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleTheme('light')}
+                    className={`p-2.5 rounded-xl border flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                      isLight
+                        ? 'bg-amber-50 border-amber-500 text-amber-800 font-bold ring-2 ring-amber-500/30'
+                        : 'bg-gray-900 border-gray-800 text-gray-400 hover:bg-gray-800'
+                    }`}
+                  >
+                    <Sun className="w-4 h-4 text-amber-500" />
+                    <span className="font-semibold text-xs">Light Theme</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className={`${isLight ? 'text-gray-700' : 'text-gray-400'} block mb-1 font-bold`}>Candle Color Theme</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className={`flex items-center space-x-2 p-2 rounded-xl border ${
+                    isLight ? 'bg-gray-50 border-gray-200' : 'bg-gray-900 border-gray-800'
+                  }`}>
                     <input
                       type="color"
                       value={chartSettings.upColor}
                       onChange={(e) => setChartSettings(prev => ({ ...prev, upColor: e.target.value }))}
                       className="w-6 h-6 rounded border-0 cursor-pointer bg-transparent"
                     />
-                    <span className="text-gray-300">Bullish (Up)</span>
+                    <span className={isLight ? 'text-gray-700' : 'text-gray-300'}>Bullish (Up)</span>
                   </div>
-                  <div className="flex items-center space-x-2 p-2 bg-gray-900 rounded-xl border border-gray-800">
+                  <div className={`flex items-center space-x-2 p-2 rounded-xl border ${
+                    isLight ? 'bg-gray-50 border-gray-200' : 'bg-gray-900 border-gray-800'
+                  }`}>
                     <input
                       type="color"
                       value={chartSettings.downColor}
                       onChange={(e) => setChartSettings(prev => ({ ...prev, downColor: e.target.value }))}
                       className="w-6 h-6 rounded border-0 cursor-pointer bg-transparent"
                     />
-                    <span className="text-gray-300">Bearish (Down)</span>
+                    <span className={isLight ? 'text-gray-700' : 'text-gray-300'}>Bearish (Down)</span>
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="text-gray-400 block mb-1 font-bold">Grid Line Style</label>
+                <label className={`${isLight ? 'text-gray-700' : 'text-gray-400'} block mb-1 font-bold`}>Grid Line Style</label>
                 <div className="grid grid-cols-4 gap-1.5">
                   {['dotted', 'dashed', 'solid', 'none'].map(style => (
                     <button
                       key={style}
                       onClick={() => setChartSettings(prev => ({ ...prev, gridStyle: style }))}
                       className={`py-1.5 rounded-lg border text-center capitalize cursor-pointer transition-colors ${
-                        chartSettings.gridStyle === style ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 font-bold' : 'bg-gray-900 border-gray-800 text-gray-400'
+                        chartSettings.gridStyle === style
+                          ? (isLight ? 'bg-sky-100 border-sky-400 text-sky-700 font-bold' : 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 font-bold')
+                          : (isLight ? 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100' : 'bg-gray-900 border-gray-800 text-gray-400')
                       }`}
                     >
                       {style}
@@ -2569,9 +2842,11 @@ export default function TradingViewPSXChart({
                 </div>
               </div>
 
-              <div className="space-y-2 pt-2 border-t border-gray-800">
-                <label className="flex items-center justify-between cursor-pointer p-1.5 hover:bg-gray-800/50 rounded-lg">
-                  <span className="text-gray-300">Show Volume Sub-Panel</span>
+              <div className={`space-y-2 pt-2 border-t ${isLight ? 'border-gray-200' : 'border-gray-800'}`}>
+                <label className={`flex items-center justify-between cursor-pointer p-1.5 rounded-lg ${
+                  isLight ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-gray-800/50 text-gray-300'
+                }`}>
+                  <span>Show Volume Sub-Panel</span>
                   <input
                     type="checkbox"
                     checked={chartSettings.showVolume}
@@ -2580,8 +2855,10 @@ export default function TradingViewPSXChart({
                   />
                 </label>
 
-                <label className="flex items-center justify-between cursor-pointer p-1.5 hover:bg-gray-800/50 rounded-lg">
-                  <span className="text-gray-300">Show Top OHLC & Vol Legend</span>
+                <label className={`flex items-center justify-between cursor-pointer p-1.5 rounded-lg ${
+                  isLight ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-gray-800/50 text-gray-300'
+                }`}>
+                  <span>Show Top OHLC & Vol Legend</span>
                   <input
                     type="checkbox"
                     checked={chartSettings.showLegend}
@@ -2590,8 +2867,10 @@ export default function TradingViewPSXChart({
                   />
                 </label>
 
-                <label className="flex items-center justify-between cursor-pointer p-1.5 hover:bg-gray-800/50 rounded-lg">
-                  <span className="text-gray-300">Show Background Symbol Watermark</span>
+                <label className={`flex items-center justify-between cursor-pointer p-1.5 rounded-lg ${
+                  isLight ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-gray-800/50 text-gray-300'
+                }`}>
+                  <span>Show Background Symbol Watermark</span>
                   <input
                     type="checkbox"
                     checked={chartSettings.showWatermark}
@@ -2602,10 +2881,12 @@ export default function TradingViewPSXChart({
               </div>
             </div>
 
-            <div className="p-3 sm:p-4 border-t border-gray-800 bg-[#0B0F19] flex justify-end">
+            <div className={`p-3 sm:p-4 border-t flex justify-end ${
+              isLight ? 'bg-gray-50 border-gray-200' : 'bg-[#0B0F19] border-gray-800'
+            }`}>
               <button
                 onClick={() => setShowSettingsModal(false)}
-                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl transition-colors cursor-pointer"
+                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl transition-colors cursor-pointer shadow-xs"
               >
                 Save Settings
               </button>
@@ -2617,17 +2898,23 @@ export default function TradingViewPSXChart({
       {/* C. QUICK SEARCH MODAL */}
       {showSearchModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-[#0F172A] border border-cyan-500/40 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-            <div className="p-3 sm:p-4 border-b border-gray-800 bg-[#0B0F19]">
+          <div className={`border rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[80vh] ${
+            isLight ? 'bg-white border-gray-200 text-gray-900' : 'bg-[#0F172A] border-cyan-500/40 text-white'
+          }`}>
+            <div className={`p-3 sm:p-4 border-b ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-[#0B0F19] border-gray-800'}`}>
               <div className="relative">
-                <Search className="w-4 h-4 text-cyan-400 absolute left-3 top-3" />
+                <Search className={`w-4 h-4 absolute left-3 top-3 ${isLight ? 'text-sky-600' : 'text-cyan-400'}`} />
                 <input
                   type="text"
                   placeholder="Search PSX stock symbol, company name..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   autoFocus
-                  className="w-full bg-gray-900 border border-gray-700 rounded-xl pl-10 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
+                  className={`w-full border rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none ${
+                    isLight
+                      ? 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-sky-500'
+                      : 'bg-gray-900 border-gray-700 text-white placeholder-gray-500 focus:border-cyan-400'
+                  }`}
                 />
               </div>
             </div>
@@ -2642,22 +2929,24 @@ export default function TradingViewPSXChart({
                     setShowSearchModal(false);
                     setSearchQuery('');
                   }}
-                  className="w-full text-left p-2 sm:p-2.5 hover:bg-gray-800/80 rounded-xl flex items-center justify-between transition-colors cursor-pointer"
+                  className={`w-full text-left p-2 sm:p-2.5 rounded-xl flex items-center justify-between transition-colors cursor-pointer ${
+                    isLight ? 'hover:bg-gray-100 text-gray-800' : 'hover:bg-gray-800/80 text-gray-200'
+                  }`}
                 >
                   <div>
-                    <div className="font-extrabold text-white font-mono text-sm">{q.symbol}</div>
-                    <div className="text-[11px] text-gray-400 truncate max-w-xs">{q.name || q.sector}</div>
+                    <div className={`font-extrabold font-mono text-sm ${isLight ? 'text-gray-900' : 'text-white'}`}>{q.symbol}</div>
+                    <div className={`text-[11px] truncate max-w-xs ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>{q.name || q.sector}</div>
                   </div>
                   <div className="text-right font-mono">
-                    <div className="text-sm font-bold text-gray-200">Rs. {Number(q.currentPrice || 0).toFixed(2)}</div>
-                    <div className={`text-[11px] font-bold ${(q.change || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    <div className={`text-sm font-bold ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>Rs. {Number(q.currentPrice || 0).toFixed(2)}</div>
+                    <div className={`text-[11px] font-bold ${(q.change || 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                       {(q.change || 0) >= 0 ? '+' : ''}{Number(q.change || 0).toFixed(2)} ({(q.changePercent || 0) >= 0 ? '+' : ''}{Number(q.changePercent || 0).toFixed(2)}%)
                     </div>
                   </div>
                 </button>
               ))}
               {filteredSearchList.length === 0 && (
-                <div className="text-center py-8 text-gray-500 text-xs font-mono">
+                <div className={`text-center py-8 text-xs font-mono ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
                   No stocks match "{searchQuery}"
                 </div>
               )}
@@ -2669,12 +2958,16 @@ export default function TradingViewPSXChart({
       {/* D. COMPARE SYMBOL MODAL */}
       {showCompareModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-[#0F172A] border border-amber-500/40 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
-            <div className="p-3 sm:p-4 border-b border-gray-800 bg-[#0B0F19] flex items-center justify-between">
-              <h3 className="font-extrabold text-white text-sm">Compare / Overlay Symbol</h3>
+          <div className={`border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col ${
+            isLight ? 'bg-white border-amber-300/60 text-gray-900' : 'bg-[#0F172A] border-amber-500/40 text-white'
+          }`}>
+            <div className={`p-3 sm:p-4 border-b flex items-center justify-between ${
+              isLight ? 'bg-gray-50 border-gray-200' : 'bg-[#0B0F19] border-gray-800'
+            }`}>
+              <h3 className={`font-extrabold text-sm ${isLight ? 'text-gray-900' : 'text-white'}`}>Compare / Overlay Symbol</h3>
               <button
                 onClick={() => setShowCompareModal(false)}
-                className="p-1 rounded-lg text-gray-400 hover:text-white"
+                className={`p-1 rounded-lg cursor-pointer ${isLight ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-200' : 'text-gray-400 hover:text-white'}`}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -2686,7 +2979,11 @@ export default function TradingViewPSXChart({
                 placeholder="Search symbol (e.g. HUBC, SYS, PSO)..."
                 value={compareQuery}
                 onChange={(e) => setCompareQuery(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-400"
+                className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none ${
+                  isLight
+                    ? 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-amber-500'
+                    : 'bg-gray-900 border-gray-700 text-white focus:border-amber-400'
+                }`}
               />
 
               <div className="max-h-60 overflow-y-auto space-y-1">
@@ -2698,14 +2995,16 @@ export default function TradingViewPSXChart({
                       setShowCompareModal(false);
                       setCompareQuery('');
                     }}
-                    className="w-full text-left p-2 hover:bg-gray-800 rounded-lg flex items-center justify-between text-xs cursor-pointer"
+                    className={`w-full text-left p-2 rounded-lg flex items-center justify-between text-xs cursor-pointer ${
+                      isLight ? 'hover:bg-amber-50/60 text-gray-800' : 'hover:bg-gray-800 text-gray-200'
+                    }`}
                   >
-                    <span className="font-mono font-bold text-amber-300">{q.symbol}</span>
-                    <span className="text-gray-400 font-mono">Rs. {Number(q.currentPrice || 0).toFixed(2)}</span>
+                    <span className={`font-mono font-bold ${isLight ? 'text-amber-700' : 'text-amber-300'}`}>{q.symbol}</span>
+                    <span className={`font-mono ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>Rs. {Number(q.currentPrice || 0).toFixed(2)}</span>
                   </button>
                 ))}
                 {filteredCompareList.length === 0 && (
-                  <div className="text-center py-6 text-gray-500 text-xs font-mono">
+                  <div className={`text-center py-6 text-xs font-mono ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
                     No matching stocks found
                   </div>
                 )}
@@ -2714,7 +3013,7 @@ export default function TradingViewPSXChart({
               {compareSymbol && (
                 <button
                   onClick={() => { setCompareSymbol(null); setShowCompareModal(false); }}
-                  className="w-full py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-bold cursor-pointer"
+                  className="w-full py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30 rounded-xl text-xs font-bold cursor-pointer"
                 >
                   Remove Compared Symbol ({compareSymbol})
                 </button>

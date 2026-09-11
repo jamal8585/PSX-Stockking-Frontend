@@ -1056,6 +1056,7 @@ export default function App() {
               <TradingViewPSXChart
                 symbol="OGDC"
                 companyName="Oil & Gas Development Company Ltd"
+                theme={theme}
                 onSelectStock={handleSelectStock}
                 onOpenCalculator={setCalcStock}
               />
@@ -1118,6 +1119,7 @@ export default function App() {
       {selectedStock && (
         <StockDetailModal
           stock={selectedStock}
+          theme={theme}
           onClose={() => setSelectedStock(null)}
           onOpenCalculator={setCalcStock}
         />

@@ -290,7 +290,7 @@ function InteractiveStockChart({
   );
 }
 
-export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
+export default function StockDetailModal({ stock, onClose, onOpenCalculator, theme = 'dark' }) {
   if (!stock) return null;
 
   const [currentStock, setCurrentStock] = useState(stock);
@@ -687,6 +687,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
                   volume={volume}
                   high={high}
                   low={low}
+                  theme={theme}
                   onSelectStock={(selected) => {
                     setCurrentStock(selected);
                   }}
@@ -987,6 +988,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
             volume={volume}
             high={high}
             low={low}
+            theme={theme}
             initialFullScreen={true}
             onClose={() => setIsFullScreen(false)}
             onOpenCalculator={onOpenCalculator}
