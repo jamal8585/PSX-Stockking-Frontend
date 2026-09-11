@@ -279,6 +279,50 @@ export default function TradingViewPSXChart({
       .slice(0, 20);
   }, [allStockList, compareQuery]);
 
+  // Handle bottom date range selector (1d, 5d, 1m, 6m, 1y, 3y, All)
+  const handleSelectRange = useCallback((rng) => {
+    setSelectedRange(rng);
+    setZoomLevel(1.0);
+    setPanOffset(0);
+
+    let targetTf = '1D';
+    if (rng === '1d') {
+      targetTf = '1m';
+    } else if (rng === '5d') {
+      targetTf = '15m';
+    } else if (rng === '1m') {
+      targetTf = '1D';
+    } else if (rng === '6m') {
+      targetTf = '1D';
+    } else if (rng === '1y') {
+      targetTf = '1D';
+    } else if (rng === '3y') {
+      targetTf = '1W';
+    } else if (rng === 'All') {
+      targetTf = '1M';
+    }
+    setTimeframe(targetTf);
+  }, []);
+
+  // Handle top timeframe selector (1s, 5s, 1m, 5m, 15m, 1h, 1D, 1W, 1M)
+  const handleSelectTimeframe = useCallback((tf) => {
+    setTimeframe(tf);
+    setZoomLevel(1.0);
+    setPanOffset(0);
+    if (['1s', '5s', '15s', '30s', '1m', '3m', '5m', '15m', '30m', '45m', '1h', '2h', '4h'].includes(tf)) {
+      setSelectedRange('1d');
+    } else if (tf === '1D') {
+      if (!['5d', '1m', '6m', '1y'].includes(selectedRange)) {
+        setSelectedRange('1m');
+      }
+    } else if (tf === '1W') {
+      setSelectedRange('3y');
+    } else if (tf === '1M') {
+      setSelectedRange('All');
+    }
+    setShowTimeframeDropdown(false);
+  }, [selectedRange]);
+
   // Update current symbol when prop changes
   useEffect(() => {
     if (symbol) setCurrentSymbol(symbol);
@@ -290,7 +334,7 @@ export default function TradingViewPSXChart({
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const res = await getStockHistory(currentSymbol, timeframe);
+        const res = await getStockHistory(currentSymbol, timeframe, selectedRange);
         if (isMounted && res.success) {
           setHistoryData(res);
         }
@@ -302,7 +346,7 @@ export default function TradingViewPSXChart({
     };
     fetchData();
     return () => { isMounted = false; };
-  }, [currentSymbol, timeframe]);
+  }, [currentSymbol, timeframe, selectedRange]);
 
   // Load Compared Stock Data if set
   useEffect(() => {
@@ -313,7 +357,7 @@ export default function TradingViewPSXChart({
     let isMounted = true;
     const fetchCompData = async () => {
       try {
-        const res = await getStockHistory(compareSymbol, timeframe);
+        const res = await getStockHistory(compareSymbol, timeframe, selectedRange);
         if (isMounted && res.success) {
           setCompareData(res);
         }
@@ -323,7 +367,7 @@ export default function TradingViewPSXChart({
     };
     fetchCompData();
     return () => { isMounted = false; };
-  }, [compareSymbol, timeframe]);
+  }, [compareSymbol, timeframe, selectedRange]);
 
   // Extract Metadata & Pricing
   const officialQuote = officialQuotes ? officialQuotes[currentSymbol] : null;
@@ -388,7 +432,7 @@ export default function TradingViewPSXChart({
   const week52High = Number(quote?.high52 || historyData?.technicals?.resistance2 || (currentPrice * 1.42)).toFixed(2);
   const week52Low = Number(quote?.low52 || historyData?.technicals?.support2 || (currentPrice * 0.62)).toFixed(2);
 
-  // Generate initial base bars for timeframe (Generates full historical set of 120 bars so zoom & pan work seamlessly)
+  // Generate initial base bars for timeframe & selectedRange
   useEffect(() => {
     if (externalBars && externalBars.length > 0) {
       setRawLiveBars(externalBars);
@@ -399,39 +443,66 @@ export default function TradingViewPSXChart({
       return;
     }
 
-    // High-resolution realistic generator based on timeframe
+    // High-resolution realistic generator based on timeframe and selectedRange
     const isSeconds = timeframe === '1s' || timeframe === '5s' || timeframe === '15s' || timeframe === '30s';
     const isMinute = timeframe.endsWith('m');
     const isHour = timeframe.endsWith('h');
 
-    const count = 120; // 120 bars for deep historical scroll, zoom and pan
+    let count = 120;
     let stepSec = 60;
-
-    if (timeframe === '1s') { stepSec = 1; }
-    else if (timeframe === '5s') { stepSec = 5; }
-    else if (timeframe === '15s') { stepSec = 15; }
-    else if (timeframe === '30s') { stepSec = 30; }
-    else if (timeframe === '1m') { stepSec = 60; }
-    else if (timeframe === '3m') { stepSec = 180; }
-    else if (timeframe === '5m') { stepSec = 300; }
-    else if (timeframe === '15m') { stepSec = 900; }
-    else if (timeframe === '30m') { stepSec = 1800; }
-    else if (timeframe === '45m') { stepSec = 2700; }
-    else if (timeframe === '1h') { stepSec = 3600; }
-    else if (timeframe === '2h') { stepSec = 7200; }
-    else if (timeframe === '4h') { stepSec = 14400; }
-    else if (timeframe === '1D') { stepSec = 86400; }
-    else if (timeframe === '1W') { stepSec = 604800; }
-    else if (timeframe === '1M') { stepSec = 2592000; }
-
     const nowTime = Date.now();
+
+    if (selectedRange === '1d') {
+      count = 50;
+      stepSec = 300;
+    } else if (selectedRange === '5d') {
+      count = 5;
+      stepSec = 86400;
+    } else if (selectedRange === '1m') {
+      count = 22;
+      stepSec = 86400;
+    } else if (selectedRange === '6m') {
+      count = 130;
+      stepSec = 86400;
+    } else if (selectedRange === '1y') {
+      count = 250;
+      stepSec = 86400;
+    } else if (selectedRange === '3y') {
+      count = 156;
+      stepSec = 604800;
+    } else if (selectedRange === 'All') {
+      count = 60;
+      stepSec = 2592000;
+    } else {
+      if (timeframe === '1s') { stepSec = 1; count = 60; }
+      else if (timeframe === '5s') { stepSec = 5; count = 60; }
+      else if (timeframe === '15s') { stepSec = 15; count = 60; }
+      else if (timeframe === '30s') { stepSec = 30; count = 60; }
+      else if (timeframe === '1m') { stepSec = 60; count = 60; }
+      else if (timeframe === '3m') { stepSec = 180; count = 60; }
+      else if (timeframe === '5m') { stepSec = 300; count = 60; }
+      else if (timeframe === '15m') { stepSec = 900; count = 60; }
+      else if (timeframe === '30m') { stepSec = 1800; count = 60; }
+      else if (timeframe === '45m') { stepSec = 2700; count = 60; }
+      else if (timeframe === '1h') { stepSec = 3600; count = 60; }
+      else if (timeframe === '2h') { stepSec = 7200; count = 60; }
+      else if (timeframe === '4h') { stepSec = 14400; count = 60; }
+      else if (timeframe === '1D') { stepSec = 86400; count = 120; }
+      else if (timeframe === '1W') { stepSec = 604800; count = 52; }
+      else if (timeframe === '1M') { stepSec = 2592000; count = 60; }
+    }
+
     const generated = Array.from({ length: count }, (_, i) => {
       const idxFromEnd = count - 1 - i;
       const barTime = new Date(nowTime - idxFromEnd * stepSec * 1000);
       
       let label = '';
-      if (isSeconds) {
-        label = barTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      if (selectedRange === '1d' || isSeconds) {
+        label = barTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      } else if (selectedRange === '3y' || timeframe === '1W') {
+        label = barTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+      } else if (selectedRange === 'All' || timeframe === '1M') {
+        label = barTime.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
       } else if (isMinute || isHour) {
         label = barTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
       } else {
@@ -473,7 +544,7 @@ export default function TradingViewPSXChart({
     });
 
     setRawLiveBars(generated);
-  }, [historyData, externalBars, timeframe, currentPrice, volume]);
+  }, [historyData, externalBars, timeframe, selectedRange, currentPrice, volume]);
 
   // LIVE 1-SECOND REAL-TIME TICKER INTERVAL (Only active during live PSX hours)
   useEffect(() => {
@@ -540,19 +611,20 @@ export default function TradingViewPSXChart({
   const liveBars = useMemo(() => {
     if (!rawLiveBars || rawLiveBars.length === 0) return [];
     
-    // Base visible count at 1.0x is 45 bars
-    const baseCount = 45;
-    const targetCount = Math.max(12, Math.min(rawLiveBars.length, Math.round(baseCount / zoomLevel)));
+    // When range is selected, at 1.0x we show ALL bars in the selected range so the entire window is visible
+    const totalBars = rawLiveBars.length;
+    const baseCount = selectedRange ? totalBars : Math.min(totalBars, 50);
+    const targetCount = Math.max(5, Math.min(totalBars, Math.round(baseCount / zoomLevel)));
     
     // Max pan allowed so we don't scroll past the oldest bar
-    const maxPan = Math.max(0, rawLiveBars.length - targetCount);
+    const maxPan = Math.max(0, totalBars - targetCount);
     const clampedPan = Math.max(0, Math.min(maxPan, panOffset));
     
-    const startIndex = Math.max(0, rawLiveBars.length - targetCount - clampedPan);
+    const startIndex = Math.max(0, totalBars - targetCount - clampedPan);
     const endIndex = startIndex + targetCount;
     
     return rawLiveBars.slice(startIndex, endIndex);
-  }, [rawLiveBars, zoomLevel, panOffset]);
+  }, [rawLiveBars, zoomLevel, panOffset, selectedRange]);
 
   // Zoom Handler Helpers
   const handleZoomIn = useCallback(() => {
@@ -904,7 +976,7 @@ export default function TradingViewPSXChart({
   }, [displayBars, mainChartHeight, chartWidth, activeIndicators, indicatorSeries, volumePanelHeight]);
 
   // Candle width based on point count (scales smoothly with zoom)
-  const candleWidth = Math.max(3.5, Math.min(26, (chartWidth / (displayBars.length || 1)) * 0.72));
+  const candleWidth = Math.max(1.8, Math.min(26, (chartWidth / (displayBars.length || 1)) * 0.72));
 
   // Snap magnet helper
   const getNearestPoint = (mouseX, mouseY) => {
@@ -1277,7 +1349,7 @@ export default function TradingViewPSXChart({
                 {['1s', '5s', '1m', '5m', '15m', '1h', '1D', '1W'].map(tf => (
                   <button
                     key={tf}
-                    onClick={() => setTimeframe(tf)}
+                    onClick={() => handleSelectTimeframe(tf)}
                     className={`px-1.5 py-0.5 rounded transition-colors cursor-pointer text-[10px] sm:text-[11px] shrink-0 ${
                       timeframe === tf ? 'bg-cyan-500 text-black shadow-xs font-black' : 'text-gray-400 hover:text-white hover:bg-gray-800'
                     }`}
@@ -1314,7 +1386,7 @@ export default function TradingViewPSXChart({
                     {['1s', '5s', '15s', '30s'].map(tf => (
                       <button
                         key={tf}
-                        onClick={() => { setTimeframe(tf); setShowTimeframeDropdown(false); }}
+                        onClick={() => handleSelectTimeframe(tf)}
                         className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
                       >
                         <span>{tf} ({tf === '1s' ? '1 Second' : `${tf.replace('s','')} Sec`})</span>
@@ -1326,7 +1398,7 @@ export default function TradingViewPSXChart({
                     {['1m', '3m', '5m', '15m', '30m', '45m'].map(tf => (
                       <button
                         key={tf}
-                        onClick={() => { setTimeframe(tf); setShowTimeframeDropdown(false); }}
+                        onClick={() => handleSelectTimeframe(tf)}
                         className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
                       >
                         <span>{tf} ({tf.replace('m', '')} Min)</span>
@@ -1338,7 +1410,7 @@ export default function TradingViewPSXChart({
                     {['1h', '2h', '4h', '1D', '1W', '1M'].map(tf => (
                       <button
                         key={tf}
-                        onClick={() => { setTimeframe(tf); setShowTimeframeDropdown(false); }}
+                        onClick={() => handleSelectTimeframe(tf)}
                         className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
                       >
                         <span>{tf} ({tf === '1D' ? '1 Day (Daily)' : (tf === '1W' ? '1 Week' : (tf === '1M' ? '1 Month' : tf))})</span>
@@ -2318,9 +2390,9 @@ export default function TradingViewPSXChart({
           {BOTTOM_RANGES.map(rng => (
             <button
               key={rng}
-              onClick={() => setSelectedRange(rng)}
+              onClick={() => handleSelectRange(rng)}
               className={`px-1.5 sm:px-2 py-0.5 rounded font-bold transition-colors cursor-pointer text-[10px] sm:text-[11px] ${
-                selectedRange === rng ? 'bg-cyan-500 text-black shadow-xs' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                selectedRange === rng ? 'bg-cyan-500 text-black shadow-xs font-black' : 'text-gray-400 hover:text-white hover:bg-gray-800'
               }`}
             >
               {rng}

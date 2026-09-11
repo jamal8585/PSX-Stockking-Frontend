@@ -153,9 +153,9 @@ export const getStockDetail = async (symbol) => {
   return res.data;
 };
 
-export const getStockHistory = async (symbol, timeframe = '1M') => {
+export const getStockHistory = async (symbol, timeframe = '1D', range = '') => {
   const res = await API.get(`/stocks/${symbol}/history`, {
-    params: { timeframe }
+    params: { timeframe, range }
   });
   return res.data;
 };
