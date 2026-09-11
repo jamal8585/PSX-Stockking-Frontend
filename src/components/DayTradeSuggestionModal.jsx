@@ -14,9 +14,11 @@ import {
   Newspaper,
   CheckCircle2,
   AlertTriangle,
-  Info
+  Info,
+  Lock
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
+import { getPSXMarketStatus } from '../utils/marketSession';
 
 export default function DayTradeSuggestionModal({ 
   stock, 
@@ -27,6 +29,7 @@ export default function DayTradeSuggestionModal({
 }) {
   if (!stock) return null;
 
+  const isMarketOpen = getPSXMarketStatus().isOpen;
   const sym = (stock.symbol || '').toUpperCase().trim();
   const official = officialQuotes ? officialQuotes[sym] : null;
 
@@ -251,9 +254,15 @@ export default function DayTradeSuggestionModal({
               <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-bold text-[10px]">
                 {sector}
               </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                <Radio className="w-2.5 h-2.5 mr-1 inline animate-ping" /> LIVE DAY TRADE SIGNAL
-              </span>
+              {isMarketOpen ? (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                  <Radio className="w-2.5 h-2.5 mr-1 inline animate-ping" /> LIVE DAY TRADE SIGNAL
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                  <Lock className="w-2.5 h-2.5 mr-1 inline" /> DAY TRADE SIGNAL (POST-MARKET)
+                </span>
+              )}
             </div>
             <p className="text-xs text-gray-400 mt-0.5">{name}</p>
           </div>
@@ -266,7 +275,7 @@ export default function DayTradeSuggestionModal({
             <span className="text-lg font-black tracking-tight">{signalBadge.action}</span>
           </div>
           <div className="sm:text-right">
-            <span className="text-[10px] uppercase font-black tracking-wider block opacity-85">Live Market Rate</span>
+            <span className="text-[10px] uppercase font-black tracking-wider block opacity-85">{isMarketOpen ? 'Live Market Rate' : 'Closing Rate (EOD)'}</span>
             <span className="text-xl font-black mono">
               PKR {price.toFixed(2)} <span className="text-xs">({formattedChg})</span>
             </span>

@@ -652,8 +652,8 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
                 <h2 className="text-2xl font-bold text-[#0F172A] dark:text-[#F8FAFC] tracking-tight">
                   PSX Upcoming & Announced Dividends Intelligence
                 </h2>
-                <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-[#16A34A] dark:bg-[#22C55E] text-white dark:text-black">
-                  LIVE VERIFIED CALENDAR
+                <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-[#2563EB] dark:bg-[#3B82F6] text-white">
+                  OFFICIAL PSX CALENDAR
                 </span>
               </div>
               <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">

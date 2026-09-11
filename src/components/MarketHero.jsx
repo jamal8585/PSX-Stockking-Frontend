@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { TrendingUp, TrendingDown, Activity, Layers, Radio } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, Layers, Radio, Lock } from 'lucide-react';
+import { getPSXMarketStatus } from '../utils/marketSession';
 
 const DEFAULT_SECTORS = [
   { sector: 'Commercial Banks', changePercent: 1.25, volume: 45000000 },
@@ -27,7 +28,7 @@ export default function MarketHero({ marketSummary }) {
   const unchanged = marketSummary?.unchanged !== undefined ? marketSummary.unchanged : 28;
   const sectorPerformance = marketSummary?.sectorPerformance || [];
   const marketSentiment = marketSummary?.marketSentiment || (change >= 0 ? 'BULLISH' : 'BEARISH');
-  const marketStatus = marketSummary?.marketStatus || { isOpen: true, statusText: 'LIVE PSX DPS' };
+  const marketStatus = marketSummary?.marketStatus || getPSXMarketStatus();
 
   const isPositive = change >= 0;
   const totalStocks = advances + declines + unchanged;
@@ -144,9 +145,15 @@ export default function MarketHero({ marketSummary }) {
               >
                 {viewAllSectors ? 'Show Top 8' : `View All (${displaySectors.length})`}
               </button>
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#16A34A]/10 text-[#16A34A] dark:bg-[#22C55E]/10 dark:text-[#22C55E] border border-[#16A34A]/20 dark:border-[#22C55E]/20 flex items-center">
-                <Radio className="w-2.5 h-2.5 mr-1 animate-pulse" /> LIVE
-              </span>
+              {marketStatus.isOpen ? (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#16A34A]/10 text-[#16A34A] dark:bg-[#22C55E]/10 dark:text-[#22C55E] border border-[#16A34A]/20 dark:border-[#22C55E]/20 flex items-center">
+                  <Radio className="w-2.5 h-2.5 mr-1 animate-pulse" /> LIVE
+                </span>
+              ) : (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#2563EB]/10 text-[#2563EB] dark:bg-[#3B82F6]/10 dark:text-[#3B82F6] border border-[#2563EB]/20 dark:border-[#3B82F6]/20 flex items-center">
+                  <Lock className="w-2.5 h-2.5 mr-1" /> CLOSED
+                </span>
+              )}
             </div>
           </div>
 

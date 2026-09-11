@@ -31,7 +31,8 @@ import officialQuotes from '../data/official_quotes.json';
 import { 
   SECTOR_CATEGORIES, 
   MASTER_STOCKS_LIST, 
-  getPSXMarketSessionInfo 
+  getPSXMarketSessionInfo,
+  getPSXMarketStatus
 } from '../utils/marketSession';
 export { getPSXMarketSessionInfo };
 
@@ -40,6 +41,8 @@ export function getPSXRecentTradingSessions(count = 5) {
   const now = new Date();
   const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
   const pktDate = new Date(utc + (3600000 * 5));
+  const marketStatus = getPSXMarketStatus(pktDate);
+  const isMarketOpen = marketStatus.isOpen;
   
   const sessions = [];
   let cur = new Date(pktDate);
@@ -51,8 +54,8 @@ export function getPSXRecentTradingSessions(count = 5) {
     sessions.push({
       dateStr: mon.toISOString().split('T')[0],
       label: `Mon, ${mon.toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}`,
-      badge: 'Upcoming (Live)',
-      isLive: true,
+      badge: isMarketOpen ? 'Live Session' : 'Upcoming (Mon)',
+      isLive: isMarketOpen,
       dayOffset: 0
     });
   } else if (day === 0) { // Sun
@@ -61,16 +64,16 @@ export function getPSXRecentTradingSessions(count = 5) {
     sessions.push({
       dateStr: mon.toISOString().split('T')[0],
       label: `Mon, ${mon.toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}`,
-      badge: 'Upcoming (Live)',
-      isLive: true,
+      badge: isMarketOpen ? 'Live Session' : 'Upcoming (Mon)',
+      isLive: isMarketOpen,
       dayOffset: 0
     });
   } else {
     sessions.push({
       dateStr: cur.toISOString().split('T')[0],
       label: `Today, ${cur.toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}`,
-      badge: 'Live Session',
-      isLive: true,
+      badge: isMarketOpen ? 'Live Session' : 'Closing / EOD',
+      isLive: isMarketOpen,
       dayOffset: 0
     });
   }
@@ -121,11 +124,15 @@ export const mapSectorToCategory = (sectorStr = '') => {
 export default function DailyRecommendations({ 
   recommendations, 
   stocks = [], 
+  marketSummary = null,
   onSelectStock, 
   onOpenCalculator,
   currentUser,
   onOpenUpgrade
 }) {
+  const marketStatus = marketSummary?.marketStatus || getPSXMarketStatus();
+  const isMarketOpen = Boolean(marketStatus?.isOpen);
+
   const [filterSignal, setFilterSignal] = useState('ALL');
   const [selectedSectors, setSelectedSectors] = useState([]); // array of category IDs (e.g. ['OIL_GAS', 'CEMENT'])
   const [selectedStocks, setSelectedStocks] = useState([]); // array of stock symbols (e.g. ['PRL', 'HUBC'])
@@ -139,7 +146,7 @@ export default function DailyRecommendations({
     return recentSessions.find(s => s.dateStr === selectedSessionDate) || recentSessions[0];
   }, [recentSessions, selectedSessionDate]);
 
-  const isHistoricalView = activeSessionObj && !activeSessionObj.isLive;
+  const isHistoricalView = Boolean(activeSessionObj && activeSessionObj.dayOffset > 0);
 
   // Dropdown Popover States
   const [isSectorDropdownOpen, setIsSectorDropdownOpen] = useState(false);
@@ -1159,13 +1166,15 @@ export default function DailyRecommendations({
                     <div className="flex items-baseline justify-between mb-2">
                       <div>
                         <span className="text-[10px] uppercase text-[#64748B] dark:text-[#94A3B8] font-bold">
-                          {isHistoricalView ? 'Signal Entry Price' : 'Current Live Price'}
+                          {isHistoricalView 
+                            ? 'Signal Entry Price' 
+                            : (isMarketOpen ? 'Current Live Price' : 'Closing Price (EOD)')}
                         </span>
                         <p className="text-lg font-bold text-[#0F172A] dark:text-[#F8FAFC] mono flex items-center">
                           PKR {item.currentPrice.toFixed(2)}
                           {isHistoricalView ? (
                             <span className="text-[11px] ml-1.5 text-[#64748B] font-normal">
-                              (Live: PKR {item.liveMarketPrice.toFixed(2)})
+                              ({isMarketOpen ? 'Live' : 'Close'}: PKR {item.liveMarketPrice.toFixed(2)})
                             </span>
                           ) : (
                             <span className={`text-[11px] ml-1.5 font-bold ${isUp ? 'text-[#16A34A] dark:text-[#22C55E]' : 'text-[#DC2626] dark:text-[#EF4444]'}`}>

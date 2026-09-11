@@ -21,6 +21,7 @@ import {
   TrendingDown
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
+import { getPSXMarketStatus } from '../utils/marketSession';
 
 const POPULAR_SYMBOLS = [
   'CNERGY', 'PRL', 'WAVESAPPR', 'BOP', 'OGDC', 'PPL', 'SYS', 'MARI', 'LUCK', 
@@ -56,7 +57,7 @@ export default function Navbar({
   const change = marketSummary?.change !== undefined ? Number(marketSummary.change) : 807.98;
   const changePct = marketSummary?.changePercent !== undefined ? Number(marketSummary.changePercent) : 0.46;
   const isPositive = change >= 0;
-  const marketStatus = marketSummary?.marketStatus || { isOpen: true, statusText: 'LIVE PSX DPS', sessionNote: 'Real-time Telemetry' };
+  const marketStatus = marketSummary?.marketStatus || getPSXMarketStatus();
 
   // Dynamically compute live ticker items from real-time stocks and official quotes
   const tickerItems = useMemo(() => {
@@ -168,12 +169,18 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* Live Pulse Indicator for Users */}
+        {/* Live / EOD Status Indicator for Users */}
         <div className={`hidden sm:flex items-center space-x-1.5 text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
-          isLight ? 'text-[#16A34A] bg-[#16A34A]/10 border-[#16A34A]/20' : 'text-[#22C55E] bg-[#22C55E]/10 border-[#22C55E]/20'
+          marketStatus.isOpen
+            ? (isLight ? 'text-[#16A34A] bg-[#16A34A]/10 border-[#16A34A]/20' : 'text-[#22C55E] bg-[#22C55E]/10 border-[#22C55E]/20')
+            : (isLight ? 'text-[#2563EB] bg-[#2563EB]/10 border-[#2563EB]/20' : 'text-[#3B82F6] bg-[#3B82F6]/10 border-[#3B82F6]/20')
         }`}>
-          <span className={`w-1.5 h-1.5 rounded-full animate-pulse mr-0.5 ${isLight ? 'bg-[#16A34A]' : 'bg-[#22C55E]'}`} />
-          <span>Live Telemetry</span>
+          <span className={`w-1.5 h-1.5 rounded-full mr-0.5 ${
+            marketStatus.isOpen 
+              ? (isLight ? 'bg-[#16A34A] animate-pulse' : 'bg-[#22C55E] animate-pulse')
+              : (isLight ? 'bg-[#2563EB]' : 'bg-[#3B82F6]')
+          }`} />
+          <span>{marketStatus.isOpen ? 'Live Telemetry' : 'Closing Rates'}</span>
         </div>
       </div>
 

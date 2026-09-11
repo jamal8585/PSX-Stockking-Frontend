@@ -988,6 +988,7 @@ export default function App() {
             news={news}
             newsList={news}
             stocks={stocks}
+            marketSummary={marketSummary}
             onSelectStock={handleSelectStock}
             onOpenCalculator={setCalcStock}
           />
@@ -1011,6 +1012,7 @@ export default function App() {
           <DailyRecommendations
             recommendations={recommendations}
             stocks={stocks}
+            marketSummary={marketSummary}
             onSelectStock={handleSelectStock}
             onOpenCalculator={setCalcStock}
             currentUser={currentUser}

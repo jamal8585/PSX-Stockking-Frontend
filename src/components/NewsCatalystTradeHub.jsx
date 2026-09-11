@@ -29,7 +29,8 @@ import {
   ChevronUp,
   Check,
   SlidersHorizontal,
-  RotateCcw
+  RotateCcw,
+  Lock
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 import { 
@@ -37,7 +38,8 @@ import {
   MASTER_STOCKS_LIST, 
   getPSXMarketSessionInfo, 
   getActiveSessionNewsCutoffDate, 
-  isWithinActiveMarketSession 
+  isWithinActiveMarketSession,
+  getPSXMarketStatus
 } from '../utils/marketSession';
 
 export {
@@ -374,9 +376,13 @@ export default function NewsCatalystTradeHub({
   news = [], 
   newsList = [], 
   stocks = [], 
+  marketSummary = null,
   onSelectStock, 
   onOpenCalculator 
 }) {
+  const marketStatus = marketSummary?.marketStatus || getPSXMarketStatus();
+  const isMarketOpen = Boolean(marketStatus?.isOpen);
+
   const [viewMode, setViewMode] = useState('NET_STOCK_VIEW'); // 'NET_STOCK_VIEW' | 'LIVE_NEWS_STREAM'
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -941,9 +947,15 @@ export default function NewsCatalystTradeHub({
                 <h2 className="text-lg sm:text-xl font-bold text-[#0F172A] dark:text-[#F8FAFC] tracking-tight">
                   Real-Time News Catalysts & Multi-News Stock Synthesis Hub
                 </h2>
-                <span className="flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16A34A]/10 text-[#16A34A] dark:bg-[#22C55E]/10 dark:text-[#22C55E] border border-[#16A34A]/20 dark:border-[#22C55E]/20">
-                  <Radio className="w-3 h-3 mr-1 animate-pulse" /> LIVE STREAM
-                </span>
+                {isMarketOpen ? (
+                  <span className="flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16A34A]/10 text-[#16A34A] dark:bg-[#22C55E]/10 dark:text-[#22C55E] border border-[#16A34A]/20 dark:border-[#22C55E]/20">
+                    <Radio className="w-3 h-3 mr-1 animate-pulse" /> LIVE STREAM
+                  </span>
+                ) : (
+                  <span className="flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#3B82F6]/10 text-[#2563EB] dark:text-[#3B82F6] border border-[#3B82F6]/20">
+                    <Lock className="w-3 h-3 mr-1" /> POST-MARKET FEED
+                  </span>
+                )}
               </div>
               <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
                 Search news & signals sector-wise or company-wise with multi-select filtering and unified sentiment intelligence.
@@ -1439,7 +1451,9 @@ export default function NewsCatalystTradeHub({
                       <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-3 border border-[#E2E8F0] dark:border-[#243044] mb-3">
                         <div className="flex items-baseline justify-between mb-2">
                           <div>
-                            <span className="text-[10px] uppercase text-[#64748B] dark:text-[#94A3B8] font-bold">Current Live Price</span>
+                            <span className="text-[10px] uppercase text-[#64748B] dark:text-[#94A3B8] font-bold">
+                              {isMarketOpen ? 'Current Live Price' : 'Closing Price (EOD)'}
+                            </span>
                             <p className="text-lg font-extrabold text-[#0F172A] dark:text-[#F8FAFC] mono flex items-center">
                               PKR {stockData.currentPrice.toFixed(2)}
                               <span className={`text-[11px] ml-1.5 font-bold ${isUp ? 'text-[#16A34A] dark:text-[#22C55E]' : 'text-[#DC2626] dark:text-[#EF4444]'}`}>

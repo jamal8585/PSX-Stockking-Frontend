@@ -14,6 +14,7 @@ import {
   DollarSign,
   History
 } from 'lucide-react';
+import { getPSXMarketStatus } from '../utils/marketSession';
 
 const POPULAR_TICKERS = [
   'OGDC', 'PPL', 'MARI', 'SYS', 'LUCK', 'FFC', 'PSO', 'PRL', 'CNERGY', 'BOP', 'WTL', 'TELE', 'MEBL', 'HUBC'
@@ -36,6 +37,8 @@ export default function PortfolioAdvisor({
   onSelectStock,
   currentUser = null
 }) {
+  const isMarketOpen = getPSXMarketStatus().isOpen;
+
   // Navigation Sub-tab: 'active' | 'history'
   const [subTab, setSubTab] = useState('active');
 
@@ -529,7 +532,7 @@ export default function PortfolioAdvisor({
                               </span>
                             </div>
                             <div>
-                              <span className="text-[9px] uppercase text-[#2563EB] dark:text-[#3B82F6] font-bold block">Live Market Rate</span>
+                              <span className="text-[9px] uppercase text-[#2563EB] dark:text-[#3B82F6] font-bold block">{isMarketOpen ? 'Live Market Rate' : 'Closing Rate (EOD)'}</span>
                               <span className="text-sm font-extrabold text-[#2563EB] dark:text-[#3B82F6] mono">PKR {Number(pos.currentPrice).toFixed(2)}</span>
                             </div>
                             <div>
@@ -1132,7 +1135,7 @@ export default function PortfolioAdvisor({
               </div>
               <div>
                 <h3 className="text-lg font-bold text-[#0F172A] dark:text-[#F8FAFC]">Edit Holding: {editingPosition.symbol}</h3>
-                <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">Live Rate: <b className="text-[#2563EB] dark:text-[#3B82F6] mono">PKR {Number(editingPosition.currentPrice).toFixed(2)}</b></p>
+                <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">{isMarketOpen ? 'Live Rate' : 'Closing Rate'}: <b className="text-[#2563EB] dark:text-[#3B82F6] mono">PKR {Number(editingPosition.currentPrice).toFixed(2)}</b></p>
               </div>
             </div>
 
