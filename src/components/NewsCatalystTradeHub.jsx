@@ -1544,13 +1544,13 @@ export default function NewsCatalystTradeHub({
                           isBullish: stockData.netSentiment === 'POSITIVE',
                           multiNews: stockData.newsItems
                         })}
-                        className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-[#2563EB] via-[#4F46E5] to-[#7C3AED] hover:from-[#1D4ED8] hover:to-[#6D28D9] text-white font-extrabold text-xs shadow-md shadow-blue-500/20 flex items-center justify-center space-x-1.5 cursor-pointer transition-all"
+                        className="w-full h-[50px] px-3 rounded-xl bg-gradient-to-r from-[#2563EB] via-[#4F46E5] to-[#7C3AED] hover:from-[#1D4ED8] hover:to-[#6D28D9] text-white font-extrabold text-sm shadow-md shadow-blue-500/20 flex items-center justify-center space-x-2 cursor-pointer transition-all"
                       >
-                        <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                        <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
                         <span>AI Next-Day Signal & Prediction</span>
                       </button>
 
-                      <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="grid grid-cols-2 gap-2 text-sm">
                         <button
                           onClick={() => onOpenCalculator({
                             symbol: stockData.symbol,
@@ -1560,13 +1560,13 @@ export default function NewsCatalystTradeHub({
                             target1: Number(stockData.targetSellPrice),
                             signal: stockData.netSentiment === 'POSITIVE' ? 'BUY_NOW' : 'SELL_EXIT'
                           })}
-                          className="py-2 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-xs shadow-sm cursor-pointer text-center transition-colors"
+                          className="h-[50px] rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-sm shadow-sm cursor-pointer flex items-center justify-center transition-colors"
                         >
                           Order Planner
                         </button>
                         <button
                           onClick={() => onSelectStock(stockData.symbol)}
-                          className="py-2 rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] hover:bg-[#E2E8F0] dark:hover:bg-[#243044] text-[#0F172A] dark:text-[#F8FAFC] font-bold text-xs border border-[#E2E8F0] dark:border-[#243044] cursor-pointer text-center transition-colors"
+                          className="h-[50px] rounded-xl bg-[#F1F5F9] dark:bg-[#1E293B] hover:bg-[#E2E8F0] dark:hover:bg-[#243044] text-[#0F172A] dark:text-[#F8FAFC] font-bold text-sm border border-[#E2E8F0] dark:border-[#243044] cursor-pointer flex items-center justify-center transition-colors"
                         >
                           Live Chart
                         </button>

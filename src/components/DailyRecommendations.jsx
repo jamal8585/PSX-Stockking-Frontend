@@ -1241,16 +1241,16 @@ export default function DailyRecommendations({
                 <div className="grid grid-cols-2 gap-2 pt-3 border-t border-[#E2E8F0] dark:border-[#243044]">
                   <button
                     onClick={() => onOpenCalculator(item)}
-                    className="flex items-center justify-center space-x-1.5 px-3 py-2 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+                    className="flex items-center justify-center space-x-1.5 px-3 h-[50px] rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-sm shadow-sm transition-all cursor-pointer"
                   >
-                    <Calculator className="w-3.5 h-3.5" />
+                    <Calculator className="w-4 h-4" />
                     <span>Order Calc</span>
                   </button>
                   <button
                     onClick={() => onSelectStock(item.symbol)}
-                    className="flex items-center justify-center space-x-1.5 px-3 py-2 rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] hover:bg-[#E2E8F0] dark:hover:bg-[#243044] text-[#0F172A] dark:text-[#F8FAFC] font-bold text-xs border border-[#E2E8F0] dark:border-[#243044] transition-all cursor-pointer"
+                    className="flex items-center justify-center space-x-1.5 px-3 h-[50px] rounded-xl bg-[#F1F5F9] dark:bg-[#1E293B] hover:bg-[#E2E8F0] dark:hover:bg-[#243044] text-[#0F172A] dark:text-[#F8FAFC] font-bold text-sm border border-[#E2E8F0] dark:border-[#243044] transition-all cursor-pointer"
                   >
-                    <LineChart className="w-3.5 h-3.5" />
+                    <LineChart className="w-4 h-4" />
                     <span>Chart & Intel</span>
                   </button>
                 </div>
