@@ -745,8 +745,10 @@ export default function App() {
   useEffect(() => {
     loadFullData();
 
-    // Fast 5-second countdown timer for rapid live index sync
+    // Fast 5-second countdown timer for rapid live index sync (pauses when tab is hidden)
     const timer = setInterval(() => {
+      if (document.hidden) return;
+
       setCountdown(prev => {
         if (prev <= 1) {
           syncQuickData();
@@ -756,14 +758,24 @@ export default function App() {
       });
     }, 1000);
 
-    // Full catalog refresh every 25 seconds
+    // Full catalog refresh every 25 seconds (pauses when tab is hidden)
     const fullTimer = setInterval(() => {
+      if (document.hidden) return;
       loadFullData(true);
     }, 25000);
+
+    // Instantly refresh fresh telemetry when user returns to this tab
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        syncQuickData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       clearInterval(timer);
       clearInterval(fullTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
