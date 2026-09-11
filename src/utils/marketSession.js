@@ -178,3 +178,117 @@ export function isWithinActiveMarketSession(date) {
   const cutoff = getActiveSessionNewsCutoffDate();
   return d.getTime() >= cutoff.getTime();
 }
+
+export function getPSXMarketStatus() {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const pktDate = new Date(utc + (3600000 * 5)); // Pakistan Standard Time (UTC+5)
+  const day = pktDate.getDay(); // 0 = Sun, 1 = Mon, ..., 5 = Fri, 6 = Sat
+  const hours = pktDate.getHours();
+  const minutes = pktDate.getMinutes();
+  const totalMins = hours * 60 + minutes;
+
+  const pktTimeString = pktDate.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  }) + ' PKT';
+
+  // 1. Weekend Check (Saturday & Sunday Closed)
+  if (day === 0 || day === 6) {
+    return {
+      isOpen: false,
+      status: 'CLOSED',
+      badgeText: 'PSX CLOSED',
+      subText: 'Weekend Closed (Reopens Mon 09:15 AM PKT)',
+      color: 'rose',
+      pktTimeString
+    };
+  }
+
+  // 2. Friday PSX Split Schedule
+  // S1: 09:15 - 12:00 (555 - 720 mins)
+  // Break: 12:00 - 14:30 (720 - 870 mins)
+  // S2: 14:30 - 16:30 (870 - 990 mins)
+  if (day === 5) {
+    if (totalMins >= 555 && totalMins <= 720) {
+      return {
+        isOpen: true,
+        status: 'OPEN',
+        badgeText: 'PSX LIVE',
+        subText: 'Friday Session 1 (till 12:00 PM PKT)',
+        color: 'emerald',
+        pktTimeString
+      };
+    } else if (totalMins > 720 && totalMins < 870) {
+      return {
+        isOpen: false,
+        status: 'BREAK',
+        badgeText: 'PRAYER BREAK',
+        subText: 'Friday Prayer Break (Resumes 02:30 PM PKT)',
+        color: 'amber',
+        pktTimeString
+      };
+    } else if (totalMins >= 870 && totalMins <= 990) {
+      return {
+        isOpen: true,
+        status: 'OPEN',
+        badgeText: 'PSX LIVE',
+        subText: 'Friday Session 2 (till 04:30 PM PKT)',
+        color: 'emerald',
+        pktTimeString
+      };
+    } else if (totalMins < 555) {
+      return {
+        isOpen: false,
+        status: 'PRE_MARKET',
+        badgeText: 'PRE-MARKET',
+        subText: 'Pre-Market (Opens 09:15 AM PKT)',
+        color: 'amber',
+        pktTimeString
+      };
+    } else {
+      return {
+        isOpen: false,
+        status: 'CLOSED',
+        badgeText: 'PSX CLOSED',
+        subText: 'Friday Closed (Reopens Mon 09:15 AM PKT)',
+        color: 'rose',
+        pktTimeString
+      };
+    }
+  }
+
+  // 3. Monday to Thursday Regular PSX Schedule
+  // Continuous Trading: 09:15 - 15:30 (555 - 930 mins)
+  if (totalMins >= 555 && totalMins <= 930) {
+    return {
+      isOpen: true,
+      status: 'OPEN',
+      badgeText: 'PSX LIVE',
+      subText: 'Continuous Session (till 03:30 PM PKT)',
+      color: 'emerald',
+      pktTimeString
+    };
+  } else if (totalMins < 555) {
+    return {
+      isOpen: false,
+      status: 'PRE_MARKET',
+      badgeText: 'PRE-MARKET',
+      subText: 'Pre-Market (Opens 09:15 AM PKT)',
+      color: 'amber',
+      pktTimeString
+    };
+  } else {
+    return {
+      isOpen: false,
+      status: 'CLOSED',
+      badgeText: 'PSX CLOSED',
+      subText: 'Regular Session Closed (Reopens 09:15 AM PKT)',
+      color: 'rose',
+      pktTimeString
+    };
+  }
+}
+

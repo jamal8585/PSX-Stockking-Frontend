@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 import { getStockHistory } from '../services/api';
+import { MASTER_STOCKS_LIST } from '../utils/marketSession';
 import TradingViewPSXChart from './TradingViewPSXChart';
 
 // High-Performance Interactive SVG Stock Chart (Supports both Area and Candlestick OHLC + Volume)
@@ -292,6 +293,7 @@ function InteractiveStockChart({
 export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
   if (!stock) return null;
 
+  const [currentStock, setCurrentStock] = useState(stock);
   const [activeTab, setActiveTab] = useState('chart'); // 'chart' | 'fundamentals' | 'technicals'
   const [selectedTimeframe, setSelectedTimeframe] = useState('1M');
   const [chartType, setChartType] = useState('candlestick'); // 'candlestick' | 'area'
@@ -299,10 +301,16 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
-  // Safely extract symbol whether stock is string or object
-  const stockObj = typeof stock === 'string' ? { symbol: stock } : (stock || {});
-  const sym = (stockObj.symbol || stockObj.name || (typeof stock === 'string' ? stock : '') || 'STOCK').toUpperCase().trim();
+  // Sync internal state if prop stock changes
+  useEffect(() => {
+    setCurrentStock(stock);
+  }, [stock]);
+
+  // Safely extract symbol whether currentStock is string or object
+  const stockObj = typeof currentStock === 'string' ? { symbol: currentStock } : (currentStock || {});
+  const sym = (stockObj.symbol || stockObj.name || (typeof currentStock === 'string' ? currentStock : '') || 'STOCK').toUpperCase().trim();
   const official = (officialQuotes && officialQuotes[sym]) ? officialQuotes[sym] : null;
+  const masterEntry = (MASTER_STOCKS_LIST || []).find(s => s.symbol === sym);
 
   // Real Multi-Timeframe Fetch Hook
   useEffect(() => {
@@ -329,8 +337,8 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
   const change = stockObj.change !== undefined ? Number(stockObj.change) : (official?.change !== undefined ? Number(official.change) : Number((currentPrice - prevClose).toFixed(2)));
   const changePercent = stockObj.changePercent !== undefined ? Number(stockObj.changePercent) : (official?.changePercent !== undefined ? Number(official.changePercent) : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0));
   const volume = Number(liveHistoryData?.quote?.volume || stockObj.volume || official?.volume || 1500000);
-  const name = stockObj.name || official?.name || sym;
-  const sector = stockObj.sector || official?.sector || 'General Market';
+  const name = stockObj.name || official?.name || masterEntry?.name || sym;
+  const sector = stockObj.sector || official?.sector || masterEntry?.sector || 'General Market';
   const high = Number(stockObj.high || official?.high || (currentPrice * 1.02));
   const low = Number(stockObj.low || official?.low || (currentPrice * 0.98));
   const peRatio = Number(stockObj.peRatio || 5.35);
@@ -679,6 +687,9 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator }) {
                   volume={volume}
                   high={high}
                   low={low}
+                  onSelectStock={(selected) => {
+                    setCurrentStock(selected);
+                  }}
                   onOpenCalculator={onOpenCalculator}
                 />
               </div>

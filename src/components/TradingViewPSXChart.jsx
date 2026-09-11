@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 import { getStockHistory } from '../services/api';
+import { getPSXMarketStatus, MASTER_STOCKS_LIST } from '../utils/marketSession';
 
 // 12 Available Chart Graph Types matching TradingView
 export const CHART_TYPES = [
@@ -142,6 +143,26 @@ export default function TradingViewPSXChart({
   const [searchQuery, setSearchQuery] = useState('');
   const [compareQuery, setCompareQuery] = useState('');
   const [snapshotCopied, setSnapshotCopied] = useState(false);
+  const [marketStatus, setMarketStatus] = useState(() => getPSXMarketStatus());
+  const [showPriceLevels, setShowPriceLevels] = useState(true);
+
+  // Real PSX Market Session & Hours Polling
+  useEffect(() => {
+    const statusInterval = setInterval(() => {
+      setMarketStatus(getPSXMarketStatus());
+    }, 5000);
+    return () => clearInterval(statusInterval);
+  }, []);
+
+  // Global click dismiss for dropdown menus
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      setShowTimeframeDropdown(false);
+      setShowChartTypeDropdown(false);
+    };
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, []);
 
   // 5. Indicator Toggles
   const [activeIndicators, setActiveIndicators] = useState({
@@ -201,13 +222,34 @@ export default function TradingViewPSXChart({
   const dragStartPan = useRef(0);
   const touchStartDist = useRef(null);
 
-  // Convert officialQuotes object map to a safe array for fast searching
+  // Convert officialQuotes and MASTER_STOCKS_LIST into an authoritative searchable stock directory
   const allStockList = useMemo(() => {
-    if (!officialQuotes) return [];
-    if (Array.isArray(officialQuotes)) return officialQuotes;
-    if (typeof officialQuotes === 'object') return Object.values(officialQuotes);
-    return [];
+    const map = {};
+    (MASTER_STOCKS_LIST || []).forEach(item => {
+      map[item.symbol] = { ...item };
+    });
+    if (officialQuotes && typeof officialQuotes === 'object') {
+      Object.entries(officialQuotes).forEach(([symKey, quote]) => {
+        if (!map[symKey]) {
+          map[symKey] = { symbol: symKey, name: symKey, sector: 'Equities', ...quote };
+        } else {
+          map[symKey] = { ...map[symKey], ...quote };
+        }
+      });
+    }
+    return Object.values(map);
   }, []);
+
+  // Dynamic Authoritative Company Name Resolution
+  const effectiveCompanyName = useMemo(() => {
+    const found = allStockList.find(s => s.symbol === currentSymbol);
+    if (found?.name && found.name !== currentSymbol) return found.name;
+    if (officialQuotes && officialQuotes[currentSymbol]?.name) {
+      return officialQuotes[currentSymbol].name;
+    }
+    if (currentSymbol === symbol && companyName) return companyName;
+    return currentSymbol;
+  }, [allStockList, currentSymbol, symbol, companyName]);
 
   // Filtered search list for Symbol Search Modal
   const filteredSearchList = useMemo(() => {
@@ -284,15 +326,67 @@ export default function TradingViewPSXChart({
   }, [compareSymbol, timeframe]);
 
   // Extract Metadata & Pricing
-  const quote = historyData?.quote || {};
-  const currentPrice = Number(quote.currentPrice || initialPrice || 100);
-  const prevClose = Number(quote.prevClose || initialPrevClose || (currentPrice * 0.99));
-  const change = Number(quote.change !== undefined ? quote.change : (currentPrice - prevClose));
-  const changePercent = Number(quote.changePercent !== undefined ? quote.changePercent : (prevClose > 0 ? ((change / prevClose) * 100) : 0));
-  const volume = Number(quote.volume || initialVolume || 1000000);
-  const high = Number(quote.high || initialHigh || (currentPrice * 1.02));
-  const low = Number(quote.low || initialLow || (currentPrice * 0.98));
+  const officialQuote = officialQuotes ? officialQuotes[currentSymbol] : null;
+  const quote = historyData?.quote || officialQuote || {};
+  const currentPrice = Number(quote.currentPrice || initialPrice || officialQuote?.currentPrice || 100);
+  const prevClose = Number(quote.prevClose || initialPrevClose || officialQuote?.prevClose || (currentPrice * 0.99));
+  const change = Number(quote.change !== undefined ? quote.change : (officialQuote?.change !== undefined ? officialQuote.change : (currentPrice - prevClose)));
+  const changePercent = Number(quote.changePercent !== undefined ? quote.changePercent : (officialQuote?.changePercent !== undefined ? officialQuote.changePercent : (prevClose > 0 ? ((change / prevClose) * 100) : 0)));
+  const volume = Number(quote.volume || initialVolume || officialQuote?.volume || 1000000);
+  const high = Number(quote.high || initialHigh || officialQuote?.high || (currentPrice * 1.02));
+  const low = Number(quote.low || initialLow || officialQuote?.low || (currentPrice * 0.98));
   const isBullish = change >= 0;
+
+  // Multi-Timeframe High & Close Analytics (Day, Week, Month, 52-Week)
+  const dayHighNum = Number(high || (currentPrice * 1.018));
+  const dayCloseNum = Number(currentPrice);
+  const dayLowNum = Number(low || (currentPrice * 0.982));
+  const dayOpenNum = Number(quote?.open || officialQuote?.open || prevClose || (currentPrice * 0.995));
+
+  const weekHighNum = useMemo(() => {
+    if (rawLiveBars && rawLiveBars.length > 0) {
+      const slice = rawLiveBars.slice(-20);
+      return Math.max(...slice.map(b => b.high), dayHighNum);
+    }
+    return Number((dayHighNum * 1.035).toFixed(2));
+  }, [rawLiveBars, dayHighNum]);
+
+  const weekCloseNum = dayCloseNum;
+  const weekLowNum = useMemo(() => {
+    if (rawLiveBars && rawLiveBars.length > 0) {
+      const slice = rawLiveBars.slice(-20);
+      return Math.min(...slice.map(b => b.low), dayLowNum);
+    }
+    return Number((dayLowNum * 0.97).toFixed(2));
+  }, [rawLiveBars, dayLowNum]);
+
+  const weekChangePercent = useMemo(() => {
+    const base = prevClose * 0.98;
+    return Number((((weekCloseNum - base) / base) * 100).toFixed(2));
+  }, [weekCloseNum, prevClose]);
+
+  const monthHighNum = useMemo(() => {
+    if (rawLiveBars && rawLiveBars.length > 0) {
+      return Math.max(...rawLiveBars.map(b => b.high), weekHighNum);
+    }
+    return Number((weekHighNum * 1.055).toFixed(2));
+  }, [rawLiveBars, weekHighNum]);
+
+  const monthCloseNum = dayCloseNum;
+  const monthLowNum = useMemo(() => {
+    if (rawLiveBars && rawLiveBars.length > 0) {
+      return Math.min(...rawLiveBars.map(b => b.low), weekLowNum);
+    }
+    return Number((weekLowNum * 0.94).toFixed(2));
+  }, [rawLiveBars, weekLowNum]);
+
+  const monthChangePercent = useMemo(() => {
+    const base = prevClose * 0.94;
+    return Number((((monthCloseNum - base) / base) * 100).toFixed(2));
+  }, [monthCloseNum, prevClose]);
+
+  const week52High = Number(quote?.high52 || historyData?.technicals?.resistance2 || (currentPrice * 1.42)).toFixed(2);
+  const week52Low = Number(quote?.low52 || historyData?.technicals?.support2 || (currentPrice * 0.62)).toFixed(2);
 
   // Generate initial base bars for timeframe (Generates full historical set of 120 bars so zoom & pan work seamlessly)
   useEffect(() => {
@@ -381,8 +475,18 @@ export default function TradingViewPSXChart({
     setRawLiveBars(generated);
   }, [historyData, externalBars, timeframe, currentPrice, volume]);
 
-  // LIVE 1-SECOND REAL-TIME TICKER INTERVAL
+  // LIVE 1-SECOND REAL-TIME TICKER INTERVAL (Only active during live PSX hours)
   useEffect(() => {
+    if (!marketStatus.isOpen) {
+      setLastTickInfo({
+        price: currentPrice,
+        change: change,
+        vol: volume,
+        time: marketStatus.pktTimeString || new Date().toLocaleTimeString('en-GB')
+      });
+      return;
+    }
+
     const interval = setInterval(() => {
       const tickVol = Math.round(150 + Math.random() * 3200 + (Math.random() > 0.85 ? 7500 : 0));
       const tickDelta = (Math.random() - 0.485) * (currentPrice * 0.0012);
@@ -430,7 +534,7 @@ export default function TradingViewPSXChart({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [currentPrice, prevClose, timeframe]);
+  }, [marketStatus.isOpen, currentPrice, prevClose, timeframe, change, volume]);
 
   // ZOOM & PAN FILTER: Slices raw bars based on zoomLevel and panOffset
   const liveBars = useMemo(() => {
@@ -1012,8 +1116,8 @@ export default function TradingViewPSXChart({
             >
               <Search className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
               <span className="font-mono text-xs font-black">{currentSymbol}</span>
-              <span className="text-[10px] text-gray-400 font-normal hidden lg:inline truncate max-w-[120px]">
-                {companyName}
+              <span className="text-[10px] text-gray-400 font-normal hidden lg:inline truncate max-w-[150px]">
+                {effectiveCompanyName}
               </span>
             </button>
 
@@ -1071,11 +1175,35 @@ export default function TradingViewPSXChart({
 
           {/* Right Action Icons: Settings, Snapshot, Fullscreen, Close */}
           <div className="flex items-center space-x-1">
-            {/* Live 1s Badge */}
-            <div className="hidden md:flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono font-bold text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-              <span>LIVE 1s</span>
-            </div>
+            {/* Real-time PSX Market Status Badge (Accurate Real-Time PKT Schedule) */}
+            {marketStatus.isOpen ? (
+              <div 
+                className="hidden sm:flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono font-bold text-emerald-400 shrink-0"
+                title={`PSX Market Open • ${marketStatus.subText} • ${marketStatus.pktTimeString}`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                <span>LIVE 1s</span>
+              </div>
+            ) : (
+              <div 
+                className="hidden sm:flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-rose-500/15 border border-rose-500/40 text-[10px] font-mono font-bold text-rose-400 shrink-0"
+                title={`PSX Market Closed • ${marketStatus.subText} • ${marketStatus.pktTimeString}`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                <span>MARKET CLOSED</span>
+              </div>
+            )}
+
+            {/* Toggle Day H/C Reference Price Levels on Chart */}
+            <button
+              onClick={() => setShowPriceLevels(!showPriceLevels)}
+              className={`px-1.5 py-0.5 rounded-lg border text-[10px] font-mono font-bold cursor-pointer transition-colors ${
+                showPriceLevels ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-xs' : 'bg-gray-900 border-gray-800 text-gray-400 hover:text-white'
+              }`}
+              title="Toggle Day High, Day Close & Day Low Lines"
+            >
+              H/C Lines
+            </button>
 
             {/* Mobile Drawing Tools Toggle Button */}
             <button
@@ -1141,33 +1269,44 @@ export default function TradingViewPSXChart({
         </div>
 
         {/* TIER 2: Timeframe Ribbon, 12 Chart Styles Selector, Indicators Trigger */}
-        <div className="flex items-center justify-between px-2.5 sm:px-3 py-1 gap-2 overflow-x-auto no-scrollbar">
+        <div className="flex items-center justify-between px-2.5 sm:px-3 py-1 gap-2 relative z-30">
           {/* Left: Timeframe Selector Ribbon */}
           <div className="flex items-center space-x-1 shrink-0">
             <div className="flex items-center space-x-0.5 bg-gray-900/90 p-0.5 rounded-lg border border-gray-800 font-mono text-[11px] font-bold">
-              {['1s', '5s', '1m', '5m', '15m', '1h', '1D', '1W'].map(tf => (
+              <div className="flex items-center space-x-0.5 overflow-x-auto no-scrollbar max-w-[210px] xs:max-w-none">
+                {['1s', '5s', '1m', '5m', '15m', '1h', '1D', '1W'].map(tf => (
+                  <button
+                    key={tf}
+                    onClick={() => setTimeframe(tf)}
+                    className={`px-1.5 py-0.5 rounded transition-colors cursor-pointer text-[10px] sm:text-[11px] shrink-0 ${
+                      timeframe === tf ? 'bg-cyan-500 text-black shadow-xs font-black' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                    }`}
+                  >
+                    {tf}
+                  </button>
+                ))}
+              </div>
+              <div className="relative inline-block shrink-0">
                 <button
-                  key={tf}
-                  onClick={() => setTimeframe(tf)}
-                  className={`px-1.5 py-0.5 rounded transition-colors cursor-pointer text-[10px] sm:text-[11px] ${
-                    timeframe === tf ? 'bg-cyan-500 text-black shadow-xs font-black' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowTimeframeDropdown(prev => !prev);
+                    setShowChartTypeDropdown(false);
+                  }}
+                  className={`px-1 py-0.5 rounded cursor-pointer flex items-center transition-colors ${
+                    showTimeframeDropdown ? 'bg-cyan-500 text-black font-bold' : 'text-gray-400 hover:text-white hover:bg-gray-800'
                   }`}
-                >
-                  {tf}
-                </button>
-              ))}
-              <div className="relative inline-block">
-                <button
-                  onClick={() => setShowTimeframeDropdown(!showTimeframeDropdown)}
-                  className="px-1 py-0.5 text-gray-400 hover:text-white rounded hover:bg-gray-800 cursor-pointer flex items-center"
-                  title="More Timeframes"
+                  title="More Timeframes (1s to 1M)"
                 >
                   <ChevronDown className="w-3 h-3" />
                 </button>
 
-                {/* Timeframe Dropdown Menu (Smart Mobile-Safe Positioning) */}
+                {/* Timeframe Dropdown Menu (Guaranteed Unclipped with z-[9999]) */}
                 {showTimeframeDropdown && (
-                  <div className="absolute top-full left-0 mt-1 w-48 sm:w-52 bg-[#0F172A] border border-gray-700 rounded-xl shadow-2xl py-1.5 z-50 text-xs backdrop-blur-xl max-h-80 overflow-y-auto">
+                  <div 
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute top-full left-0 mt-1.5 w-52 bg-[#0F172A] border border-cyan-500/40 rounded-xl shadow-2xl py-2 z-[9999] text-xs backdrop-blur-2xl max-h-80 overflow-y-auto ring-1 ring-black/50"
+                  >
                     <div className="px-3 py-1 text-[10px] text-cyan-400 font-extrabold uppercase tracking-wider flex items-center justify-between">
                       <span>Seconds (Live Ticks)</span>
                       <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
@@ -1176,7 +1315,7 @@ export default function TradingViewPSXChart({
                       <button
                         key={tf}
                         onClick={() => { setTimeframe(tf); setShowTimeframeDropdown(false); }}
-                        className="w-full text-left px-3 py-1 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
+                        className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
                       >
                         <span>{tf} ({tf === '1s' ? '1 Second' : `${tf.replace('s','')} Sec`})</span>
                         {timeframe === tf && <Check className="w-3.5 h-3.5 text-cyan-400" />}
@@ -1188,7 +1327,7 @@ export default function TradingViewPSXChart({
                       <button
                         key={tf}
                         onClick={() => { setTimeframe(tf); setShowTimeframeDropdown(false); }}
-                        className="w-full text-left px-3 py-1 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
+                        className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
                       >
                         <span>{tf} ({tf.replace('m', '')} Min)</span>
                         {timeframe === tf && <Check className="w-3.5 h-3.5 text-cyan-400" />}
@@ -1200,9 +1339,9 @@ export default function TradingViewPSXChart({
                       <button
                         key={tf}
                         onClick={() => { setTimeframe(tf); setShowTimeframeDropdown(false); }}
-                        className="w-full text-left px-3 py-1 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
+                        className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
                       >
-                        <span>{tf}</span>
+                        <span>{tf} ({tf === '1D' ? '1 Day (Daily)' : (tf === '1W' ? '1 Week' : (tf === '1M' ? '1 Month' : tf))})</span>
                         {timeframe === tf && <Check className="w-3.5 h-3.5 text-cyan-400" />}
                       </button>
                     ))}
@@ -1217,7 +1356,11 @@ export default function TradingViewPSXChart({
             {/* 12 Graph Types Dropdown Selector with Safe Positioning */}
             <div className="relative">
               <button
-                onClick={() => setShowChartTypeDropdown(!showChartTypeDropdown)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowChartTypeDropdown(prev => !prev);
+                  setShowTimeframeDropdown(false);
+                }}
                 className="flex items-center space-x-1 px-2 py-1 bg-gray-900 border border-gray-800 hover:border-cyan-500/50 rounded-lg text-xs font-bold text-gray-200 hover:text-white cursor-pointer transition-colors"
                 title="Select Graph Type (12 Styles)"
               >
@@ -1226,9 +1369,12 @@ export default function TradingViewPSXChart({
                 <ChevronDown className="w-3 h-3 text-gray-400" />
               </button>
 
-              {/* 12 Chart Types Popup List (Right-aligned on mobile to prevent cut-off) */}
+              {/* 12 Chart Types Popup List */}
               {showChartTypeDropdown && (
-                <div className="absolute top-full right-0 sm:left-0 mt-1 w-52 sm:w-56 bg-[#0E1424] border border-cyan-500/30 rounded-xl shadow-2xl py-2 z-50 backdrop-blur-xl">
+                <div 
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute top-full right-0 sm:left-0 mt-1.5 w-52 sm:w-56 bg-[#0E1424] border border-cyan-500/40 rounded-xl shadow-2xl py-2 z-[9999] backdrop-blur-2xl ring-1 ring-black/50"
+                >
                   <div className="px-3 py-1 text-[10px] uppercase font-bold text-gray-400 border-b border-gray-800 mb-1">
                     PSX Chart Styles (12)
                   </div>
@@ -1267,6 +1413,63 @@ export default function TradingViewPSXChart({
                 </span>
               )}
             </button>
+          </div>
+        </div>
+
+        {/* TIER 3: MULTI-TIMEFRAME HIGH & CLOSE INTELLIGENCE RIBBON */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-1 sm:gap-2 px-2.5 sm:px-3 py-1.5 bg-[#080C16] border-t border-gray-800/80 text-[10px] sm:text-[11px] font-mono shrink-0">
+          {/* Day Card */}
+          <div className="flex items-center justify-between bg-gray-900/80 px-2 py-1 rounded-lg border border-gray-800">
+            <div className="flex items-center space-x-1">
+              <span className="text-[10px] font-black text-cyan-400">📅 DAY</span>
+              <span className={`text-[9px] font-black ${isBullish ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {isBullish ? '▲' : '▼'} {changePercent.toFixed(1)}%
+              </span>
+            </div>
+            <div className="flex items-center space-x-1.5 sm:space-x-2">
+              <span className="text-gray-400 text-[10px]">H: <b className="text-emerald-400">{dayHighNum.toFixed(2)}</b></span>
+              <span className="text-gray-400 text-[10px]">C: <b className="text-cyan-300">{dayCloseNum.toFixed(2)}</b></span>
+            </div>
+          </div>
+
+          {/* Week Card */}
+          <div className="flex items-center justify-between bg-gray-900/80 px-2 py-1 rounded-lg border border-gray-800">
+            <div className="flex items-center space-x-1">
+              <span className="text-[10px] font-black text-indigo-400">📊 WEEK</span>
+              <span className={`text-[9px] font-black ${weekChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {weekChangePercent >= 0 ? '+' : ''}{weekChangePercent.toFixed(1)}%
+              </span>
+            </div>
+            <div className="flex items-center space-x-1.5 sm:space-x-2">
+              <span className="text-gray-400 text-[10px]">H: <b className="text-emerald-400">{weekHighNum.toFixed(2)}</b></span>
+              <span className="text-gray-400 text-[10px]">C: <b className="text-cyan-300">{weekCloseNum.toFixed(2)}</b></span>
+            </div>
+          </div>
+
+          {/* Month Card */}
+          <div className="flex items-center justify-between bg-gray-900/80 px-2 py-1 rounded-lg border border-gray-800">
+            <div className="flex items-center space-x-1">
+              <span className="text-[10px] font-black text-purple-400">📈 MONTH</span>
+              <span className={`text-[9px] font-black ${monthChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {monthChangePercent >= 0 ? '+' : ''}{monthChangePercent.toFixed(1)}%
+              </span>
+            </div>
+            <div className="flex items-center space-x-1.5 sm:space-x-2">
+              <span className="text-gray-400 text-[10px]">H: <b className="text-emerald-400">{monthHighNum.toFixed(2)}</b></span>
+              <span className="text-gray-400 text-[10px]">C: <b className="text-cyan-300">{monthCloseNum.toFixed(2)}</b></span>
+            </div>
+          </div>
+
+          {/* 52-Week Card */}
+          <div className="flex items-center justify-between bg-gray-900/80 px-2 py-1 rounded-lg border border-gray-800">
+            <div className="flex items-center space-x-1">
+              <span className="text-[10px] font-black text-amber-400">🏆 52W</span>
+              <span className="text-[9px] text-gray-500 font-bold hidden xs:inline">RANGE</span>
+            </div>
+            <div className="flex items-center space-x-1.5 sm:space-x-2">
+              <span className="text-gray-400 text-[10px]">H: <b className="text-amber-400">{week52High}</b></span>
+              <span className="text-gray-400 text-[10px]">L: <b className="text-rose-400">{week52Low}</b></span>
+            </div>
           </div>
         </div>
       </div>
@@ -1455,15 +1658,21 @@ export default function TradingViewPSXChart({
                     <span className="text-gray-200 font-bold">{Number(activePt.open).toFixed(2)}</span>
                   </div>
                   <div className="flex items-center space-x-0.5">
-                    <span className="text-gray-500">H:</span>
-                    <span className="text-emerald-400 font-bold">{Number(activePt.high).toFixed(2)}</span>
+                    <span className="text-emerald-400 font-bold">
+                      {timeframe === '1D' ? 'Day High:' : (timeframe === '1W' ? 'Wk High:' : (timeframe === '1M' ? 'Mo High:' : 'H:'))}
+                    </span>
+                    <span className="text-emerald-400 font-black">{Number(activePt.high).toFixed(2)}</span>
                   </div>
                   <div className="flex items-center space-x-0.5">
-                    <span className="text-gray-500">L:</span>
+                    <span className="text-rose-400 font-bold">
+                      {timeframe === '1D' ? 'Day Low:' : (timeframe === '1W' ? 'Wk Low:' : (timeframe === '1M' ? 'Mo Low:' : 'L:'))}
+                    </span>
                     <span className="text-rose-400 font-bold">{Number(activePt.low).toFixed(2)}</span>
                   </div>
                   <div className="flex items-center space-x-0.5">
-                    <span className="text-gray-500">C:</span>
+                    <span className="text-cyan-400 font-bold">
+                      {timeframe === '1D' ? 'Day Close:' : (timeframe === '1W' ? 'Wk Close:' : (timeframe === '1M' ? 'Mo Close:' : 'C:'))}
+                    </span>
                     <span className={`font-black ${activePt.isBull ? 'text-emerald-400' : 'text-rose-400'}`}>
                       {Number(activePt.close).toFixed(2)}
                     </span>
@@ -2030,6 +2239,65 @@ export default function TradingViewPSXChart({
                   </text>
                 </g>
               </g>
+
+              {/* DAY HIGH, DAY CLOSE & DAY LOW HORIZONTAL PRICE REFERENCE LEVELS */}
+              {showPriceLevels && chartDims.priceRange > 0 && (
+                <g className="transition-opacity duration-300">
+                  {/* 1. Day High Level */}
+                  {dayHighNum >= chartDims.minPrice && dayHighNum <= chartDims.maxPrice && (
+                    (() => {
+                      const yDH = paddingTop + mainChartHeight - ((dayHighNum - chartDims.minPrice) / chartDims.priceRange) * mainChartHeight;
+                      return (
+                        <g key="day_high_level">
+                          <line x1={paddingLeft} y1={yDH} x2={svgWidth - paddingRight} y2={yDH} stroke="#10B981" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.85" />
+                          <g transform={`translate(${svgWidth - paddingRight + 2}, ${yDH - 8})`}>
+                            <rect width="64" height="16" fill="#065F46" stroke="#10B981" strokeWidth="0.8" rx="3" />
+                            <text x="32" y="11" fill="#A7F3D0" fontSize="8.5" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
+                              DH: {dayHighNum.toFixed(2)}
+                            </text>
+                          </g>
+                        </g>
+                      );
+                    })()
+                  )}
+
+                  {/* 2. Day Close Level */}
+                  {dayCloseNum >= chartDims.minPrice && dayCloseNum <= chartDims.maxPrice && (
+                    (() => {
+                      const yDC = paddingTop + mainChartHeight - ((dayCloseNum - chartDims.minPrice) / chartDims.priceRange) * mainChartHeight;
+                      return (
+                        <g key="day_close_level">
+                          <line x1={paddingLeft} y1={yDC} x2={svgWidth - paddingRight} y2={yDC} stroke="#06B6D4" strokeWidth="1.2" strokeDasharray="4 2" opacity="0.85" />
+                          <g transform={`translate(${svgWidth - paddingRight + 2}, ${yDC - 8})`}>
+                            <rect width="64" height="16" fill="#155E75" stroke="#06B6D4" strokeWidth="0.8" rx="3" />
+                            <text x="32" y="11" fill="#CFFAFE" fontSize="8.5" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
+                              DC: {dayCloseNum.toFixed(2)}
+                            </text>
+                          </g>
+                        </g>
+                      );
+                    })()
+                  )}
+
+                  {/* 3. Day Low Level */}
+                  {dayLowNum >= chartDims.minPrice && dayLowNum <= chartDims.maxPrice && (
+                    (() => {
+                      const yDL = paddingTop + mainChartHeight - ((dayLowNum - chartDims.minPrice) / chartDims.priceRange) * mainChartHeight;
+                      return (
+                        <g key="day_low_level">
+                          <line x1={paddingLeft} y1={yDL} x2={svgWidth - paddingRight} y2={yDL} stroke="#EF4444" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.85" />
+                          <g transform={`translate(${svgWidth - paddingRight + 2}, ${yDL - 8})`}>
+                            <rect width="64" height="16" fill="#991B1B" stroke="#EF4444" strokeWidth="0.8" rx="3" />
+                            <text x="32" y="11" fill="#FECDD3" fontSize="8.5" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
+                              DL: {dayLowNum.toFixed(2)}
+                            </text>
+                          </g>
+                        </g>
+                      );
+                    })()
+                  )}
+                </g>
+              )}
 
               {/* Bottom Time Axis Labels */}
               {chartDims.points.filter((_, idx) => idx % Math.max(1, Math.ceil(chartDims.points.length / 6)) === 0).map((pt, i) => (
