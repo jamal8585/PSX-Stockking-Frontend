@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Search,
   Plus,
@@ -252,10 +252,93 @@ export default function TradingViewPSXChart({
 
   const svgRef = useRef(null);
   const containerRef = useRef(null);
+  const chartAreaRef = useRef(null);
+  const [chartDimensions, setChartDimensions] = useState({ width: 1000, height: 460 });
   const isDraggingPan = useRef(false);
   const dragStartX = useRef(0);
   const dragStartPan = useRef(0);
   const touchStartDist = useRef(null);
+
+  // Dynamic ResizeObserver to guarantee 100% responsive edge-to-edge chart dimensions in any screen or fullscreen mode
+  useLayoutEffect(() => {
+    const el = chartAreaRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      if (!chartAreaRef.current) return;
+      const rect = chartAreaRef.current.getBoundingClientRect();
+      const w = Math.round(rect.width || chartAreaRef.current.clientWidth);
+      const h = Math.round(rect.height || chartAreaRef.current.clientHeight);
+      if (w > 50 && h > 50) {
+        setChartDimensions(prev => {
+          if (prev.width === w && prev.height === h) return prev;
+          return { width: w, height: h };
+        });
+      }
+    };
+
+    measure();
+
+    let ro;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const { width, height } = entry.contentRect;
+          if (width > 50 && height > 50) {
+            setChartDimensions({
+              width: Math.round(width),
+              height: Math.round(height)
+            });
+          }
+        }
+      });
+      ro.observe(el);
+    }
+
+    window.addEventListener('resize', measure);
+    return () => {
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [isFullScreen]);
+
+  // Fullscreen toggle handler with native browser API + fallback to CSS full viewport
+  const handleToggleFullScreen = useCallback(() => {
+    if (!isFullScreen) {
+      setIsFullScreen(true);
+      if (containerRef.current?.requestFullscreen && !document.fullscreenElement) {
+        containerRef.current.requestFullscreen().catch(() => {});
+      }
+    } else {
+      setIsFullScreen(false);
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+  }, [isFullScreen]);
+
+  // Sync state if user presses Esc key or exits native fullscreen
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && isFullScreen) {
+        setIsFullScreen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isFullScreen) {
+        setIsFullScreen(false);
+        if (document.fullscreenElement && document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isFullScreen]);
 
   // Convert officialQuotes and MASTER_STOCKS_LIST into an authoritative searchable stock directory
   const allStockList = useMemo(() => {
@@ -648,7 +731,8 @@ export default function TradingViewPSXChart({
     
     // When range is selected, at 1.0x we show ALL bars in the selected range so the entire window is visible
     const totalBars = rawLiveBars.length;
-    const baseCount = selectedRange ? totalBars : Math.min(totalBars, 50);
+    const defaultBars = isFullScreen || chartDimensions.width > 1200 ? 80 : 50;
+    const baseCount = selectedRange ? totalBars : Math.min(totalBars, defaultBars);
     const targetCount = Math.max(5, Math.min(totalBars, Math.round(baseCount / zoomLevel)));
     
     // Max pan allowed so we don't scroll past the oldest bar
@@ -659,7 +743,7 @@ export default function TradingViewPSXChart({
     const endIndex = startIndex + targetCount;
     
     return rawLiveBars.slice(startIndex, endIndex);
-  }, [rawLiveBars, zoomLevel, panOffset, selectedRange]);
+  }, [rawLiveBars, zoomLevel, panOffset, selectedRange, isFullScreen, chartDimensions.width]);
 
   // Zoom Handler Helpers
   const handleZoomIn = useCallback(() => {
@@ -938,9 +1022,9 @@ export default function TradingViewPSXChart({
     return list;
   }, [activeIndicators]);
 
-  // SVG Chart Dimensions & Layout coordinates
-  const svgWidth = 1000;
-  const svgHeight = isFullScreen ? 680 : 460;
+  // SVG Chart Dimensions & Layout coordinates (100% dynamic to match container exactly)
+  const svgWidth = Math.max(360, chartDimensions.width);
+  const svgHeight = Math.max(260, chartDimensions.height);
   const paddingLeft = 14;
   const paddingRight = 68;
   const paddingTop = 26;
@@ -1396,7 +1480,7 @@ export default function TradingViewPSXChart({
 
             {/* Fullscreen Toggle */}
             <button
-              onClick={() => setIsFullScreen(!isFullScreen)}
+              onClick={handleToggleFullScreen}
               className={`p-1.5 rounded-lg border cursor-pointer transition-colors ${
                 isLight ? 'bg-white border-gray-300 hover:border-sky-500 text-gray-600 hover:text-sky-600' : 'bg-gray-900 border-gray-800 hover:border-cyan-500/40 text-gray-400 hover:text-cyan-400'
               }`}
@@ -2029,7 +2113,8 @@ export default function TradingViewPSXChart({
 
           {/* PRIMARY SVG VECTOR GRAPH ENGINE (With Wheel Zoom & Pinch-to-Zoom Support) */}
           <div
-            className="w-full h-full flex-1 relative cursor-crosshair touch-none"
+            ref={chartAreaRef}
+            className="w-full h-full flex-1 relative cursor-crosshair touch-none overflow-hidden"
             onWheel={handleWheel}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
@@ -2038,6 +2123,7 @@ export default function TradingViewPSXChart({
             <svg
               ref={svgRef}
               viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+              preserveAspectRatio="none"
               className="w-full h-full block"
               onMouseDown={handleSvgMouseDown}
               onMouseMove={handleSvgMouseMove}
@@ -2078,7 +2164,10 @@ export default function TradingViewPSXChart({
                       </g>
                     );
                   })}
-                  {[0.15, 0.35, 0.55, 0.75, 0.95].map((pct, i) => {
+                  {(svgWidth > 1400 
+                    ? [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+                    : (svgWidth > 850 ? [0.15, 0.3, 0.45, 0.6, 0.75, 0.9] : [0.2, 0.4, 0.6, 0.8])
+                  ).map((pct, i) => {
                     const x = paddingLeft + chartWidth * pct;
                     const dash = chartSettings.gridStyle === 'dotted' ? '2 2' : chartSettings.gridStyle === 'dashed' ? '5 5' : 'none';
                     return (
@@ -2573,7 +2662,10 @@ export default function TradingViewPSXChart({
               )}
 
               {/* Bottom Time Axis Labels */}
-              {chartDims.points.filter((_, idx) => idx % Math.max(1, Math.ceil(chartDims.points.length / 6)) === 0).map((pt, i) => (
+              {chartDims.points.filter((_, idx) => {
+                const targetCount = svgWidth > 1400 ? 10 : (svgWidth > 850 ? 7 : 4);
+                return idx % Math.max(1, Math.ceil(chartDims.points.length / targetCount)) === 0;
+              }).map((pt, i) => (
                 <text key={`time_lbl_${i}`} x={pt.x} y={svgHeight - 8} fill={isLight ? '#475569' : '#64748B'} fontSize="9" textAnchor="middle" fontFamily="monospace">
                   {pt.date}
                 </text>
