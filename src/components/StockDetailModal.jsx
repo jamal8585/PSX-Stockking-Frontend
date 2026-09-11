@@ -22,7 +22,9 @@ import {
   Scale,
   RefreshCw,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Sun,
+  Moon
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 import { getStockHistory } from '../services/api';
@@ -290,7 +292,7 @@ function InteractiveStockChart({
   );
 }
 
-export default function StockDetailModal({ stock, onClose, onOpenCalculator, theme = 'dark' }) {
+export default function StockDetailModal({ stock, onClose, onOpenCalculator, theme = 'dark', onThemeChange = null }) {
   if (!stock) return null;
 
   const [currentStock, setCurrentStock] = useState(stock);
@@ -300,6 +302,45 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
   const [liveHistoryData, setLiveHistoryData] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
+
+  // Theme synchronization (defaults to theme prop, or localStorage, or dark)
+  const [modalTheme, setModalTheme] = useState(() => {
+    if (theme) return theme;
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('psx_chart_theme') || localStorage.getItem('psx_theme_preference') || 'dark';
+    }
+    return 'dark';
+  });
+
+  const isDark = modalTheme === 'dark';
+
+  useEffect(() => {
+    if (theme) {
+      setModalTheme(theme);
+    }
+  }, [theme]);
+
+  // Sync document root class with modal theme
+  useEffect(() => {
+    if (modalTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+    } else {
+      document.documentElement.classList.add('light');
+      document.documentElement.classList.remove('dark');
+    }
+  }, [modalTheme]);
+
+  const updateTheme = (newTheme) => {
+    setModalTheme(newTheme);
+    try {
+      localStorage.setItem('psx_chart_theme', newTheme);
+      localStorage.setItem('psx_theme_preference', newTheme);
+    } catch (e) {}
+    if (onThemeChange) {
+      onThemeChange(newTheme);
+    }
+  };
 
   // Sync internal state if prop stock changes
   useEffect(() => {
@@ -474,67 +515,108 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
   const aiVerdict = getExecutiveVerdict();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-1 sm:p-2 lg:p-3 bg-black/90 backdrop-blur-md overflow-x-hidden overflow-y-auto w-full max-w-full">
-      <div className={`bg-gradient-to-b from-[#0F172A] via-[#0A0F1D] to-[#04070D] border border-cyan-500/40 shadow-2xl relative transition-all duration-200 ${
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-1 sm:p-2 lg:p-3 backdrop-blur-md overflow-x-hidden overflow-y-auto w-full max-w-full transition-colors duration-200 ${
+      isDark ? 'bg-black/90' : 'bg-slate-900/60'
+    }`}>
+      <div className={`relative transition-all duration-200 shadow-2xl border ${
+        isDark 
+          ? 'bg-gradient-to-b from-[#0F172A] via-[#0A0F1D] to-[#04070D] border-cyan-500/40 text-slate-100' 
+          : 'bg-[#F8FAFC] border-slate-200 text-slate-900'
+      } ${
         isFullScreen 
           ? 'fixed inset-0 w-screen h-screen max-w-full max-h-screen rounded-none p-3 sm:p-6 overflow-y-auto z-50 my-0' 
           : 'w-full max-w-[98vw] 2xl:max-w-[1880px] max-h-[96vh] rounded-xl sm:rounded-3xl p-3 sm:p-5 lg:p-6 overflow-x-hidden overflow-y-auto my-auto'
       }`}>
-        {/* Actions (Maximize / Fullscreen & Close) */}
+        {/* Actions (Theme Toggle, Maximize / Fullscreen & Close) */}
         <div className="absolute top-3 sm:top-5 right-3 sm:right-5 flex items-center space-x-1.5 sm:space-x-2 z-20">
+          <button
+            onClick={() => updateTheme(isDark ? 'light' : 'dark')}
+            title={isDark ? 'Switch to Light Theme (☀️ Day)' : 'Switch to Dark Theme (🌙 Night)'}
+            className={`p-2 rounded-xl cursor-pointer transition-colors ${
+              isDark 
+                ? 'bg-gray-800/80 text-amber-400 hover:text-amber-300 hover:bg-gray-700' 
+                : 'bg-white border border-slate-200 text-amber-600 hover:text-amber-700 hover:bg-slate-100 shadow-xs'
+            }`}
+          >
+            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
           <button
             onClick={() => setIsFullScreen(prev => !prev)}
             title={isFullScreen ? 'Restore Size' : 'Maximize Fullscreen'}
-            className="p-2 rounded-xl bg-gray-800/80 text-cyan-400 hover:text-white hover:bg-gray-700 cursor-pointer transition-colors"
+            className={`p-2 rounded-xl cursor-pointer transition-colors ${
+              isDark 
+                ? 'bg-gray-800/80 text-cyan-400 hover:text-white hover:bg-gray-700' 
+                : 'bg-white border border-slate-200 text-cyan-700 hover:text-cyan-900 hover:bg-slate-100 shadow-xs'
+            }`}
           >
             {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
           <button
             onClick={onClose}
             title="Close Modal"
-            className="p-2 rounded-xl bg-gray-800/80 text-gray-400 hover:text-white hover:bg-gray-700 cursor-pointer transition-colors"
+            className={`p-2 rounded-xl cursor-pointer transition-colors ${
+              isDark 
+                ? 'bg-gray-800/80 text-gray-400 hover:text-white hover:bg-gray-700' 
+                : 'bg-white border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-100 shadow-xs'
+            }`}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* 1. Header with Sector, Symbol, & Indices Badges */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-gray-800/80 pr-10 sm:pr-12">
+        <div className={`flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4 pb-4 border-b pr-10 sm:pr-12 ${
+          isDark ? 'border-gray-800/80' : 'border-slate-200'
+        }`}>
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-1">
-              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">{name}</h2>
-              <span className="px-2.5 sm:px-3 py-1 rounded-lg bg-cyan-500 text-black font-black mono text-xs">
+              <h2 className={`text-xl sm:text-2xl font-black tracking-tight ${
+                isDark ? 'text-white' : 'text-slate-900'
+              }`}>{name}</h2>
+              <span className="px-2.5 sm:px-3 py-1 rounded-lg bg-cyan-500 text-black font-black mono text-xs shadow-xs">
                 {sym}
               </span>
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5 mt-2">
-              <span className="px-2.5 py-0.5 rounded-md bg-gray-800 text-cyan-400 text-[11px] font-bold">
+              <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold ${
+                isDark ? 'bg-gray-800 text-cyan-400' : 'bg-slate-200 text-cyan-800 border border-slate-300'
+              }`}>
                 {sector}
               </span>
-              <span className="px-2.5 py-0.5 rounded-md bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 text-[10px] font-bold">
+              <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold border ${
+                isDark ? 'bg-cyan-950/80 text-cyan-300 border-cyan-800/60' : 'bg-cyan-50 text-cyan-800 border-cyan-200'
+              }`}>
                 KSE ALL
               </span>
-              <span className="px-2.5 py-0.5 rounded-md bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 text-[10px] font-bold">
+              <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold border ${
+                isDark ? 'bg-emerald-950/80 text-emerald-300 border-emerald-800/60' : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              }`}>
                 JSMF Index
               </span>
-              <span className="px-2.5 py-0.5 rounded-md bg-teal-950/80 text-teal-300 border border-teal-800/60 text-[10px] font-bold">
+              <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold border ${
+                isDark ? 'bg-teal-950/80 text-teal-300 border-teal-800/60' : 'bg-teal-50 text-teal-800 border-teal-200'
+              }`}>
                 KMI ALL
               </span>
-              <span className="px-2.5 py-0.5 rounded-md bg-amber-950/80 text-amber-300 border border-amber-800/60 text-[10px] font-bold">
+              <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold border ${
+                isDark ? 'bg-amber-950/80 text-amber-300 border-amber-800/60' : 'bg-amber-50 text-amber-800 border-amber-200'
+              }`}>
                 KSE 100
               </span>
             </div>
           </div>
 
           {/* Navigation Tabs: Chart, Fundamentals, Technicals (Responsive 3-Col Equal Layout on Mobile) */}
-          <div className="grid grid-cols-3 sm:flex items-center gap-1 sm:space-x-1.5 bg-[#070B12] p-1 rounded-xl sm:rounded-2xl border border-gray-800 w-full sm:w-auto">
+          <div className={`grid grid-cols-3 sm:flex items-center gap-1 sm:space-x-1.5 p-1 rounded-xl sm:rounded-2xl border w-full sm:w-auto ${
+            isDark ? 'bg-[#070B12] border-gray-800' : 'bg-slate-100 border-slate-200 shadow-inner'
+          }`}>
             <button
               onClick={() => setActiveTab('chart')}
               className={`w-full sm:w-auto px-2 sm:px-3.5 py-2 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 whitespace-nowrap ${
                 activeTab === 'chart'
                   ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
-                  : 'text-gray-400 hover:text-white'
+                  : isDark ? 'text-gray-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <BarChart3 className="w-3.5 h-3.5 shrink-0" />
@@ -545,7 +627,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
               className={`w-full sm:w-auto px-2 sm:px-3.5 py-2 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 whitespace-nowrap ${
                 activeTab === 'fundamentals'
                   ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
-                  : 'text-gray-400 hover:text-white'
+                  : isDark ? 'text-gray-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <PieChart className="w-3.5 h-3.5 shrink-0" />
@@ -556,7 +638,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
               className={`w-full sm:w-auto px-2 sm:px-3.5 py-2 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 whitespace-nowrap ${
                 activeTab === 'technicals'
                   ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
-                  : 'text-gray-400 hover:text-white'
+                  : isDark ? 'text-gray-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Activity className="w-3.5 h-3.5 shrink-0" />
@@ -574,109 +656,163 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
             {/* Left Column (4 Cols on lg, 3 Cols on xl): Fundamental Quick Matrix & Sliders */}
             <div className="lg:col-span-4 xl:col-span-3 space-y-4">
               {/* Live Price Box */}
-              <div className="bg-[#070B12] rounded-2xl p-4 border border-gray-800/90">
+              <div className={`rounded-2xl p-4 border transition-colors ${
+                isDark 
+                  ? 'bg-[#070B12] border-gray-800/90 shadow-none' 
+                  : 'bg-white border-slate-200 shadow-sm'
+              }`}>
                 <div className="flex items-baseline justify-between">
                   <div>
-                    <span className="text-3xl font-black text-white mono">
+                    <span className={`text-3xl font-black mono ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}>
                       Rs. {price.toFixed(2)}
                     </span>
-                    <div className={`flex items-center text-sm font-black mono mt-0.5 ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    <div className={`flex items-center text-sm font-black mono mt-0.5 ${
+                      isPositive 
+                        ? (isDark ? 'text-emerald-400' : 'text-emerald-600') 
+                        : (isDark ? 'text-rose-400' : 'text-rose-600')
+                    }`}>
                       {isPositive ? <TrendingUp className="w-4 h-4 mr-1 inline stroke-[3]" /> : <TrendingDown className="w-4 h-4 mr-1 inline stroke-[3]" />}
                       <span>{isPositive ? '+' : ''}{change.toFixed(2)} ({isPositive ? '+' : ''}{changePercent.toFixed(2)}%)</span>
                     </div>
                   </div>
-                  <div className="text-right text-[11px] text-gray-500 font-medium">
+                  <div className={`text-right text-[11px] font-medium ${
+                    isDark ? 'text-gray-500' : 'text-slate-400'
+                  }`}>
                     Updated: Today<br />PSX Official DPS
                   </div>
                 </div>
 
                 {/* Financial Metrics Grid */}
-                <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-gray-800/80 text-xs">
+                <div className={`grid grid-cols-2 gap-3 mt-4 pt-3 border-t text-xs ${
+                  isDark ? 'border-gray-800/80' : 'border-slate-100'
+                }`}>
                   <div>
-                    <span className="text-[10px] text-gray-400 uppercase font-bold block">Market Cap</span>
-                    <span className="font-extrabold text-cyan-400 mono">{marketCapFormatted}</span>
+                    <span className={`text-[10px] uppercase font-bold block ${
+                      isDark ? 'text-gray-400' : 'text-slate-500'
+                    }`}>Market Cap</span>
+                    <span className={`font-extrabold mono ${
+                      isDark ? 'text-cyan-400' : 'text-cyan-700'
+                    }`}>{marketCapFormatted}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-gray-400 uppercase font-bold block">Day's Volume</span>
-                    <span className="font-extrabold text-white mono">{(volume || 0).toLocaleString()}</span>
+                    <span className={`text-[10px] uppercase font-bold block ${
+                      isDark ? 'text-gray-400' : 'text-slate-500'
+                    }`}>Day's Volume</span>
+                    <span className={`font-extrabold mono ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}>{(volume || 0).toLocaleString()}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-gray-400 uppercase font-bold block">P/E Ratio (TTM)</span>
-                    <span className="font-extrabold text-white mono">{peRatio ? `${peRatio}x` : '5.35x'}</span>
+                    <span className={`text-[10px] uppercase font-bold block ${
+                      isDark ? 'text-gray-400' : 'text-slate-500'
+                    }`}>P/E Ratio (TTM)</span>
+                    <span className={`font-extrabold mono ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}>{peRatio ? `${peRatio}x` : '5.35x'}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-gray-400 uppercase font-bold block">P/B (Book Value)</span>
-                    <span className="font-extrabold text-gray-300 mono">{pbRatio}x</span>
+                    <span className={`text-[10px] uppercase font-bold block ${
+                      isDark ? 'text-gray-400' : 'text-slate-500'
+                    }`}>P/B (Book Value)</span>
+                    <span className={`font-extrabold mono ${
+                      isDark ? 'text-gray-300' : 'text-slate-700'
+                    }`}>{pbRatio}x</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-gray-400 uppercase font-bold block">EPS (TTM)</span>
-                    <span className="font-extrabold text-white mono">PKR {eps.toFixed(2)}</span>
+                    <span className={`text-[10px] uppercase font-bold block ${
+                      isDark ? 'text-gray-400' : 'text-slate-500'
+                    }`}>EPS (TTM)</span>
+                    <span className={`font-extrabold mono ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}>PKR {eps.toFixed(2)}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-gray-400 uppercase font-bold block">Div Yield</span>
-                    <span className="font-extrabold text-emerald-400 mono">{dividendYield ? `${dividendYield}%` : '0.0%'}</span>
+                    <span className={`text-[10px] uppercase font-bold block ${
+                      isDark ? 'text-gray-400' : 'text-slate-500'
+                    }`}>Div Yield</span>
+                    <span className={`font-extrabold mono ${
+                      isDark ? 'text-emerald-400' : 'text-emerald-600'
+                    }`}>{dividendYield ? `${dividendYield}%` : '0.0%'}</span>
                   </div>
                 </div>
               </div>
 
               {/* Range Sliders: Day's Range & 52-Week Range */}
-              <div className="bg-[#070B12] rounded-2xl p-4 border border-gray-800 space-y-3.5 text-xs">
+              <div className={`rounded-2xl p-4 border space-y-3.5 text-xs transition-colors ${
+                isDark ? 'bg-[#070B12] border-gray-800 shadow-none' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
                 {/* Day's Range */}
                 <div>
-                  <div className="flex justify-between text-[11px] text-gray-400 mb-1">
-                    <span className="font-bold text-gray-300">Day's Range</span>
-                    <span className="mono">Rs. {dayLow} - Rs. {dayHigh}</span>
+                  <div className="flex justify-between text-[11px] mb-1">
+                    <span className={`font-bold ${isDark ? 'text-gray-300' : 'text-slate-700'}`}>Day's Range</span>
+                    <span className={`mono ${isDark ? 'text-gray-400' : 'text-slate-600'}`}>Rs. {dayLow} - Rs. {dayHigh}</span>
                   </div>
                   <div className="h-2 w-full bg-gradient-to-r from-rose-500 via-amber-500 to-emerald-500 rounded-full relative overflow-hidden">
-                    <div className="absolute top-0 bottom-0 left-[60%] w-2 bg-white rounded-full shadow" />
+                    <div className="absolute top-0 bottom-0 left-[60%] w-2 bg-white rounded-full shadow ring-1 ring-black/10" />
                   </div>
                 </div>
 
                 {/* 52-Week Range */}
                 <div>
-                  <div className="flex justify-between text-[11px] text-gray-400 mb-1">
-                    <span className="font-bold text-gray-300">52-Week Range</span>
-                    <span className="mono">Rs. {week52Low} - Rs. {week52High}</span>
+                  <div className="flex justify-between text-[11px] mb-1">
+                    <span className={`font-bold ${isDark ? 'text-gray-300' : 'text-slate-700'}`}>52-Week Range</span>
+                    <span className={`mono ${isDark ? 'text-gray-400' : 'text-slate-600'}`}>Rs. {week52Low} - Rs. {week52High}</span>
                   </div>
                   <div className="h-2 w-full bg-gradient-to-r from-rose-500 via-amber-500 to-emerald-500 rounded-full relative overflow-hidden">
-                    <div className="absolute top-0 bottom-0 left-[82%] w-2 bg-white rounded-full shadow" />
+                    <div className="absolute top-0 bottom-0 left-[82%] w-2 bg-white rounded-full shadow ring-1 ring-black/10" />
                   </div>
                 </div>
               </div>
 
               {/* Returns Matrix */}
-              <div className="bg-[#070B12] rounded-2xl p-3 sm:p-4 border border-gray-800">
-                <span className="text-[10px] uppercase font-bold text-gray-400 block mb-2">
+              <div className={`rounded-2xl p-3 sm:p-4 border transition-colors ${
+                isDark ? 'bg-[#070B12] border-gray-800 shadow-none' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <span className={`text-[10px] uppercase font-bold block mb-2 ${
+                  isDark ? 'text-gray-400' : 'text-slate-500'
+                }`}>
                   Historical Performance Returns
                 </span>
                 <div className="grid grid-cols-5 gap-1 sm:gap-1.5 text-center font-mono font-bold">
-                  <div className={`${ret1W >= 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border-rose-500/30'} border p-1 sm:p-2 rounded-lg sm:rounded-xl min-w-0`}>
-                    <span className="text-[9px] sm:text-[10px] text-gray-400 block font-normal">1W</span>
-                    <span className="text-[10px] sm:text-xs block leading-tight truncate">{ret1W >= 0 ? '+' : ''}{Number(ret1W).toFixed(1)}%</span>
-                  </div>
-                  <div className={`${ret1M >= 0 ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40' : 'bg-rose-500/15 text-rose-400 border-rose-500/40'} border p-1 sm:p-2 rounded-lg sm:rounded-xl min-w-0`}>
-                    <span className="text-[9px] sm:text-[10px] text-gray-400 block font-normal">1M</span>
-                    <span className="text-[10px] sm:text-xs block leading-tight truncate">{ret1M >= 0 ? '+' : ''}{Number(ret1M).toFixed(1)}%</span>
-                  </div>
-                  <div className={`${ret3M >= 0 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : 'bg-rose-500/20 text-rose-400 border-rose-500/50'} border p-1 sm:p-2 rounded-lg sm:rounded-xl min-w-0`}>
-                    <span className="text-[9px] sm:text-[10px] text-gray-400 block font-normal">3M</span>
-                    <span className="text-[10px] sm:text-xs block leading-tight truncate">{ret3M >= 0 ? '+' : ''}{Number(ret3M).toFixed(1)}%</span>
-                  </div>
-                  <div className={`${ret6M >= 0 ? 'bg-emerald-500/25 text-emerald-400 border-emerald-500/60' : 'bg-rose-500/25 text-rose-400 border-rose-500/60'} border p-1 sm:p-2 rounded-lg sm:rounded-xl min-w-0`}>
-                    <span className="text-[9px] sm:text-[10px] text-gray-400 block font-normal">6M</span>
-                    <span className="text-[10px] sm:text-xs block leading-tight truncate">{ret6M >= 0 ? '+' : ''}{Number(ret6M).toFixed(1)}%</span>
-                  </div>
-                  <div className={`${ret1Y >= 0 ? 'bg-emerald-500/30 text-emerald-400 border-emerald-500/70' : 'bg-rose-500/30 text-rose-400 border-rose-500/70'} border p-1 sm:p-2 rounded-lg sm:rounded-xl min-w-0`}>
-                    <span className="text-[9px] sm:text-[10px] text-gray-400 block font-normal">1Y</span>
-                    <span className="text-[10px] sm:text-xs block leading-tight truncate">{ret1Y >= 0 ? '+' : ''}{Number(ret1Y).toFixed(1)}%</span>
-                  </div>
+                  {[
+                    { label: '1W', val: ret1W },
+                    { label: '1M', val: ret1M },
+                    { label: '3M', val: ret3M },
+                    { label: '6M', val: ret6M },
+                    { label: '1Y', val: ret1Y },
+                  ].map(({ label, val }) => {
+                    const pos = val >= 0;
+                    return (
+                      <div 
+                        key={label}
+                        className={`border p-1 sm:p-2 rounded-lg sm:rounded-xl min-w-0 ${
+                          isDark 
+                            ? (pos ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40' : 'bg-rose-500/15 text-rose-400 border-rose-500/40')
+                            : (pos ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200')
+                        }`}
+                      >
+                        <span className={`text-[9px] sm:text-[10px] block font-normal ${
+                          isDark ? 'text-gray-400' : 'text-slate-500'
+                        }`}>{label}</span>
+                        <span className="text-[10px] sm:text-xs block leading-tight truncate">
+                          {pos ? '+' : ''}{Number(val).toFixed(1)}%
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
 
             {/* Right Column (8 Cols on lg, 9 Cols on xl): Multi-Timeframe TradingView Pro Chart Station */}
             <div className="lg:col-span-8 xl:col-span-9 flex flex-col space-y-4">
-              <div className="bg-[#070B12] rounded-2xl border border-gray-800/90 overflow-hidden flex-1 flex flex-col min-h-[560px] lg:min-h-[640px] xl:min-h-[700px]">
+              <div className={`rounded-2xl border overflow-hidden flex-1 flex flex-col min-h-[560px] lg:min-h-[640px] xl:min-h-[700px] transition-colors ${
+                isDark 
+                  ? 'bg-[#070B12] border-gray-800/90 shadow-none' 
+                  : 'bg-white border-slate-200 shadow-sm'
+              }`}>
                 <TradingViewPSXChart
                   symbol={sym}
                   companyName={name}
@@ -687,7 +823,10 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
                   volume={volume}
                   high={high}
                   low={low}
-                  theme={theme}
+                  theme={modalTheme}
+                  onThemeChange={(newTheme) => {
+                    updateTheme(newTheme);
+                  }}
                   onSelectStock={(selected) => {
                     setCurrentStock(selected);
                   }}
@@ -703,104 +842,124 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
           <div className="my-5 space-y-4">
             {/* Top Overview Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="bg-[#070B12] p-4 rounded-2xl border border-gray-800">
-                <span className="text-[10px] text-gray-400 uppercase font-bold block">P/E Ratio (TTM)</span>
-                <span className="text-xl font-extrabold text-cyan-400 mono">{peRatio}x</span>
-                <span className="text-[10px] text-gray-500 block mt-1">Sector Avg: {sectorPe}x</span>
+              <div className={`p-4 rounded-2xl border transition-colors ${
+                isDark ? 'bg-[#070B12] border-gray-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <span className={`text-[10px] uppercase font-bold block ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>P/E Ratio (TTM)</span>
+                <span className={`text-xl font-extrabold mono ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>{peRatio}x</span>
+                <span className={`text-[10px] block mt-1 ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>Sector Avg: {sectorPe}x</span>
               </div>
-              <div className="bg-[#070B12] p-4 rounded-2xl border border-gray-800">
-                <span className="text-[10px] text-gray-400 uppercase font-bold block">Earnings Per Share (EPS)</span>
-                <span className="text-xl font-extrabold text-emerald-400 mono">PKR {eps.toFixed(2)}</span>
-                <span className="text-[10px] text-emerald-500/80 block mt-1">+14.5% YoY Growth</span>
+              <div className={`p-4 rounded-2xl border transition-colors ${
+                isDark ? 'bg-[#070B12] border-gray-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <span className={`text-[10px] uppercase font-bold block ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>Earnings Per Share (EPS)</span>
+                <span className={`text-xl font-extrabold mono ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>PKR {eps.toFixed(2)}</span>
+                <span className={`text-[10px] block mt-1 ${isDark ? 'text-emerald-500/80' : 'text-emerald-600'}`}>+14.5% YoY Growth</span>
               </div>
-              <div className="bg-[#070B12] p-4 rounded-2xl border border-gray-800">
-                <span className="text-[10px] text-gray-400 uppercase font-bold block">Price-to-Book (P/B)</span>
-                <span className="text-xl font-extrabold text-white mono">{pbRatio}x</span>
-                <span className="text-[10px] text-gray-500 block mt-1">Book Val: PKR {bookValue}</span>
+              <div className={`p-4 rounded-2xl border transition-colors ${
+                isDark ? 'bg-[#070B12] border-gray-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <span className={`text-[10px] uppercase font-bold block ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>Price-to-Book (P/B)</span>
+                <span className={`text-xl font-extrabold mono ${isDark ? 'text-white' : 'text-slate-900'}`}>{pbRatio}x</span>
+                <span className={`text-[10px] block mt-1 ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>Book Val: PKR {bookValue}</span>
               </div>
-              <div className="bg-[#070B12] p-4 rounded-2xl border border-gray-800">
-                <span className="text-[10px] text-gray-400 uppercase font-bold block">Dividend Yield</span>
-                <span className="text-xl font-extrabold text-teal-400 mono">{dividendYield ? `${dividendYield}%` : '0.0%'}</span>
-                <span className="text-[10px] text-gray-500 block mt-1">Payout Ratio: {dividendPayout}%</span>
+              <div className={`p-4 rounded-2xl border transition-colors ${
+                isDark ? 'bg-[#070B12] border-gray-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <span className={`text-[10px] uppercase font-bold block ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>Dividend Yield</span>
+                <span className={`text-xl font-extrabold mono ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>{dividendYield ? `${dividendYield}%` : '0.0%'}</span>
+                <span className={`text-[10px] block mt-1 ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>Payout Ratio: {dividendPayout}%</span>
               </div>
             </div>
 
             {/* Comprehensive Metrics Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Card 1: Profitability & Returns */}
-              <div className="bg-[#070B12] p-4 rounded-2xl border border-gray-800 space-y-3">
-                <div className="flex items-center space-x-2 pb-2 border-b border-gray-800">
-                  <Flame className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs font-bold text-white uppercase tracking-wider">Profitability & Returns</span>
+              <div className={`p-4 rounded-2xl border space-y-3 transition-colors ${
+                isDark ? 'bg-[#070B12] border-gray-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <div className={`flex items-center space-x-2 pb-2 border-b ${
+                  isDark ? 'border-gray-800' : 'border-slate-100'
+                }`}>
+                  <Flame className="w-4 h-4 text-amber-500" />
+                  <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-900'}`}>Profitability & Returns</span>
                 </div>
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Return on Equity (ROE):</span>
-                    <span className="font-bold text-emerald-400 mono">{roe}%</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>Return on Equity (ROE):</span>
+                    <span className={`font-bold mono ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{roe}%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Return on Assets (ROA):</span>
-                    <span className="font-bold text-teal-400 mono">{roa}%</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>Return on Assets (ROA):</span>
+                    <span className={`font-bold mono ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>{roa}%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Net Profit Margin:</span>
-                    <span className="font-bold text-white mono">{netMargin}%</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>Net Profit Margin:</span>
+                    <span className={`font-bold mono ${isDark ? 'text-white' : 'text-slate-900'}`}>{netMargin}%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Operating Margin:</span>
-                    <span className="font-bold text-white mono">18.6%</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>Operating Margin:</span>
+                    <span className={`font-bold mono ${isDark ? 'text-white' : 'text-slate-900'}`}>18.6%</span>
                   </div>
                 </div>
               </div>
 
               {/* Card 2: Balance Sheet & Solvency */}
-              <div className="bg-[#070B12] p-4 rounded-2xl border border-gray-800 space-y-3">
-                <div className="flex items-center space-x-2 pb-2 border-b border-gray-800">
-                  <Scale className="w-4 h-4 text-cyan-400" />
-                  <span className="text-xs font-bold text-white uppercase tracking-wider">Solvency & Debt Health</span>
+              <div className={`p-4 rounded-2xl border space-y-3 transition-colors ${
+                isDark ? 'bg-[#070B12] border-gray-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <div className={`flex items-center space-x-2 pb-2 border-b ${
+                  isDark ? 'border-gray-800' : 'border-slate-100'
+                }`}>
+                  <Scale className="w-4 h-4 text-cyan-500" />
+                  <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-900'}`}>Solvency & Debt Health</span>
                 </div>
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Debt to Equity (D/E):</span>
-                    <span className="font-bold text-emerald-400 mono">{debtToEquity} (Low Risk)</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>Debt to Equity (D/E):</span>
+                    <span className={`font-bold mono ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{debtToEquity} (Low Risk)</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Current Ratio:</span>
-                    <span className="font-bold text-white mono">{currentRatio}x</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>Current Ratio:</span>
+                    <span className={`font-bold mono ${isDark ? 'text-white' : 'text-slate-900'}`}>{currentRatio}x</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Quick Ratio:</span>
-                    <span className="font-bold text-white mono">1.15x</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>Quick Ratio:</span>
+                    <span className={`font-bold mono ${isDark ? 'text-white' : 'text-slate-900'}`}>1.15x</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Free Cash Flow Yield:</span>
-                    <span className="font-bold text-emerald-400 mono">8.4%</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>Free Cash Flow Yield:</span>
+                    <span className={`font-bold mono ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>8.4%</span>
                   </div>
                 </div>
               </div>
 
               {/* Card 3: Market Size & Structure */}
-              <div className="bg-[#070B12] p-4 rounded-2xl border border-gray-800 space-y-3">
-                <div className="flex items-center space-x-2 pb-2 border-b border-gray-800">
-                  <DollarSign className="w-4 h-4 text-emerald-400" />
-                  <span className="text-xs font-bold text-white uppercase tracking-wider">Capital Structure</span>
+              <div className={`p-4 rounded-2xl border space-y-3 transition-colors ${
+                isDark ? 'bg-[#070B12] border-gray-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <div className={`flex items-center space-x-2 pb-2 border-b ${
+                  isDark ? 'border-gray-800' : 'border-slate-100'
+                }`}>
+                  <DollarSign className="w-4 h-4 text-emerald-500" />
+                  <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-900'}`}>Capital Structure</span>
                 </div>
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Market Cap:</span>
-                    <span className="font-bold text-cyan-400 mono">{marketCapFormatted}</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>Market Cap:</span>
+                    <span className={`font-bold mono ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>{marketCapFormatted}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Beta (Volatility):</span>
-                    <span className="font-bold text-white mono">{beta}</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>Beta (Volatility):</span>
+                    <span className={`font-bold mono ${isDark ? 'text-white' : 'text-slate-900'}`}>{beta}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Free Float:</span>
-                    <span className="font-bold text-white mono">45%</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>Free Float:</span>
+                    <span className={`font-bold mono ${isDark ? 'text-white' : 'text-slate-900'}`}>45%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Shariah Status:</span>
-                    <span className="font-bold text-emerald-400">KMI Compliant ✅</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>Shariah Status:</span>
+                    <span className={`font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>KMI Compliant ✅</span>
                   </div>
                 </div>
               </div>
@@ -814,113 +973,143 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
             {/* Technical Overview Matrix */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Moving Averages */}
-              <div className="bg-[#070B12] p-4 rounded-2xl border border-gray-800 space-y-3">
-                <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider block pb-2 border-b border-gray-800">
+              <div className={`p-4 rounded-2xl border space-y-3 transition-colors ${
+                isDark ? 'bg-[#070B12] border-gray-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <span className={`text-xs font-bold uppercase tracking-wider block pb-2 border-b ${
+                  isDark ? 'text-cyan-400 border-gray-800' : 'text-cyan-700 border-slate-100'
+                }`}>
                   📈 Moving Averages (Trend Filter)
                 </span>
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-gray-400">20-Day EMA:</span>
-                    <span className="font-bold text-emerald-400 mono">PKR {ema20} (BULLISH)</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>20-Day EMA:</span>
+                    <span className={`font-bold mono ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>PKR {ema20} (BULLISH)</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">50-Day SMA:</span>
-                    <span className="font-bold text-emerald-400 mono">PKR {sma50} (BUY)</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>50-Day SMA:</span>
+                    <span className={`font-bold mono ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>PKR {sma50} (BUY)</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">200-Day SMA:</span>
-                    <span className="font-bold text-cyan-400 mono">PKR {sma200} (BULL MARKET)</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>200-Day SMA:</span>
+                    <span className={`font-bold mono ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>PKR {sma200} (BULL MARKET)</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Golden Cross Status:</span>
-                    <span className="font-bold text-emerald-400">ACTIVE 🚀</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>Golden Cross Status:</span>
+                    <span className={`font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>ACTIVE 🚀</span>
                   </div>
                 </div>
               </div>
 
               {/* Oscillators & Momentum */}
-              <div className="bg-[#070B12] p-4 rounded-2xl border border-gray-800 space-y-3">
-                <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider block pb-2 border-b border-gray-800">
+              <div className={`p-4 rounded-2xl border space-y-3 transition-colors ${
+                isDark ? 'bg-[#070B12] border-gray-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <span className={`text-xs font-bold uppercase tracking-wider block pb-2 border-b ${
+                  isDark ? 'text-emerald-400 border-gray-800' : 'text-emerald-700 border-slate-100'
+                }`}>
                   ⚡ Momentum & Oscillators
                 </span>
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-gray-400">RSI (14):</span>
-                    <span className="font-bold text-cyan-400 mono">{rsi} ({Number(rsi) > 70 ? 'Overbought' : Number(rsi) < 30 ? 'Oversold' : 'Neutral Bullish'})</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>RSI (14):</span>
+                    <span className={`font-bold mono ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>{rsi} ({Number(rsi) > 70 ? 'Overbought' : Number(rsi) < 30 ? 'Oversold' : 'Neutral Bullish'})</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">MACD (12,26,9):</span>
-                    <span className="font-bold text-emerald-400 mono">+{macdHist} (Bullish Crossover)</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>MACD (12,26,9):</span>
+                    <span className={`font-bold mono ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>+{macdHist} (Bullish Crossover)</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Stochastic (%K, %D):</span>
-                    <span className="font-bold text-white mono">{stochK} / {stochD}</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>Stochastic (%K, %D):</span>
+                    <span className={`font-bold mono ${isDark ? 'text-white' : 'text-slate-900'}`}>{stochK} / {stochD}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">ATR (14 Volatility):</span>
-                    <span className="font-bold text-amber-400 mono">PKR {atr14}</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>ATR (14 Volatility):</span>
+                    <span className={`font-bold mono ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>PKR {atr14}</span>
                   </div>
                 </div>
               </div>
 
               {/* Bollinger Bands & Volatility */}
-              <div className="bg-[#070B12] p-4 rounded-2xl border border-gray-800 space-y-3">
-                <span className="text-xs font-bold text-purple-400 uppercase tracking-wider block pb-2 border-b border-gray-800">
+              <div className={`p-4 rounded-2xl border space-y-3 transition-colors ${
+                isDark ? 'bg-[#070B12] border-gray-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <span className={`text-xs font-bold uppercase tracking-wider block pb-2 border-b ${
+                  isDark ? 'text-purple-400 border-gray-800' : 'text-purple-700 border-slate-100'
+                }`}>
                   🎯 Bollinger Bands & Squeeze
                 </span>
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-gray-400">BB Upper Band:</span>
-                    <span className="font-bold text-rose-400 mono">PKR {bbUpper}</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>BB Upper Band:</span>
+                    <span className={`font-bold mono ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>PKR {bbUpper}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">BB Middle (SMA 20):</span>
-                    <span className="font-bold text-white mono">PKR {ema20}</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>BB Middle (SMA 20):</span>
+                    <span className={`font-bold mono ${isDark ? 'text-white' : 'text-slate-900'}`}>PKR {ema20}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">BB Lower Band:</span>
-                    <span className="font-bold text-emerald-400 mono">PKR {bbLower}</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>BB Lower Band:</span>
+                    <span className={`font-bold mono ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>PKR {bbLower}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Volatility Bandwidth:</span>
-                    <span className="font-bold text-purple-300 mono">14.4% (Expanding)</span>
+                    <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>Volatility Bandwidth:</span>
+                    <span className={`font-bold mono ${isDark ? 'text-purple-300' : 'text-purple-700'}`}>14.4% (Expanding)</span>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* 7-Level Pivot Points Grid */}
-            <div className="bg-[#070B12] p-4 rounded-2xl border border-gray-800">
-              <span className="text-xs font-bold text-gray-300 uppercase tracking-wider block mb-3">
+            <div className={`p-4 rounded-2xl border transition-colors ${
+              isDark ? 'bg-[#070B12] border-gray-800' : 'bg-white border-slate-200 shadow-sm'
+            }`}>
+              <span className={`text-xs font-bold uppercase tracking-wider block mb-3 ${
+                isDark ? 'text-gray-300' : 'text-slate-700'
+              }`}>
                 Key Intraday Pivot Points, Supports & Resistances
               </span>
               <div className="grid grid-cols-7 text-center text-xs mono gap-2">
-                <div className="bg-rose-950/80 text-rose-300 p-2 rounded-xl border border-rose-900">
-                  <span className="text-[10px] font-bold block text-rose-400">S3</span>
+                <div className={`p-2 rounded-xl border ${
+                  isDark ? 'bg-rose-950/80 text-rose-300 border-rose-900' : 'bg-rose-50 text-rose-700 border-rose-200'
+                }`}>
+                  <span className={`text-[10px] font-bold block ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>S3</span>
                   <span className="font-extrabold">{s3}</span>
                 </div>
-                <div className="bg-rose-950/60 text-rose-300 p-2 rounded-xl border border-rose-900/60">
-                  <span className="text-[10px] font-bold block text-rose-400">S2</span>
+                <div className={`p-2 rounded-xl border ${
+                  isDark ? 'bg-rose-950/60 text-rose-300 border-rose-900/60' : 'bg-rose-50 text-rose-700 border-rose-200'
+                }`}>
+                  <span className={`text-[10px] font-bold block ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>S2</span>
                   <span className="font-extrabold">{s2}</span>
                 </div>
-                <div className="bg-rose-900/40 text-rose-300 p-2 rounded-xl border border-rose-800/40">
-                  <span className="text-[10px] font-bold block text-rose-400">S1</span>
+                <div className={`p-2 rounded-xl border ${
+                  isDark ? 'bg-rose-900/40 text-rose-300 border-rose-800/40' : 'bg-rose-50 text-rose-700 border-rose-200'
+                }`}>
+                  <span className={`text-[10px] font-bold block ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>S1</span>
                   <span className="font-extrabold">{s1}</span>
                 </div>
-                <div className="bg-cyan-950 text-cyan-300 p-2 rounded-xl border border-cyan-700 font-black">
-                  <span className="text-[10px] block text-cyan-400">PIVOT (PP)</span>
+                <div className={`p-2 rounded-xl border font-black ${
+                  isDark ? 'bg-cyan-950 text-cyan-300 border-cyan-700' : 'bg-cyan-100 text-cyan-800 border-cyan-300'
+                }`}>
+                  <span className={`text-[10px] block ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>PIVOT (PP)</span>
                   <span className="font-extrabold">{pp}</span>
                 </div>
-                <div className="bg-emerald-900/40 text-emerald-300 p-2 rounded-xl border border-emerald-800/40">
-                  <span className="text-[10px] font-bold block text-emerald-400">R1</span>
+                <div className={`p-2 rounded-xl border ${
+                  isDark ? 'bg-emerald-900/40 text-emerald-300 border-emerald-800/40' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                }`}>
+                  <span className={`text-[10px] font-bold block ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>R1</span>
                   <span className="font-extrabold">{r1}</span>
                 </div>
-                <div className="bg-emerald-950/60 text-emerald-300 p-2 rounded-xl border border-emerald-900/60">
-                  <span className="text-[10px] font-bold block text-emerald-400">R2</span>
+                <div className={`p-2 rounded-xl border ${
+                  isDark ? 'bg-emerald-950/60 text-emerald-300 border-emerald-900/60' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                }`}>
+                  <span className={`text-[10px] font-bold block ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>R2</span>
                   <span className="font-extrabold">{r2}</span>
                 </div>
-                <div className="bg-emerald-950/80 text-emerald-300 p-2 rounded-xl border border-emerald-900">
-                  <span className="text-[10px] font-bold block text-emerald-400">R3</span>
+                <div className={`p-2 rounded-xl border ${
+                  isDark ? 'bg-emerald-950/80 text-emerald-300 border-emerald-900' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                }`}>
+                  <span className={`text-[10px] font-bold block ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>R3</span>
                   <span className="font-extrabold">{r3}</span>
                 </div>
               </div>
@@ -929,11 +1118,19 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
         )}
 
         {/* 5. Plain English AI Summary & Buy/Sell Decision Box */}
-        <div className="bg-gradient-to-r from-[#0F172A] to-[#0B111E] rounded-2xl p-5 border border-cyan-500/30 space-y-3 mb-4">
+        <div className={`rounded-2xl p-5 border space-y-3 mb-4 transition-colors ${
+          isDark 
+            ? 'bg-gradient-to-r from-[#0F172A] to-[#0B111E] border-cyan-500/30' 
+            : 'bg-white border-slate-200 shadow-sm'
+        }`}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center space-x-2 text-xs font-bold text-white">
-              <Sparkles className="w-5 h-5 text-cyan-400 animate-pulse" />
-              <span className="text-sm font-extrabold text-cyan-300 uppercase tracking-wide">
+            <div className={`flex items-center space-x-2 text-xs font-bold ${
+              isDark ? 'text-white' : 'text-slate-900'
+            }`}>
+              <Sparkles className="w-5 h-5 text-cyan-500 animate-pulse" />
+              <span className={`text-sm font-extrabold uppercase tracking-wide ${
+                isDark ? 'text-cyan-300' : 'text-cyan-700'
+              }`}>
                 AI Fundamental & Technical Analysis (Easy English Summary)
               </span>
             </div>
@@ -942,22 +1139,36 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
             </span>
           </div>
 
-          <p className="text-xs text-gray-200 leading-relaxed font-normal">
+          <p className={`text-xs leading-relaxed font-normal ${
+            isDark ? 'text-gray-200' : 'text-slate-600'
+          }`}>
             {aiVerdict.summary}
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-gray-800 text-xs">
-            <div className="bg-[#070B12] p-2.5 rounded-xl border border-gray-800">
-              <span className="text-[10px] text-gray-400 block font-bold">Suggested Buy Zone:</span>
-              <span className="font-extrabold text-white mono">PKR {s1} - {price.toFixed(2)}</span>
+          <div className={`grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t text-xs ${
+            isDark ? 'border-gray-800' : 'border-slate-100'
+          }`}>
+            <div className={`p-2.5 rounded-xl border ${
+              isDark ? 'bg-[#070B12] border-gray-800' : 'bg-slate-50 border-slate-200'
+            }`}>
+              <span className={`text-[10px] block font-bold ${
+                isDark ? 'text-gray-400' : 'text-slate-500'
+              }`}>Suggested Buy Zone:</span>
+              <span className={`font-extrabold mono ${
+                isDark ? 'text-white' : 'text-slate-900'
+              }`}>PKR {s1} - {price.toFixed(2)}</span>
             </div>
-            <div className="bg-[#070B12] p-2.5 rounded-xl border border-gray-800">
-              <span className="text-[10px] text-emerald-400 block font-bold">Target Sell Price:</span>
-              <span className="font-extrabold text-emerald-400 mono">PKR {targetSell} (+11.5%)</span>
+            <div className={`p-2.5 rounded-xl border ${
+              isDark ? 'bg-[#070B12] border-gray-800' : 'bg-slate-50 border-slate-200'
+            }`}>
+              <span className="text-[10px] text-emerald-500 block font-bold">Target Sell Price:</span>
+              <span className="font-extrabold text-emerald-500 mono">PKR {targetSell} (+11.5%)</span>
             </div>
-            <div className="bg-[#070B12] p-2.5 rounded-xl border border-gray-800">
-              <span className="text-[10px] text-rose-400 block font-bold">Strict Stop Loss:</span>
-              <span className="font-extrabold text-rose-400 mono">PKR {stopLoss} (-5.0%)</span>
+            <div className={`p-2.5 rounded-xl border ${
+              isDark ? 'bg-[#070B12] border-gray-800' : 'bg-slate-50 border-slate-200'
+            }`}>
+              <span className="text-[10px] text-rose-500 block font-bold">Strict Stop Loss:</span>
+              <span className="font-extrabold text-rose-500 mono">PKR {stopLoss} (-5.0%)</span>
             </div>
           </div>
         </div>
@@ -988,7 +1199,10 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
             volume={volume}
             high={high}
             low={low}
-            theme={theme}
+            theme={modalTheme}
+            onThemeChange={(newTheme) => {
+              updateTheme(newTheme);
+            }}
             initialFullScreen={true}
             onClose={() => setIsFullScreen(false)}
             onOpenCalculator={onOpenCalculator}

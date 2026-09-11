@@ -116,7 +116,8 @@ export default function TradingViewPSXChart({
   onOpenCalculator = null,
   onClose = null,
   initialFullScreen = false,
-  theme = null
+  theme = null,
+  onThemeChange = null
 }) {
   // 1. Chart Theme State ('dark' | 'light')
   const [chartTheme, setChartTheme] = useState(() => {
@@ -140,10 +141,14 @@ export default function TradingViewPSXChart({
       const next = typeof forcedTheme === 'string' ? forcedTheme : (prev === 'dark' ? 'light' : 'dark');
       if (typeof window !== 'undefined') {
         localStorage.setItem('psx_chart_theme', next);
+        localStorage.setItem('psx_theme_preference', next);
+      }
+      if (onThemeChange) {
+        onThemeChange(next);
       }
       return next;
     });
-  }, []);
+  }, [onThemeChange]);
 
   // 2. Chart Type & Timeframe State
   const [currentSymbol, setCurrentSymbol] = useState(symbol || 'OGDC');

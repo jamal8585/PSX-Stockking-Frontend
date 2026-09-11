@@ -1120,6 +1120,7 @@ export default function App() {
         <StockDetailModal
           stock={selectedStock}
           theme={theme}
+          onThemeChange={setTheme}
           onClose={() => setSelectedStock(null)}
           onOpenCalculator={setCalcStock}
         />
