@@ -945,7 +945,7 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-screen transition-colors flex flex-col font-['Calibri','Segoe_UI',system-ui,sans-serif] ${
+    <div className={`min-h-screen transition-colors flex flex-col font-['Inter',sans-serif] ${
       theme === 'light' ? 'bg-[#F8FAFC] text-[#0F172A]' : 'bg-[#0B0F19] text-[#F8FAFC]'
     }`}>
       {/* Toast Notification */}
