@@ -27,6 +27,10 @@ export default {
         'input': '8px',
         'btn': '8px',
         'card': '12px'
+      },
+      fontFamily: {
+        sans: ['Roboto', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['"Roboto Mono"', '"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Consolas', 'monospace'],
       }
     },
   },
