@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Search,
   Plus,
@@ -31,7 +31,12 @@ import {
   Zap,
   Info,
   Edit3,
-  Radio
+  Radio,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Move,
+  PenTool
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 import { getStockHistory } from '../services/api';
@@ -122,18 +127,23 @@ export default function TradingViewPSXChart({
   const [compareSymbol, setCompareSymbol] = useState(null);
   const [compareData, setCompareData] = useState(null);
 
-  // 3. Modals & Menus
+  // 3. Zoom & Pan Interactive State
+  const [zoomLevel, setZoomLevel] = useState(1.0); // 0.5x (max zoom out) to 4.0x (max zoom in)
+  const [panOffset, setPanOffset] = useState(0); // 0 = latest bars, > 0 = panned back into history
+
+  // 4. Modals & Menus
   const [showChartTypeDropdown, setShowChartTypeDropdown] = useState(false);
   const [showTimeframeDropdown, setShowTimeframeDropdown] = useState(false);
   const [showIndicatorsModal, setShowIndicatorsModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
+  const [showMobileDrawingTools, setShowMobileDrawingTools] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [compareQuery, setCompareQuery] = useState('');
   const [snapshotCopied, setSnapshotCopied] = useState(false);
 
-  // 4. Indicator Toggles
+  // 5. Indicator Toggles
   const [activeIndicators, setActiveIndicators] = useState({
     volume: true,
     sma20: true,
@@ -152,7 +162,7 @@ export default function TradingViewPSXChart({
     obv: false
   });
 
-  // 5. Chart Settings
+  // 6. Chart Settings
   const [chartSettings, setChartSettings] = useState({
     upColor: '#10B981',
     downColor: '#EF4444',
@@ -163,8 +173,8 @@ export default function TradingViewPSXChart({
     showWatermark: true
   });
 
-  // 6. Left Drawing Toolbar State
-  const [selectedTool, setSelectedTool] = useState('crosshair');
+  // 7. Left Drawing Toolbar State
+  const [selectedTool, setSelectedTool] = useState('crosshair'); // 'crosshair', 'pan', 'trendline', 'horizontal_ray', 'fib', 'channel', 'brush', 'text', 'sticker', 'ruler'
   const [magnetMode, setMagnetMode] = useState(false);
   const [stayInDrawingMode, setStayInDrawingMode] = useState(false);
   const [drawingsLocked, setDrawingsLocked] = useState(false);
@@ -175,8 +185,8 @@ export default function TradingViewPSXChart({
   const [mouseCoord, setMouseCoord] = useState({ x: 0, y: 0, price: 0 });
   const [stickerEmoji, setStickerEmoji] = useState('🚀');
 
-  // 7. Live Second-by-Second Streaming State
-  const [liveBars, setLiveBars] = useState([]);
+  // 8. Live Second-by-Second Streaming State
+  const [rawLiveBars, setRawLiveBars] = useState([]);
   const [lastTickInfo, setLastTickInfo] = useState({
     price: initialPrice,
     change: initialChange,
@@ -186,6 +196,10 @@ export default function TradingViewPSXChart({
 
   const svgRef = useRef(null);
   const containerRef = useRef(null);
+  const isDraggingPan = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartPan = useRef(0);
+  const touchStartDist = useRef(null);
 
   // Convert officialQuotes object map to a safe array for fast searching
   const allStockList = useMemo(() => {
@@ -280,14 +294,14 @@ export default function TradingViewPSXChart({
   const low = Number(quote.low || initialLow || (currentPrice * 0.98));
   const isBullish = change >= 0;
 
-  // Generate initial base bars for timeframe
+  // Generate initial base bars for timeframe (Generates full historical set of 120 bars so zoom & pan work seamlessly)
   useEffect(() => {
     if (externalBars && externalBars.length > 0) {
-      setLiveBars(externalBars);
+      setRawLiveBars(externalBars);
       return;
     }
     if (historyData?.bars && historyData.bars.length > 0) {
-      setLiveBars(historyData.bars);
+      setRawLiveBars(historyData.bars);
       return;
     }
 
@@ -296,25 +310,25 @@ export default function TradingViewPSXChart({
     const isMinute = timeframe.endsWith('m');
     const isHour = timeframe.endsWith('h');
 
-    let count = 40;
+    const count = 120; // 120 bars for deep historical scroll, zoom and pan
     let stepSec = 60;
 
-    if (timeframe === '1s') { count = 60; stepSec = 1; }
-    else if (timeframe === '5s') { count = 50; stepSec = 5; }
-    else if (timeframe === '15s') { count = 40; stepSec = 15; }
-    else if (timeframe === '30s') { count = 35; stepSec = 30; }
-    else if (timeframe === '1m') { count = 45; stepSec = 60; }
-    else if (timeframe === '3m') { count = 40; stepSec = 180; }
-    else if (timeframe === '5m') { count = 40; stepSec = 300; }
-    else if (timeframe === '15m') { count = 35; stepSec = 900; }
-    else if (timeframe === '30m') { count = 30; stepSec = 1800; }
-    else if (timeframe === '45m') { count = 28; stepSec = 2700; }
-    else if (timeframe === '1h') { count = 28; stepSec = 3600; }
-    else if (timeframe === '2h') { count = 26; stepSec = 7200; }
-    else if (timeframe === '4h') { count = 24; stepSec = 14400; }
-    else if (timeframe === '1D') { count = 30; stepSec = 86400; }
-    else if (timeframe === '1W') { count = 35; stepSec = 604800; }
-    else if (timeframe === '1M') { count = 40; stepSec = 2592000; }
+    if (timeframe === '1s') { stepSec = 1; }
+    else if (timeframe === '5s') { stepSec = 5; }
+    else if (timeframe === '15s') { stepSec = 15; }
+    else if (timeframe === '30s') { stepSec = 30; }
+    else if (timeframe === '1m') { stepSec = 60; }
+    else if (timeframe === '3m') { stepSec = 180; }
+    else if (timeframe === '5m') { stepSec = 300; }
+    else if (timeframe === '15m') { stepSec = 900; }
+    else if (timeframe === '30m') { stepSec = 1800; }
+    else if (timeframe === '45m') { stepSec = 2700; }
+    else if (timeframe === '1h') { stepSec = 3600; }
+    else if (timeframe === '2h') { stepSec = 7200; }
+    else if (timeframe === '4h') { stepSec = 14400; }
+    else if (timeframe === '1D') { stepSec = 86400; }
+    else if (timeframe === '1W') { stepSec = 604800; }
+    else if (timeframe === '1M') { stepSec = 2592000; }
 
     const nowTime = Date.now();
     const generated = Array.from({ length: count }, (_, i) => {
@@ -331,7 +345,7 @@ export default function TradingViewPSXChart({
       }
 
       // Volatility & Volume scaling
-      const trendFactor = 0.95 + (i / count) * 0.05 + Math.sin(i * 0.35) * 0.015;
+      const trendFactor = 0.94 + (i / count) * 0.06 + Math.sin(i * 0.28) * 0.015;
       const base = currentPrice * trendFactor;
       const open = Number((base * (1 + Math.sin(i * 1.3) * 0.005)).toFixed(2));
       const close = Number((base * (1 + Math.cos(i * 1.5) * 0.006)).toFixed(2));
@@ -364,10 +378,10 @@ export default function TradingViewPSXChart({
       };
     });
 
-    setLiveBars(generated);
+    setRawLiveBars(generated);
   }, [historyData, externalBars, timeframe, currentPrice, volume]);
 
-  // LIVE 1-SECOND REAL-TIME TICKER INTERVAL (Updates live candlestick & records second volume)
+  // LIVE 1-SECOND REAL-TIME TICKER INTERVAL
   useEffect(() => {
     const interval = setInterval(() => {
       const tickVol = Math.round(150 + Math.random() * 3200 + (Math.random() > 0.85 ? 7500 : 0));
@@ -383,14 +397,13 @@ export default function TradingViewPSXChart({
         time: timeStrSec
       });
 
-      setLiveBars(prevBars => {
+      setRawLiveBars(prevBars => {
         if (!prevBars || prevBars.length === 0) return prevBars;
 
         const updated = [...prevBars];
         const lastBar = { ...updated[updated.length - 1] };
 
         if (timeframe === '1s') {
-          // Push a brand new 1-second bar every second
           const newBar = {
             date: timeStrSec,
             timestamp: Math.floor(now.getTime() / 1000),
@@ -401,11 +414,10 @@ export default function TradingViewPSXChart({
             price: newClose,
             volume: tickVol
           };
-          if (updated.length > 70) updated.shift();
+          if (updated.length > 150) updated.shift();
           updated.push(newBar);
           return updated;
         } else {
-          // Accumulate volume and update high/low/close of active candle
           lastBar.close = newClose;
           lastBar.price = newClose;
           lastBar.high = Math.max(lastBar.high, newClose);
@@ -419,6 +431,92 @@ export default function TradingViewPSXChart({
 
     return () => clearInterval(interval);
   }, [currentPrice, prevClose, timeframe]);
+
+  // ZOOM & PAN FILTER: Slices raw bars based on zoomLevel and panOffset
+  const liveBars = useMemo(() => {
+    if (!rawLiveBars || rawLiveBars.length === 0) return [];
+    
+    // Base visible count at 1.0x is 45 bars
+    const baseCount = 45;
+    const targetCount = Math.max(12, Math.min(rawLiveBars.length, Math.round(baseCount / zoomLevel)));
+    
+    // Max pan allowed so we don't scroll past the oldest bar
+    const maxPan = Math.max(0, rawLiveBars.length - targetCount);
+    const clampedPan = Math.max(0, Math.min(maxPan, panOffset));
+    
+    const startIndex = Math.max(0, rawLiveBars.length - targetCount - clampedPan);
+    const endIndex = startIndex + targetCount;
+    
+    return rawLiveBars.slice(startIndex, endIndex);
+  }, [rawLiveBars, zoomLevel, panOffset]);
+
+  // Zoom Handler Helpers
+  const handleZoomIn = useCallback(() => {
+    setZoomLevel(prev => Math.min(4.0, Number((prev + 0.25).toFixed(2))));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setZoomLevel(prev => Math.max(0.5, Number((prev - 0.25).toFixed(2))));
+  }, []);
+
+  const handleResetZoom = useCallback(() => {
+    setZoomLevel(1.0);
+    setPanOffset(0);
+  }, []);
+
+  // Mouse Wheel Zoom
+  const handleWheel = useCallback((e) => {
+    if (e.ctrlKey || e.metaKey || true) {
+      // Zoom in or out
+      if (e.deltaY < 0) {
+        setZoomLevel(prev => Math.min(4.0, Number((prev + 0.15).toFixed(2))));
+      } else {
+        setZoomLevel(prev => Math.max(0.5, Number((prev - 0.15).toFixed(2))));
+      }
+    }
+  }, []);
+
+  // Touch Pinch-to-Zoom Handlers for Mobile Devices
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      touchStartDist.current = dist;
+    } else if (e.touches.length === 1) {
+      isDraggingPan.current = true;
+      dragStartX.current = e.touches[0].clientX;
+      dragStartPan.current = panOffset;
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 2 && touchStartDist.current) {
+      const currentDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const delta = currentDist - touchStartDist.current;
+      if (Math.abs(delta) > 8) {
+        if (delta > 0) {
+          setZoomLevel(prev => Math.min(4.0, Number((prev + 0.08).toFixed(2))));
+        } else {
+          setZoomLevel(prev => Math.max(0.5, Number((prev - 0.08).toFixed(2))));
+        }
+        touchStartDist.current = currentDist;
+      }
+    } else if (e.touches.length === 1 && isDraggingPan.current) {
+      const deltaX = e.touches[0].clientX - dragStartX.current;
+      const barShift = Math.round(deltaX / 12);
+      setPanOffset(Math.max(0, dragStartPan.current + barShift));
+    }
+  };
+
+  const handleTouchEnd = () => {
+    touchStartDist.current = null;
+    isDraggingPan.current = false;
+  };
 
   // Compute Heikin Ashi if chartType === 'heikin_ashi'
   const displayBars = useMemo(() => {
@@ -511,7 +609,7 @@ export default function TradingViewPSXChart({
       return cumVol > 0 ? cumVolPrice / cumVol : b.close;
     });
 
-    // SuperTrend (10, 3 approx)
+    // SuperTrend
     const supertrend = closes.map((c, i) => {
       const hl2 = (highs[i] + lows[i]) / 2;
       return c >= hl2 ? hl2 - (highs[i] - lows[i]) * 0.8 : hl2 + (highs[i] - lows[i]) * 0.8;
@@ -633,13 +731,13 @@ export default function TradingViewPSXChart({
   const svgWidth = 1000;
   const svgHeight = isFullScreen ? 680 : 460;
   const paddingLeft = 14;
-  const paddingRight = 72;
+  const paddingRight = 68;
   const paddingTop = 26;
-  const paddingBottom = 28;
+  const paddingBottom = 26;
 
-  const subPanelHeight = activeSubPanels.length > 0 ? Math.min(85, Math.floor(180 / activeSubPanels.length)) : 0;
+  const subPanelHeight = activeSubPanels.length > 0 ? Math.min(80, Math.floor(160 / activeSubPanels.length)) : 0;
   const totalSubPanelsHeight = subPanelHeight * activeSubPanels.length;
-  const volumePanelHeight = chartSettings.showVolume ? 60 : 0;
+  const volumePanelHeight = chartSettings.showVolume ? 55 : 0;
 
   const mainChartHeight = svgHeight - paddingTop - paddingBottom - totalSubPanelsHeight - volumePanelHeight;
   const chartWidth = svgWidth - paddingLeft - paddingRight;
@@ -701,8 +799,8 @@ export default function TradingViewPSXChart({
     return { minPrice: minP, maxPrice: maxP, priceRange, points, maxVol, baselineY };
   }, [displayBars, mainChartHeight, chartWidth, activeIndicators, indicatorSeries, volumePanelHeight]);
 
-  // Candle width based on point count
-  const candleWidth = Math.max(3.5, Math.min(18, (chartWidth / (displayBars.length || 1)) * 0.72));
+  // Candle width based on point count (scales smoothly with zoom)
+  const candleWidth = Math.max(3.5, Math.min(26, (chartWidth / (displayBars.length || 1)) * 0.72));
 
   // Snap magnet helper
   const getNearestPoint = (mouseX, mouseY) => {
@@ -734,8 +832,15 @@ export default function TradingViewPSXChart({
     return { x: mouseX, y: mouseY, price, date: nearest.date };
   };
 
-  // SVG Mouse Interaction for Drawing & Crosshair
+  // SVG Mouse Interaction for Drawing, Crosshair & Panning
   const handleSvgMouseDown = (e) => {
+    if (selectedTool === 'pan') {
+      isDraggingPan.current = true;
+      dragStartX.current = e.clientX;
+      dragStartPan.current = panOffset;
+      return;
+    }
+
     if (drawingsLocked) return;
     const rect = svgRef.current.getBoundingClientRect();
     const mouseX = ((e.clientX - rect.left) / rect.width) * svgWidth;
@@ -761,7 +866,7 @@ export default function TradingViewPSXChart({
         id: Date.now()
       });
     } else if (selectedTool === 'text') {
-      const textVal = prompt('Enter chart annotation text:', 'Key Level / Breakout');
+      const textVal = prompt('Enter chart annotation text:', 'Support / Resistance Level');
       if (textVal) {
         setDrawings(prev => [...prev, {
           type: 'text',
@@ -785,6 +890,13 @@ export default function TradingViewPSXChart({
   };
 
   const handleSvgMouseMove = (e) => {
+    if (isDraggingPan.current) {
+      const deltaX = e.clientX - dragStartX.current;
+      const barShift = Math.round(deltaX / 14);
+      setPanOffset(Math.max(0, dragStartPan.current + barShift));
+      return;
+    }
+
     if (!svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
     const mouseX = ((e.clientX - rect.left) / rect.width) * svgWidth;
@@ -817,6 +929,9 @@ export default function TradingViewPSXChart({
   };
 
   const handleSvgMouseUp = () => {
+    if (isDraggingPan.current) {
+      isDraggingPan.current = false;
+    }
     if (activeDrawing) {
       setDrawings(prev => [...prev, activeDrawing]);
       setActiveDrawing(null);
@@ -871,7 +986,7 @@ export default function TradingViewPSXChart({
   // Volume Formatter Helper
   const formatVol = (v) => {
     const num = Number(v) || 0;
-    if (num >= 1000000) return `${(num / 1000000).toFixed(3)}M`;
+    if (num >= 1000000) return `${(num / 1000000).toFixed(2)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toLocaleString();
   };
@@ -879,240 +994,295 @@ export default function TradingViewPSXChart({
   return (
     <div
       ref={containerRef}
-      className={`relative bg-[#0B0F19] text-gray-200 select-none flex flex-col font-sans overflow-hidden border border-gray-800 ${
-        isFullScreen ? 'fixed inset-0 z-[100] w-screen h-screen rounded-none' : 'w-full rounded-2xl shadow-2xl min-h-[580px]'
+      className={`relative bg-[#0B0F19] text-gray-200 select-none flex flex-col font-sans overflow-hidden border border-gray-800 transition-all ${
+        isFullScreen ? 'fixed inset-0 z-[1000] w-screen h-screen rounded-none' : 'w-full rounded-2xl shadow-2xl min-h-[420px] sm:min-h-[500px] md:min-h-[580px]'
       }`}
     >
-      {/* 1. TOP HEADER TOOLBAR */}
-      <div className="flex flex-wrap items-center justify-between px-3 py-2 bg-[#0E1322] border-b border-gray-800 text-xs gap-2 shrink-0">
-        {/* Left Side: Symbol, Search, Compare, Timeframes, Graph Type */}
-        <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-          {/* Symbol Search Button */}
-          <button
-            onClick={() => setShowSearchModal(true)}
-            className="flex items-center space-x-1.5 px-2.5 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/40 rounded-lg text-cyan-300 font-extrabold cursor-pointer transition-colors"
-            title="Search Symbol (Ctrl+K)"
-          >
-            <Search className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="font-mono text-xs">{currentSymbol}</span>
-            <span className="text-[10px] text-gray-400 font-normal hidden md:inline truncate max-w-[110px]">
-              {companyName}
+      {/* 1. SMART ADAPTIVE MULTI-TIER HEADER TOOLBAR */}
+      <div className="flex flex-col bg-[#0E1322] border-b border-gray-800 text-xs shrink-0 divide-y divide-gray-800/60">
+        {/* TIER 1: Symbol Search, Compare, Zoom Controls, Settings, Snapshot & Fullscreen */}
+        <div className="flex items-center justify-between px-2.5 sm:px-3 py-1.5 gap-1.5 flex-wrap">
+          {/* Left: Symbol & Compare */}
+          <div className="flex items-center space-x-1 sm:space-x-1.5">
+            {/* Symbol Search Button */}
+            <button
+              onClick={() => setShowSearchModal(true)}
+              className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 py-1 bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 rounded-lg text-cyan-300 font-extrabold cursor-pointer transition-colors shadow-xs"
+              title="Search Symbol (Ctrl+K)"
+            >
+              <Search className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span className="font-mono text-xs font-black">{currentSymbol}</span>
+              <span className="text-[10px] text-gray-400 font-normal hidden lg:inline truncate max-w-[120px]">
+                {companyName}
+              </span>
+            </button>
+
+            {/* Compare Symbol (+) */}
+            <button
+              onClick={() => setShowCompareModal(true)}
+              className={`flex items-center space-x-1 px-2 py-1 rounded-lg border text-xs font-bold cursor-pointer transition-colors ${
+                compareSymbol ? 'bg-amber-500/20 border-amber-500/40 text-amber-300' : 'bg-gray-800/80 border-gray-700 text-gray-300 hover:text-white'
+              }`}
+              title="Compare or Add Symbol"
+            >
+              <Plus className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">{compareSymbol ? `vs ${compareSymbol}` : 'Compare'}</span>
+            </button>
+
+            {/* Live Price Tag Pill */}
+            <div className="hidden xs:flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-gray-900 border border-gray-800 font-mono text-[11px]">
+              <span className="text-gray-400">PKR</span>
+              <span className="font-black text-white">{Number(currentPrice).toFixed(2)}</span>
+              <span className={`text-[10px] font-bold ${isBullish ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {isBullish ? '+' : ''}{Number(changePercent).toFixed(1)}%
+              </span>
+            </div>
+          </div>
+
+          {/* Center/Right: Quick Zoom In/Out Toolbar Pill */}
+          <div className="flex items-center space-x-1 bg-gray-900/90 px-1.5 py-0.5 rounded-lg border border-gray-800 font-mono text-[11px]">
+            <button
+              onClick={handleZoomIn}
+              className="p-1 hover:bg-gray-800 text-gray-300 hover:text-cyan-400 rounded cursor-pointer transition-colors"
+              title="Zoom In (Ctrl + Scroll Up)"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+            <span className="text-[10px] text-cyan-300 font-bold px-1 min-w-[36px] text-anchor-center text-center">
+              {Math.round(zoomLevel * 100)}%
             </span>
-          </button>
+            <button
+              onClick={handleZoomOut}
+              className="p-1 hover:bg-gray-800 text-gray-300 hover:text-cyan-400 rounded cursor-pointer transition-colors"
+              title="Zoom Out (Ctrl + Scroll Down)"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            {zoomLevel !== 1.0 && (
+              <button
+                onClick={handleResetZoom}
+                className="p-1 hover:bg-gray-800 text-amber-400 hover:text-amber-300 rounded cursor-pointer transition-colors"
+                title="Reset Zoom to 100%"
+              >
+                <RotateCcw className="w-3 h-3" />
+              </button>
+            )}
+          </div>
 
-          {/* Compare Symbol (+) */}
-          <button
-            onClick={() => setShowCompareModal(true)}
-            className={`flex items-center space-x-1 px-2 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-colors ${
-              compareSymbol ? 'bg-amber-500/20 border-amber-500/40 text-amber-300' : 'bg-gray-800/80 border-gray-700 text-gray-300 hover:text-white'
-            }`}
-            title="Compare or Add Symbol"
-          >
-            <Plus className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">{compareSymbol ? `vs ${compareSymbol}` : 'Compare'}</span>
-          </button>
+          {/* Right Action Icons: Settings, Snapshot, Fullscreen, Close */}
+          <div className="flex items-center space-x-1">
+            {/* Live 1s Badge */}
+            <div className="hidden md:flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono font-bold text-emerald-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+              <span>LIVE 1s</span>
+            </div>
 
-          <div className="h-4 w-px bg-gray-800 mx-0.5" />
+            {/* Mobile Drawing Tools Toggle Button */}
+            <button
+              onClick={() => setShowMobileDrawingTools(!showMobileDrawingTools)}
+              className={`p-1.5 rounded-lg border cursor-pointer transition-colors md:hidden ${
+                showMobileDrawingTools ? 'bg-cyan-500 text-black border-cyan-400 shadow-sm' : 'bg-gray-900 border-gray-800 text-gray-400 hover:text-white'
+              }`}
+              title="Toggle Drawing Tools"
+            >
+              <PenTool className="w-3.5 h-3.5" />
+            </button>
 
-          {/* Timeframe Selector with Dropdown */}
-          <div className="relative">
+            {/* Chart Settings Button */}
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-white cursor-pointer transition-colors"
+              title="Chart Settings"
+            >
+              <Sliders className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Camera Snapshot Button */}
+            <button
+              onClick={handleTakeSnapshot}
+              className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-cyan-400 cursor-pointer transition-colors"
+              title="Take Snapshot / Export PNG"
+            >
+              <Camera className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Position Sizer Button */}
+            {onOpenCalculator && (
+              <button
+                onClick={() => onOpenCalculator({ symbol: currentSymbol, currentPrice })}
+                className="p-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30 text-xs font-bold cursor-pointer transition-colors hidden sm:flex items-center space-x-1"
+                title="Open Position Sizer Calculator"
+              >
+                <Activity className="w-3.5 h-3.5" />
+                <span className="hidden lg:inline text-[11px]">Sizer</span>
+              </button>
+            )}
+
+            {/* Fullscreen Toggle */}
+            <button
+              onClick={() => setIsFullScreen(!isFullScreen)}
+              className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 hover:border-cyan-500/40 text-gray-400 hover:text-cyan-400 cursor-pointer transition-colors"
+              title={isFullScreen ? 'Exit Fullscreen' : 'Fullscreen Chart'}
+            >
+              {isFullScreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </button>
+
+            {/* Close Modal if callback exists */}
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 cursor-pointer transition-colors ml-1"
+                title="Close Chart"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* TIER 2: Timeframe Ribbon, 12 Chart Styles Selector, Indicators Trigger */}
+        <div className="flex items-center justify-between px-2.5 sm:px-3 py-1 gap-2 overflow-x-auto no-scrollbar">
+          {/* Left: Timeframe Selector Ribbon */}
+          <div className="flex items-center space-x-1 shrink-0">
             <div className="flex items-center space-x-0.5 bg-gray-900/90 p-0.5 rounded-lg border border-gray-800 font-mono text-[11px] font-bold">
-              {['1s', '5s', '15s', '1m', '5m', '15m', '1h', '1D', '1W'].map(tf => (
+              {['1s', '5s', '1m', '5m', '15m', '1h', '1D', '1W'].map(tf => (
                 <button
                   key={tf}
                   onClick={() => setTimeframe(tf)}
-                  className={`px-1.5 py-1 rounded transition-colors cursor-pointer ${
-                    timeframe === tf ? 'bg-cyan-500 text-black shadow-sm font-black' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                  className={`px-1.5 py-0.5 rounded transition-colors cursor-pointer text-[10px] sm:text-[11px] ${
+                    timeframe === tf ? 'bg-cyan-500 text-black shadow-xs font-black' : 'text-gray-400 hover:text-white hover:bg-gray-800'
                   }`}
                 >
                   {tf}
                 </button>
               ))}
+              <div className="relative inline-block">
+                <button
+                  onClick={() => setShowTimeframeDropdown(!showTimeframeDropdown)}
+                  className="px-1 py-0.5 text-gray-400 hover:text-white rounded hover:bg-gray-800 cursor-pointer flex items-center"
+                  title="More Timeframes"
+                >
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+
+                {/* Timeframe Dropdown Menu (Smart Mobile-Safe Positioning) */}
+                {showTimeframeDropdown && (
+                  <div className="absolute top-full left-0 mt-1 w-48 sm:w-52 bg-[#0F172A] border border-gray-700 rounded-xl shadow-2xl py-1.5 z-50 text-xs backdrop-blur-xl max-h-80 overflow-y-auto">
+                    <div className="px-3 py-1 text-[10px] text-cyan-400 font-extrabold uppercase tracking-wider flex items-center justify-between">
+                      <span>Seconds (Live Ticks)</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                    </div>
+                    {['1s', '5s', '15s', '30s'].map(tf => (
+                      <button
+                        key={tf}
+                        onClick={() => { setTimeframe(tf); setShowTimeframeDropdown(false); }}
+                        className="w-full text-left px-3 py-1 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
+                      >
+                        <span>{tf} ({tf === '1s' ? '1 Second' : `${tf.replace('s','')} Sec`})</span>
+                        {timeframe === tf && <Check className="w-3.5 h-3.5 text-cyan-400" />}
+                      </button>
+                    ))}
+                    <div className="border-t border-gray-800 my-1" />
+                    <div className="px-3 py-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider">Minutes</div>
+                    {['1m', '3m', '5m', '15m', '30m', '45m'].map(tf => (
+                      <button
+                        key={tf}
+                        onClick={() => { setTimeframe(tf); setShowTimeframeDropdown(false); }}
+                        className="w-full text-left px-3 py-1 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
+                      >
+                        <span>{tf} ({tf.replace('m', '')} Min)</span>
+                        {timeframe === tf && <Check className="w-3.5 h-3.5 text-cyan-400" />}
+                      </button>
+                    ))}
+                    <div className="border-t border-gray-800 my-1" />
+                    <div className="px-3 py-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider">Hours & Days</div>
+                    {['1h', '2h', '4h', '1D', '1W', '1M'].map(tf => (
+                      <button
+                        key={tf}
+                        onClick={() => { setTimeframe(tf); setShowTimeframeDropdown(false); }}
+                        className="w-full text-left px-3 py-1 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
+                      >
+                        <span>{tf}</span>
+                        {timeframe === tf && <Check className="w-3.5 h-3.5 text-cyan-400" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Chart Type & Indicators Trigger */}
+          <div className="flex items-center space-x-1.5 shrink-0">
+            {/* 12 Graph Types Dropdown Selector with Safe Positioning */}
+            <div className="relative">
               <button
-                onClick={() => setShowTimeframeDropdown(!showTimeframeDropdown)}
-                className="px-1 py-1 text-gray-400 hover:text-white rounded hover:bg-gray-800 cursor-pointer"
+                onClick={() => setShowChartTypeDropdown(!showChartTypeDropdown)}
+                className="flex items-center space-x-1 px-2 py-1 bg-gray-900 border border-gray-800 hover:border-cyan-500/50 rounded-lg text-xs font-bold text-gray-200 hover:text-white cursor-pointer transition-colors"
+                title="Select Graph Type (12 Styles)"
               >
-                <ChevronDown className="w-3 h-3" />
+                <span>{CHART_TYPES.find(c => c.id === chartType)?.icon || '🕯️'}</span>
+                <span className="hidden sm:inline font-medium text-[11px]">{CHART_TYPES.find(c => c.id === chartType)?.label || 'Candles'}</span>
+                <ChevronDown className="w-3 h-3 text-gray-400" />
               </button>
+
+              {/* 12 Chart Types Popup List (Right-aligned on mobile to prevent cut-off) */}
+              {showChartTypeDropdown && (
+                <div className="absolute top-full right-0 sm:left-0 mt-1 w-52 sm:w-56 bg-[#0E1424] border border-cyan-500/30 rounded-xl shadow-2xl py-2 z-50 backdrop-blur-xl">
+                  <div className="px-3 py-1 text-[10px] uppercase font-bold text-gray-400 border-b border-gray-800 mb-1">
+                    PSX Chart Styles (12)
+                  </div>
+                  <div className="max-h-72 overflow-y-auto space-y-0.5 px-1">
+                    {CHART_TYPES.map(ct => (
+                      <button
+                        key={ct.id}
+                        onClick={() => { setChartType(ct.id); setShowChartTypeDropdown(false); }}
+                        className={`w-full text-left px-2 py-1 rounded-lg flex items-center justify-between transition-colors cursor-pointer ${
+                          chartType === ct.id ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30' : 'text-gray-300 hover:bg-gray-800/80 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm">{ct.icon}</span>
+                          <span className="text-xs">{ct.label}</span>
+                        </div>
+                        {chartType === ct.id && <Check className="w-3.5 h-3.5 text-cyan-400" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Timeframe Dropdown Menu */}
-            {showTimeframeDropdown && (
-              <div className="absolute top-full left-0 mt-1 w-52 bg-[#0F172A] border border-gray-700 rounded-xl shadow-2xl py-1.5 z-50 text-xs backdrop-blur-xl">
-                <div className="px-3 py-1 text-[10px] text-cyan-400 font-extrabold uppercase tracking-wider flex items-center justify-between">
-                  <span>Seconds (Live Ticks)</span>
-                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                </div>
-                {['1s', '5s', '15s', '30s'].map(tf => (
-                  <button
-                    key={tf}
-                    onClick={() => { setTimeframe(tf); setShowTimeframeDropdown(false); }}
-                    className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
-                  >
-                    <span>{tf} ({tf === '1s' ? '1 Second' : `${tf.replace('s','')} Seconds`})</span>
-                    {timeframe === tf && <Check className="w-3.5 h-3.5 text-cyan-400" />}
-                  </button>
-                ))}
-                <div className="border-t border-gray-800 my-1" />
-                <div className="px-3 py-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider">Minutes</div>
-                {['1m', '3m', '5m', '15m', '30m', '45m'].map(tf => (
-                  <button
-                    key={tf}
-                    onClick={() => { setTimeframe(tf); setShowTimeframeDropdown(false); }}
-                    className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
-                  >
-                    <span>{tf} ({tf.replace('m', '')} Min)</span>
-                    {timeframe === tf && <Check className="w-3.5 h-3.5 text-cyan-400" />}
-                  </button>
-                ))}
-                <div className="border-t border-gray-800 my-1" />
-                <div className="px-3 py-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider">Hours & Days</div>
-                {['1h', '2h', '4h', '1D', '1W', '1M'].map(tf => (
-                  <button
-                    key={tf}
-                    onClick={() => { setTimeframe(tf); setShowTimeframeDropdown(false); }}
-                    className="w-full text-left px-3 py-1.5 hover:bg-gray-800 flex items-center justify-between text-gray-200 cursor-pointer"
-                  >
-                    <span>{tf}</span>
-                    {timeframe === tf && <Check className="w-3.5 h-3.5 text-cyan-400" />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="h-4 w-px bg-gray-800 mx-0.5" />
-
-          {/* 12 Graph Types Dropdown Selector */}
-          <div className="relative">
+            {/* Indicators Modal Trigger */}
             <button
-              onClick={() => setShowChartTypeDropdown(!showChartTypeDropdown)}
-              className="flex items-center space-x-1.5 px-2.5 py-1.5 bg-gray-900 border border-gray-800 hover:border-cyan-500/50 rounded-lg text-xs font-bold text-gray-200 hover:text-white cursor-pointer transition-colors"
-              title="Select Graph Type (12 Types Available)"
+              onClick={() => setShowIndicatorsModal(true)}
+              className="flex items-center space-x-1 px-2 py-1 bg-gradient-to-r from-blue-600/20 to-purple-600/20 hover:from-blue-600/30 hover:to-purple-600/30 border border-purple-500/30 rounded-lg text-xs font-bold text-purple-200 cursor-pointer transition-colors shadow-xs"
+              title="Technical Indicators (fx)"
             >
-              <span>{CHART_TYPES.find(c => c.id === chartType)?.icon || '🕯️'}</span>
-              <span className="hidden sm:inline font-medium">{CHART_TYPES.find(c => c.id === chartType)?.label || 'Candles'}</span>
-              <ChevronDown className="w-3 h-3 text-gray-400" />
+              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+              <span className="font-bold text-[11px]">fx <span className="hidden sm:inline">Indicators</span></span>
+              {Object.values(activeIndicators).filter(Boolean).length > 0 && (
+                <span className="ml-0.5 px-1.5 py-0.2 bg-purple-500 text-black text-[9px] font-black rounded-full">
+                  {Object.values(activeIndicators).filter(Boolean).length}
+                </span>
+              )}
             </button>
-
-            {/* 12 Chart Types Popup List */}
-            {showChartTypeDropdown && (
-              <div className="absolute top-full left-0 mt-1 w-56 bg-[#0E1424] border border-cyan-500/30 rounded-xl shadow-2xl py-2 z-50 backdrop-blur-xl">
-                <div className="px-3 py-1 text-[10px] uppercase font-bold text-gray-400 border-b border-gray-800 mb-1">
-                  PSX Chart Styles (12)
-                </div>
-                <div className="max-h-80 overflow-y-auto space-y-0.5 px-1">
-                  {CHART_TYPES.map(ct => (
-                    <button
-                      key={ct.id}
-                      onClick={() => { setChartType(ct.id); setShowChartTypeDropdown(false); }}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between transition-colors cursor-pointer ${
-                        chartType === ct.id ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30' : 'text-gray-300 hover:bg-gray-800/80 hover:text-white'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm">{ct.icon}</span>
-                        <div>
-                          <div className="text-xs">{ct.label}</div>
-                        </div>
-                      </div>
-                      {chartType === ct.id && <Check className="w-3.5 h-3.5 text-cyan-400" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
-
-          <div className="h-4 w-px bg-gray-800 mx-0.5" />
-
-          {/* Indicators Modal Trigger */}
-          <button
-            onClick={() => setShowIndicatorsModal(true)}
-            className="flex items-center space-x-1.5 px-2.5 py-1.5 bg-gradient-to-r from-blue-600/20 to-purple-600/20 hover:from-blue-600/30 hover:to-purple-600/30 border border-purple-500/30 rounded-lg text-xs font-bold text-purple-200 cursor-pointer transition-colors shadow-sm"
-            title="Technical Indicators (fx)"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-            <span className="font-bold">fx Indicators</span>
-            {Object.values(activeIndicators).filter(Boolean).length > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 bg-purple-500 text-black text-[10px] font-black rounded-full">
-                {Object.values(activeIndicators).filter(Boolean).length}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* Right Side: Live Ticker Telemetry, Settings, Snapshot, Fullscreen, Close */}
-        <div className="flex items-center space-x-1.5">
-          {/* Real-time Tick Telemetry Badge */}
-          <div className="hidden md:flex items-center space-x-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono font-bold text-emerald-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-            <span>LIVE 1s</span>
-            <span className="text-gray-400">|</span>
-            <span className="text-cyan-300">+{lastTickInfo.vol?.toLocaleString()} vol/s</span>
-          </div>
-
-          {/* Chart Settings Button */}
-          <button
-            onClick={() => setShowSettingsModal(true)}
-            className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-white cursor-pointer transition-colors"
-            title="Chart Settings"
-          >
-            <Sliders className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Camera Snapshot Button */}
-          <button
-            onClick={handleTakeSnapshot}
-            className="flex items-center space-x-1 px-2 py-1.5 rounded-lg bg-gray-900 border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-cyan-400 cursor-pointer transition-colors"
-            title="Take Snapshot / Export PNG"
-          >
-            <Camera className="w-3.5 h-3.5" />
-            {snapshotCopied && <span className="text-[10px] text-cyan-400 font-bold">Saved!</span>}
-          </button>
-
-          {/* Order Calculator */}
-          {onOpenCalculator && (
-            <button
-              onClick={() => onOpenCalculator({ symbol: currentSymbol, currentPrice })}
-              className="px-2 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30 text-xs font-bold cursor-pointer transition-colors hidden sm:flex items-center space-x-1"
-              title="Open Position Sizer"
-            >
-              <Activity className="w-3.5 h-3.5" />
-              <span>Position Sizer</span>
-            </button>
-          )}
-
-          {/* Fullscreen Toggle */}
-          <button
-            onClick={() => setIsFullScreen(!isFullScreen)}
-            className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 hover:border-cyan-500/40 text-gray-400 hover:text-cyan-400 cursor-pointer transition-colors"
-            title={isFullScreen ? 'Exit Fullscreen' : 'Fullscreen Chart'}
-          >
-            {isFullScreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-          </button>
-
-          {/* Close Modal if callback exists */}
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 cursor-pointer transition-colors ml-1"
-              title="Close Chart Station"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
       </div>
 
-      {/* 2. MAIN WORKSPACE: LEFT DRAWING TOOLBAR + SVG CANVAS */}
+      {/* 2. MAIN WORKSPACE: DRAWING TOOLBAR + SVG CANVAS */}
       <div className="flex-1 flex flex-row relative overflow-hidden">
-        {/* LEFT DRAWING TOOLBAR */}
-        <div className="w-10 sm:w-11 bg-[#0A0E1A] border-r border-gray-800/90 flex flex-col items-center py-2 space-y-1 z-30 shrink-0 select-none">
+        {/* DRAWING TOOLBAR: Persistent on desktop (`md:`), Toggleable drawer on mobile */}
+        <div
+          className={`${
+            showMobileDrawingTools ? 'flex absolute top-0 left-0 bottom-0 shadow-2xl z-40' : 'hidden md:flex'
+          } w-10 sm:w-11 bg-[#0A0E1A] border-r border-gray-800/90 flex-col items-center py-2 space-y-1 z-30 shrink-0 select-none overflow-y-auto`}
+        >
           {/* 1. Crosshair Pointer */}
           <button
             onClick={() => setSelectedTool('crosshair')}
-            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
               selectedTool === 'crosshair' ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30' : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
             title="Crosshair / Pointer"
@@ -1120,10 +1290,21 @@ export default function TradingViewPSXChart({
             <Crosshair className="w-4 h-4" />
           </button>
 
+          {/* Pan Tool */}
+          <button
+            onClick={() => setSelectedTool('pan')}
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
+              selectedTool === 'pan' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+            }`}
+            title="Pan / Drag Chart"
+          >
+            <Move className="w-4 h-4" />
+          </button>
+
           {/* 2. Trend Line */}
           <button
             onClick={() => setSelectedTool('trendline')}
-            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
               selectedTool === 'trendline' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
             title="Trend Line (Draw support/resistance)"
@@ -1134,7 +1315,7 @@ export default function TradingViewPSXChart({
           {/* 3. Horizontal Ray */}
           <button
             onClick={() => setSelectedTool('horizontal_ray')}
-            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
               selectedTool === 'horizontal_ray' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
             title="Horizontal Ray / Price Level"
@@ -1145,10 +1326,10 @@ export default function TradingViewPSXChart({
           {/* 4. Fibonacci Retracement */}
           <button
             onClick={() => setSelectedTool('fib')}
-            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
               selectedTool === 'fib' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
-            title="Fibonacci Retracement (0.236, 0.382, 0.5, 0.618, 0.786)"
+            title="Fibonacci Retracement"
           >
             <Sliders className="w-4 h-4 text-amber-400" />
           </button>
@@ -1156,7 +1337,7 @@ export default function TradingViewPSXChart({
           {/* 5. Parallel Channel */}
           <button
             onClick={() => setSelectedTool('channel')}
-            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
               selectedTool === 'channel' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
             title="Parallel Price Channel"
@@ -1167,7 +1348,7 @@ export default function TradingViewPSXChart({
           {/* 6. Brush / Freehand Draw */}
           <button
             onClick={() => setSelectedTool('brush')}
-            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
               selectedTool === 'brush' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
             title="Brush / Freehand Drawing"
@@ -1178,7 +1359,7 @@ export default function TradingViewPSXChart({
           {/* 7. Text Annotation */}
           <button
             onClick={() => setSelectedTool('text')}
-            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
               selectedTool === 'text' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
             title="Text Note / Annotation"
@@ -1190,10 +1371,10 @@ export default function TradingViewPSXChart({
           <div className="relative group">
             <button
               onClick={() => setSelectedTool('sticker')}
-              className={`p-2 rounded-lg transition-colors cursor-pointer ${
+              className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
                 selectedTool === 'sticker' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
               }`}
-              title="Stickers / Emojis (Bull/Bear)"
+              title="Stickers / Emojis"
             >
               <Smile className="w-4 h-4 text-yellow-400" />
             </button>
@@ -1213,7 +1394,7 @@ export default function TradingViewPSXChart({
           {/* 9. Measurement Ruler */}
           <button
             onClick={() => setSelectedTool('ruler')}
-            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
               selectedTool === 'ruler' ? 'bg-cyan-500 text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
             title="Measure Ruler (% Gain/Loss & Bar Count)"
@@ -1226,29 +1407,18 @@ export default function TradingViewPSXChart({
           {/* 10. Magnet Mode */}
           <button
             onClick={() => setMagnetMode(!magnetMode)}
-            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
               magnetMode ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
             }`}
-            title={magnetMode ? 'Magnet Mode ON (Snap to OHLC)' : 'Magnet Mode OFF'}
+            title={magnetMode ? 'Magnet Mode ON' : 'Magnet Mode OFF'}
           >
             <Magnet className="w-4 h-4" />
           </button>
 
-          {/* 11. Stay in Drawing Mode */}
-          <button
-            onClick={() => setStayInDrawingMode(!stayInDrawingMode)}
-            className={`p-2 rounded-lg transition-colors cursor-pointer ${
-              stayInDrawingMode ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
-            }`}
-            title={stayInDrawingMode ? 'Stay in Drawing Mode (Active)' : 'Single Draw Mode'}
-          >
-            <Zap className="w-4 h-4" />
-          </button>
-
-          {/* 12. Lock All Drawings */}
+          {/* 11. Lock All Drawings */}
           <button
             onClick={() => setDrawingsLocked(!drawingsLocked)}
-            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
               drawingsLocked ? 'bg-amber-600 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
             }`}
             title={drawingsLocked ? 'Drawings Locked' : 'Drawings Unlocked'}
@@ -1256,74 +1426,60 @@ export default function TradingViewPSXChart({
             {drawingsLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
           </button>
 
-          {/* 13. Hide / Show All Drawings */}
-          <button
-            onClick={() => setDrawingsVisible(!drawingsVisible)}
-            className={`p-2 rounded-lg transition-colors cursor-pointer ${
-              !drawingsVisible ? 'bg-gray-700 text-gray-300' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
-            }`}
-            title={drawingsVisible ? 'Hide Drawings' : 'Show Drawings'}
-          >
-            {drawingsVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-          </button>
-
-          {/* 14. Clear All Drawings */}
+          {/* 12. Clear All Drawings */}
           <button
             onClick={() => setDrawings([])}
-            className="p-2 rounded-lg text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer mt-auto"
+            className="p-1.5 sm:p-2 rounded-lg text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer mt-auto"
             title="Clear All Drawings"
           >
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
 
-        {/* CHART DISPLAY AREA */}
+        {/* CHART CANVAS DISPLAY AREA */}
         <div className="flex-1 flex flex-col relative bg-[#070B14] overflow-hidden">
-          {/* Top OHLC & Volume Telemetry Legend */}
+          {/* Top OHLC & Volume Telemetry Legend (Clean & Compact on Mobile) */}
           {chartSettings.showLegend && (
-            <div className="absolute top-2 left-3 z-20 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] bg-[#070B14]/90 backdrop-blur-md px-2.5 py-1.5 rounded-lg border border-gray-800/80 pointer-events-none shadow-md">
-              <div className="flex items-center space-x-1.5">
+            <div className="absolute top-2 left-2 sm:left-3 z-20 flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-0.5 font-mono text-[9.5px] sm:text-[11px] bg-[#070B14]/90 backdrop-blur-md px-2 py-1 rounded-lg border border-gray-800/80 pointer-events-none shadow-md max-w-[calc(100%-16px)]">
+              <div className="flex items-center space-x-1">
                 <span className="font-black text-white">{currentSymbol}</span>
-                <span className="text-cyan-400 font-bold px-1.5 py-0.2 bg-cyan-500/15 border border-cyan-500/30 rounded text-[10px]">
+                <span className="text-cyan-400 font-bold px-1 py-0.2 bg-cyan-500/15 border border-cyan-500/30 rounded text-[9px]">
                   {timeframe}
                 </span>
-                <span className="text-gray-500 text-[10px]">PSX</span>
               </div>
 
               {activePt && (
                 <>
-                  <div className="flex items-center space-x-1">
+                  <div className="flex items-center space-x-0.5">
                     <span className="text-gray-500">O:</span>
                     <span className="text-gray-200 font-bold">{Number(activePt.open).toFixed(2)}</span>
                   </div>
-                  <div className="flex items-center space-x-1">
+                  <div className="flex items-center space-x-0.5">
                     <span className="text-gray-500">H:</span>
                     <span className="text-emerald-400 font-bold">{Number(activePt.high).toFixed(2)}</span>
                   </div>
-                  <div className="flex items-center space-x-1">
+                  <div className="flex items-center space-x-0.5">
                     <span className="text-gray-500">L:</span>
                     <span className="text-rose-400 font-bold">{Number(activePt.low).toFixed(2)}</span>
                   </div>
-                  <div className="flex items-center space-x-1">
+                  <div className="flex items-center space-x-0.5">
                     <span className="text-gray-500">C:</span>
                     <span className={`font-black ${activePt.isBull ? 'text-emerald-400' : 'text-rose-400'}`}>
                       {Number(activePt.close).toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex items-center space-x-1 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">
+                  <div className="flex items-center space-x-1 bg-cyan-500/10 px-1 py-0.2 rounded border border-cyan-500/20">
                     <span className="text-cyan-400 font-bold">Vol:</span>
                     <span className="text-white font-black">{formatVol(activePt.volume)}</span>
-                    <span className="text-gray-400 text-[9px] hidden sm:inline">({(Number(activePt.volume) || 0).toLocaleString()})</span>
                   </div>
-                  <div className="text-gray-400 text-[10px]">
+                  <div className="text-gray-400 text-[9px] hidden sm:inline">
                     [{activePt.date}]
                   </div>
                 </>
               )}
 
-              {/* Compare Legend */}
               {compareSymbol && compareData && (
-                <div className="flex items-center space-x-1 pl-2 border-l border-gray-700 text-amber-300">
+                <div className="flex items-center space-x-1 pl-1.5 border-l border-gray-700 text-amber-300">
                   <span>vs {compareSymbol}:</span>
                   <span className="font-bold">PKR {Number(compareData?.quote?.currentPrice || 0).toFixed(2)}</span>
                 </div>
@@ -1332,15 +1488,12 @@ export default function TradingViewPSXChart({
           )}
 
           {/* Active Overlay Indicators Legend */}
-          <div className="absolute top-10 left-3 z-10 flex flex-col space-y-0.5 text-[10px] font-mono pointer-events-none">
+          <div className="absolute top-10 left-2 sm:left-3 z-10 flex flex-col space-y-0.5 text-[9px] sm:text-[10px] font-mono pointer-events-none">
             {activeIndicators.sma20 && indicatorSeries.sma20 && (
               <span className="text-sky-400">SMA 20: {indicatorSeries.sma20[hoverIndex !== null ? hoverIndex : indicatorSeries.sma20.length - 1]?.toFixed(2) || '—'}</span>
             )}
             {activeIndicators.sma50 && indicatorSeries.sma50 && (
               <span className="text-amber-400">SMA 50: {indicatorSeries.sma50[hoverIndex !== null ? hoverIndex : indicatorSeries.sma50.length - 1]?.toFixed(2) || '—'}</span>
-            )}
-            {activeIndicators.sma200 && indicatorSeries.sma200 && (
-              <span className="text-pink-400">SMA 200: {indicatorSeries.sma200[hoverIndex !== null ? hoverIndex : indicatorSeries.sma200.length - 1]?.toFixed(2) || '—'}</span>
             )}
             {activeIndicators.ema9 && indicatorSeries.ema9 && (
               <span className="text-purple-400">EMA 9: {indicatorSeries.ema9[hoverIndex !== null ? hoverIndex : indicatorSeries.ema9.length - 1]?.toFixed(2) || '—'}</span>
@@ -1348,15 +1501,12 @@ export default function TradingViewPSXChart({
             {activeIndicators.bollinger && indicatorSeries.bbUpper && (
               <span className="text-indigo-400">BB (20, 2): {indicatorSeries.bbUpper[hoverIndex !== null ? hoverIndex : indicatorSeries.bbUpper.length - 1]?.toFixed(2)} / {indicatorSeries.bbLower[hoverIndex !== null ? hoverIndex : indicatorSeries.bbLower.length - 1]?.toFixed(2)}</span>
             )}
-            {activeIndicators.vwap && indicatorSeries.vwap && (
-              <span className="text-orange-400">VWAP: {indicatorSeries.vwap[hoverIndex !== null ? hoverIndex : indicatorSeries.vwap.length - 1]?.toFixed(2) || '—'}</span>
-            )}
           </div>
 
           {/* Background Watermark */}
           {chartSettings.showWatermark && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none">
-              <span className="text-8xl sm:text-9xl font-black font-mono tracking-widest text-white">{currentSymbol}</span>
+              <span className="text-7xl sm:text-9xl font-black font-mono tracking-widest text-white">{currentSymbol}</span>
             </div>
           )}
 
@@ -1364,12 +1514,48 @@ export default function TradingViewPSXChart({
           {isLoading && (
             <div className="absolute inset-0 z-40 bg-[#070B14]/70 backdrop-blur-sm flex items-center justify-center space-x-2 text-cyan-400 text-xs font-mono font-bold">
               <RefreshCw className="w-5 h-5 animate-spin text-cyan-400" />
-              <span>Streaming PSX Real-time Telemetry ({currentSymbol})...</span>
+              <span>Streaming PSX Telemetry ({currentSymbol})...</span>
             </div>
           )}
 
-          {/* PRIMARY SVG VECTOR GRAPH ENGINE */}
-          <div className="w-full h-full flex-1 relative cursor-crosshair">
+          {/* Floating On-Canvas Quick Zoom Controller Dock */}
+          <div className="absolute bottom-3 right-3 z-20 flex items-center space-x-1 bg-[#0B0F19]/90 backdrop-blur-md px-2 py-1 rounded-xl border border-gray-800 shadow-xl">
+            <button
+              onClick={handleZoomIn}
+              className="p-1 rounded hover:bg-gray-800 text-gray-400 hover:text-cyan-400 cursor-pointer transition-colors"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <span className="text-[10px] font-mono font-bold text-gray-300 min-w-[32px] text-center">
+              {Math.round(zoomLevel * 100)}%
+            </span>
+            <button
+              onClick={handleZoomOut}
+              className="p-1 rounded hover:bg-gray-800 text-gray-400 hover:text-cyan-400 cursor-pointer transition-colors"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            {zoomLevel !== 1.0 && (
+              <button
+                onClick={handleResetZoom}
+                className="p-1 rounded hover:bg-gray-800 text-amber-400 hover:text-amber-300 cursor-pointer transition-colors"
+                title="Reset View"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* PRIMARY SVG VECTOR GRAPH ENGINE (With Wheel Zoom & Pinch-to-Zoom Support) */}
+          <div
+            className="w-full h-full flex-1 relative cursor-crosshair touch-none"
+            onWheel={handleWheel}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
             <svg
               ref={svgRef}
               viewBox={`0 0 ${svgWidth} ${svgHeight}`}
@@ -1420,10 +1606,10 @@ export default function TradingViewPSXChart({
                 </g>
               )}
 
-              {/* 1. CHART GRAPH TYPE RENDERERS (All 12 Types) */}
+              {/* 1. CHART GRAPH TYPE RENDERERS (All 12 Styles) */}
               {chartDims.points.length > 0 && (
                 <g>
-                  {/* TYPE: CANDLES / HOLLOW CANDLES / HEIKIN ASHI */}
+                  {/* CANDLES / HOLLOW CANDLES / HEIKIN ASHI */}
                   {(chartType === 'candles' || chartType === 'hollow_candles' || chartType === 'heikin_ashi') && (
                     <g>
                       {chartDims.points.map((pt, i) => {
@@ -1434,9 +1620,7 @@ export default function TradingViewPSXChart({
 
                         return (
                           <g key={`candle_${i}`}>
-                            {/* Wick Line */}
                             <line x1={pt.x} y1={pt.yHigh} x2={pt.x} y2={pt.yLow} stroke={color} strokeWidth="1.2" />
-                            {/* Real Body */}
                             <rect
                               x={pt.x - candleWidth / 2}
                               y={bodyTop}
@@ -1453,7 +1637,7 @@ export default function TradingViewPSXChart({
                     </g>
                   )}
 
-                  {/* TYPE: BARS (OHLC) */}
+                  {/* BARS */}
                   {chartType === 'bars' && (
                     <g>
                       {chartDims.points.map((pt, i) => {
@@ -1461,11 +1645,8 @@ export default function TradingViewPSXChart({
                         const tickLen = candleWidth * 0.45;
                         return (
                           <g key={`bar_${i}`}>
-                            {/* High-Low Vertical Line */}
                             <line x1={pt.x} y1={pt.yHigh} x2={pt.x} y2={pt.yLow} stroke={color} strokeWidth="1.5" />
-                            {/* Open Tick (Left) */}
                             <line x1={pt.x - tickLen} y1={pt.yOpen} x2={pt.x} y2={pt.yOpen} stroke={color} strokeWidth="1.5" />
-                            {/* Close Tick (Right) */}
                             <line x1={pt.x} y1={pt.yClose} x2={pt.x + tickLen} y2={pt.yClose} stroke={color} strokeWidth="1.5" />
                           </g>
                         );
@@ -1473,7 +1654,7 @@ export default function TradingViewPSXChart({
                     </g>
                   )}
 
-                  {/* TYPE: LINE */}
+                  {/* LINE */}
                   {chartType === 'line' && (
                     <path
                       d={chartDims.points.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '')}
@@ -1485,7 +1666,7 @@ export default function TradingViewPSXChart({
                     />
                   )}
 
-                  {/* TYPE: LINE WITH MARKERS */}
+                  {/* LINE WITH MARKERS */}
                   {chartType === 'line_markers' && (
                     <g>
                       <path
@@ -1500,10 +1681,10 @@ export default function TradingViewPSXChart({
                     </g>
                   )}
 
-                  {/* TYPE: STEP LINE */}
+                  {/* STEP LINE */}
                   {chartType === 'step_line' && (
                     <path
-                      d={chartDims.points.reduce((acc, pt, i, arr) => {
+                      d={chartDims.points.reduce((acc, pt, i) => {
                         if (i === 0) return `M ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`;
                         return `${acc} H ${pt.x.toFixed(1)} V ${pt.y.toFixed(1)}`;
                       }, '')}
@@ -1513,7 +1694,7 @@ export default function TradingViewPSXChart({
                     />
                   )}
 
-                  {/* TYPE: AREA */}
+                  {/* AREA */}
                   {chartType === 'area' && (
                     <g>
                       <path
@@ -1529,7 +1710,7 @@ export default function TradingViewPSXChart({
                     </g>
                   )}
 
-                  {/* TYPE: HLC AREA */}
+                  {/* HLC AREA */}
                   {chartType === 'hlc_area' && (
                     <g>
                       <path
@@ -1547,7 +1728,7 @@ export default function TradingViewPSXChart({
                     </g>
                   )}
 
-                  {/* TYPE: BASELINE */}
+                  {/* BASELINE */}
                   {chartType === 'baseline' && (
                     <g>
                       <line x1={paddingLeft} y1={chartDims.baselineY} x2={svgWidth - paddingRight} y2={chartDims.baselineY} stroke="#94A3B8" strokeDasharray="3 3" strokeWidth="1.5" />
@@ -1564,7 +1745,7 @@ export default function TradingViewPSXChart({
                     </g>
                   )}
 
-                  {/* TYPE: COLUMNS */}
+                  {/* COLUMNS */}
                   {chartType === 'columns' && (
                     <g>
                       {chartDims.points.map((pt, i) => {
@@ -1578,7 +1759,7 @@ export default function TradingViewPSXChart({
                     </g>
                   )}
 
-                  {/* TYPE: HIGH-LOW */}
+                  {/* HIGH-LOW */}
                   {chartType === 'high_low' && (
                     <g>
                       {chartDims.points.map((pt, i) => {
@@ -1637,12 +1818,10 @@ export default function TradingViewPSXChart({
                 <path d={comparePath} fill="none" stroke="#F59E0B" strokeWidth="2.2" strokeDasharray="5 3" />
               )}
 
-              {/* 3. VOLUME SUB-PANEL (Renders exact volume histogram per second/candle) */}
+              {/* 3. VOLUME SUB-PANEL */}
               {chartSettings.showVolume && (
                 <g>
                   <line x1={paddingLeft} y1={paddingTop + mainChartHeight} x2={svgWidth - paddingRight} y2={paddingTop + mainChartHeight} stroke="#1E293B" />
-                  
-                  {/* Volume Header Label with Max Vol */}
                   <text x={paddingLeft + 4} y={paddingTop + mainChartHeight + 13} fill="#64748B" fontSize="8.5" fontFamily="monospace" fontWeight="bold">
                     VOL: {formatVol(chartDims.maxVol)} Max
                   </text>
@@ -1670,7 +1849,6 @@ export default function TradingViewPSXChart({
                     );
                   })}
 
-                  {/* Volume 20 MA line */}
                   {indicatorSeries.volumeMA && (
                     <path
                       d={buildSvgPath(indicatorSeries.volumeMA.map(v => (v ? chartDims.minPrice + (v / chartDims.maxVol) * chartDims.priceRange : null)))}
@@ -1801,7 +1979,6 @@ export default function TradingViewPSXChart({
                     return null;
                   })}
 
-                  {/* In-progress Active Drawing */}
                   {activeDrawing && (
                     <g>
                       {activeDrawing.type === 'trendline' && (
@@ -1821,25 +1998,22 @@ export default function TradingViewPSXChart({
               {/* 6. CROSSHAIR & HOVER TRACKER */}
               {activePt && selectedTool === 'crosshair' && (
                 <g>
-                  {/* Vertical Crosshair Line */}
                   <line x1={activePt.x} y1={paddingTop} x2={activePt.x} y2={svgHeight - paddingBottom} stroke="#38BDF8" strokeWidth="1" strokeDasharray="3 3" />
-                  {/* Horizontal Crosshair Line */}
                   <line x1={paddingLeft} y1={mouseCoord.y > 0 && mouseCoord.y < svgHeight - paddingBottom ? mouseCoord.y : activePt.y} x2={svgWidth - paddingRight} y2={mouseCoord.y > 0 && mouseCoord.y < svgHeight - paddingBottom ? mouseCoord.y : activePt.y} stroke="#38BDF8" strokeWidth="1" strokeDasharray="3 3" />
-                  {/* Highlight Point */}
                   <circle cx={activePt.x} cy={activePt.y} r="4.5" fill="#06B6D4" stroke="#FFFFFF" strokeWidth="2" />
 
                   {/* Y-Axis Hover Price Badge */}
                   <g transform={`translate(${svgWidth - paddingRight + 2}, ${(mouseCoord.y > 0 && mouseCoord.y < svgHeight - paddingBottom ? mouseCoord.y : activePt.y) - 9})`}>
-                    <rect width="68" height="18" fill="#0284C7" rx="3" />
-                    <text x="34" y="12" fill="#FFFFFF" fontSize="9.5" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
+                    <rect width="64" height="18" fill="#0284C7" rx="3" />
+                    <text x="32" y="12" fill="#FFFFFF" fontSize="9.5" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
                       {mouseCoord.price ? Number(mouseCoord.price).toFixed(2) : Number(activePt.close).toFixed(2)}
                     </text>
                   </g>
 
-                  {/* X-Axis Hover Time Badge with Seconds */}
-                  <g transform={`translate(${Math.max(paddingLeft, Math.min(activePt.x - 40, svgWidth - paddingRight - 80))}, ${svgHeight - paddingBottom + 3})`}>
-                    <rect width="80" height="16" fill="#1E293B" stroke="#0284C7" strokeWidth="1" rx="3" />
-                    <text x="40" y="11" fill="#38BDF8" fontSize="9" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
+                  {/* X-Axis Hover Time Badge */}
+                  <g transform={`translate(${Math.max(paddingLeft, Math.min(activePt.x - 38, svgWidth - paddingRight - 76))}, ${svgHeight - paddingBottom + 3})`}>
+                    <rect width="76" height="16" fill="#1E293B" stroke="#0284C7" strokeWidth="1" rx="3" />
+                    <text x="38" y="11" fill="#38BDF8" fontSize="9" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
                       {activePt.date}
                     </text>
                   </g>
@@ -1850,16 +2024,16 @@ export default function TradingViewPSXChart({
               <g>
                 <line x1={paddingLeft} y1={chartDims.points[chartDims.points.length - 1]?.y || 100} x2={svgWidth - paddingRight} y2={chartDims.points[chartDims.points.length - 1]?.y || 100} stroke={isBullish ? '#10B981' : '#EF4444'} strokeWidth="1" strokeDasharray="4 2" />
                 <g transform={`translate(${svgWidth - paddingRight + 2}, ${(chartDims.points[chartDims.points.length - 1]?.y || 100) - 9})`}>
-                  <rect width="68" height="18" fill={isBullish ? '#10B981' : '#EF4444'} rx="3" />
-                  <text x="34" y="12" fill="#FFFFFF" fontSize="9.5" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
+                  <rect width="64" height="18" fill={isBullish ? '#10B981' : '#EF4444'} rx="3" />
+                  <text x="32" y="12" fill="#FFFFFF" fontSize="9.5" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
                     {Number(currentPrice).toFixed(2)}
                   </text>
                 </g>
               </g>
 
               {/* Bottom Time Axis Labels */}
-              {chartDims.points.filter((_, idx) => idx % Math.max(1, Math.ceil(chartDims.points.length / 7)) === 0).map((pt, i) => (
-                <text key={`time_lbl_${i}`} x={pt.x} y={svgHeight - 10} fill="#64748B" fontSize="9" textAnchor="middle" fontFamily="monospace">
+              {chartDims.points.filter((_, idx) => idx % Math.max(1, Math.ceil(chartDims.points.length / 6)) === 0).map((pt, i) => (
+                <text key={`time_lbl_${i}`} x={pt.x} y={svgHeight - 8} fill="#64748B" fontSize="9" textAnchor="middle" fontFamily="monospace">
                   {pt.date}
                 </text>
               ))}
@@ -1868,17 +2042,17 @@ export default function TradingViewPSXChart({
         </div>
       </div>
 
-      {/* 3. BOTTOM TIMEFRAME RANGES & SCALE CONTROLS TOOLBAR */}
-      <div className="flex flex-wrap items-center justify-between px-3 py-1.5 bg-[#0A0E1A] border-t border-gray-800 text-[11px] font-mono shrink-0">
+      {/* 3. BOTTOM TIMEFRAME RANGES & SCALE CONTROLS TOOLBAR (Responsive) */}
+      <div className="flex flex-wrap items-center justify-between px-2.5 sm:px-3 py-1 bg-[#0A0E1A] border-t border-gray-800 text-[10px] sm:text-[11px] font-mono shrink-0 gap-1.5">
         {/* Left: Quick Date Range Buttons */}
         <div className="flex items-center space-x-1">
-          <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mr-1 hidden sm:inline">Range:</span>
+          <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mr-0.5 hidden xs:inline">Range:</span>
           {BOTTOM_RANGES.map(rng => (
             <button
               key={rng}
               onClick={() => setSelectedRange(rng)}
-              className={`px-2 py-0.5 rounded font-bold transition-colors cursor-pointer ${
-                selectedRange === rng ? 'bg-cyan-500 text-black shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              className={`px-1.5 sm:px-2 py-0.5 rounded font-bold transition-colors cursor-pointer text-[10px] sm:text-[11px] ${
+                selectedRange === rng ? 'bg-cyan-500 text-black shadow-xs' : 'text-gray-400 hover:text-white hover:bg-gray-800'
               }`}
             >
               {rng}
@@ -1886,18 +2060,18 @@ export default function TradingViewPSXChart({
           ))}
         </div>
 
-        {/* Center: Live Time / Timezone PSX */}
-        <div className="text-gray-400 flex items-center space-x-2 text-[10px]">
+        {/* Center: Live Time PSX */}
+        <div className="text-gray-400 hidden sm:flex items-center space-x-1.5 text-[10px]">
           <Clock className="w-3 h-3 text-cyan-400" />
-          <span>PSX Market Time (PKT • UTC+5)</span>
+          <span>PSX Market Time</span>
           <span className="text-emerald-400 font-bold">[{lastTickInfo.time}]</span>
         </div>
 
         {/* Right: Scale Mode Switchers */}
-        <div className="flex items-center space-x-1.5">
+        <div className="flex items-center space-x-1">
           <button
             onClick={() => setChartSettings(prev => ({ ...prev, scaleMode: prev.scaleMode === 'percent' ? 'auto' : 'percent' }))}
-            className={`px-1.5 py-0.5 rounded border text-[10px] font-bold cursor-pointer ${
+            className={`px-1.5 py-0.5 rounded border text-[9px] sm:text-[10px] font-bold cursor-pointer ${
               chartSettings.scaleMode === 'percent' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : 'border-gray-800 text-gray-400 hover:text-white'
             }`}
             title="Percentage Scale"
@@ -1906,7 +2080,7 @@ export default function TradingViewPSXChart({
           </button>
           <button
             onClick={() => setChartSettings(prev => ({ ...prev, scaleMode: prev.scaleMode === 'log' ? 'auto' : 'log' }))}
-            className={`px-1.5 py-0.5 rounded border text-[10px] font-bold cursor-pointer ${
+            className={`px-1.5 py-0.5 rounded border text-[9px] sm:text-[10px] font-bold cursor-pointer ${
               chartSettings.scaleMode === 'log' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : 'border-gray-800 text-gray-400 hover:text-white'
             }`}
             title="Logarithmic Scale"
@@ -1915,7 +2089,7 @@ export default function TradingViewPSXChart({
           </button>
           <button
             onClick={() => setChartSettings(prev => ({ ...prev, scaleMode: 'auto' }))}
-            className={`px-1.5 py-0.5 rounded border text-[10px] font-bold cursor-pointer ${
+            className={`px-1.5 py-0.5 rounded border text-[9px] sm:text-[10px] font-bold cursor-pointer ${
               chartSettings.scaleMode === 'auto' ? 'bg-cyan-500 text-black font-black' : 'border-gray-800 text-gray-400 hover:text-white'
             }`}
             title="Auto Scale"
@@ -1925,16 +2099,16 @@ export default function TradingViewPSXChart({
         </div>
       </div>
 
-      {/* 4. MODALS */}
+      {/* 4. MODALS & POPUPS */}
 
       {/* A. INDICATORS MODAL */}
       {showIndicatorsModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
           <div className="bg-[#0F172A] border border-purple-500/40 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 bg-[#0B0F19]">
+            <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-gray-800 bg-[#0B0F19]">
               <div className="flex items-center space-x-2">
                 <Sparkles className="w-5 h-5 text-purple-400" />
-                <h3 className="font-extrabold text-white text-base">Indicators, Metrics & Strategies</h3>
+                <h3 className="font-extrabold text-white text-sm sm:text-base">Technical Indicators (fx)</h3>
               </div>
               <button
                 onClick={() => setShowIndicatorsModal(false)}
@@ -1944,9 +2118,9 @@ export default function TradingViewPSXChart({
               </button>
             </div>
 
-            <div className="p-4 overflow-y-auto space-y-3 flex-1">
-              <div className="text-xs text-gray-400 mb-2">
-                Select technical indicators to overlay on the PSX price chart or render in dedicated sub-panels.
+            <div className="p-3 sm:p-4 overflow-y-auto space-y-3 flex-1">
+              <div className="text-xs text-gray-400 mb-1">
+                Select technical indicators to overlay on the price chart or render in dedicated sub-panels.
               </div>
 
               {['Moving Averages', 'Volatility', 'Volume & Trend', 'Oscillators', 'Volume'].map(cat => {
@@ -1954,25 +2128,25 @@ export default function TradingViewPSXChart({
                 if (list.length === 0) return null;
                 return (
                   <div key={cat} className="space-y-1.5">
-                    <div className="text-[10px] uppercase font-bold text-gray-400 tracking-wider px-1 pt-2">{cat}</div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="text-[10px] uppercase font-bold text-gray-400 tracking-wider px-1 pt-1.5">{cat}</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
                       {list.map(ind => {
                         const isOn = !!activeIndicators[ind.id];
                         return (
                           <button
                             key={ind.id}
                             onClick={() => setActiveIndicators(prev => ({ ...prev, [ind.id]: !prev[ind.id] }))}
-                            className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                            className={`p-2 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
                               isOn
                                 ? 'bg-purple-500/15 border-purple-500/50 text-white shadow-sm'
                                 : 'bg-gray-900/60 border-gray-800 text-gray-400 hover:border-gray-700 hover:text-gray-200'
                             }`}
                           >
-                            <div className="flex items-center space-x-2">
-                              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: ind.color }} />
-                              <span className="text-xs font-medium">{ind.name}</span>
+                            <div className="flex items-center space-x-2 truncate">
+                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: ind.color }} />
+                              <span className="text-xs font-medium truncate">{ind.name}</span>
                             </div>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${isOn ? 'bg-purple-500 text-black' : 'bg-gray-800 text-gray-400'}`}>
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ml-1 ${isOn ? 'bg-purple-500 text-black font-black' : 'bg-gray-800 text-gray-400'}`}>
                               {isOn ? 'ON' : 'ADD'}
                             </span>
                           </button>
@@ -1984,7 +2158,7 @@ export default function TradingViewPSXChart({
               })}
             </div>
 
-            <div className="p-4 border-t border-gray-800 bg-[#0B0F19] flex justify-end">
+            <div className="p-3 sm:p-4 border-t border-gray-800 bg-[#0B0F19] flex justify-end">
               <button
                 onClick={() => setShowIndicatorsModal(false)}
                 className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
@@ -1998,12 +2172,12 @@ export default function TradingViewPSXChart({
 
       {/* B. CHART SETTINGS MODAL */}
       {showSettingsModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
           <div className="bg-[#0F172A] border border-gray-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 bg-[#0B0F19]">
+            <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-gray-800 bg-[#0B0F19]">
               <div className="flex items-center space-x-2">
                 <Sliders className="w-5 h-5 text-cyan-400" />
-                <h3 className="font-extrabold text-white text-base">Chart Properties & Display</h3>
+                <h3 className="font-extrabold text-white text-sm sm:text-base">Chart Properties</h3>
               </div>
               <button
                 onClick={() => setShowSettingsModal(false)}
@@ -2013,7 +2187,7 @@ export default function TradingViewPSXChart({
               </button>
             </div>
 
-            <div className="p-5 space-y-4 text-xs">
+            <div className="p-4 sm:p-5 space-y-4 text-xs">
               <div>
                 <label className="text-gray-400 block mb-1 font-bold">Candle Color Theme</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -2088,7 +2262,7 @@ export default function TradingViewPSXChart({
               </div>
             </div>
 
-            <div className="p-4 border-t border-gray-800 bg-[#0B0F19] flex justify-end">
+            <div className="p-3 sm:p-4 border-t border-gray-800 bg-[#0B0F19] flex justify-end">
               <button
                 onClick={() => setShowSettingsModal(false)}
                 className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl transition-colors cursor-pointer"
@@ -2102,9 +2276,9 @@ export default function TradingViewPSXChart({
 
       {/* C. QUICK SEARCH MODAL */}
       {showSearchModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
           <div className="bg-[#0F172A] border border-cyan-500/40 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-            <div className="p-4 border-b border-gray-800 bg-[#0B0F19]">
+            <div className="p-3 sm:p-4 border-b border-gray-800 bg-[#0B0F19]">
               <div className="relative">
                 <Search className="w-4 h-4 text-cyan-400 absolute left-3 top-3" />
                 <input
@@ -2128,7 +2302,7 @@ export default function TradingViewPSXChart({
                     setShowSearchModal(false);
                     setSearchQuery('');
                   }}
-                  className="w-full text-left p-2.5 hover:bg-gray-800/80 rounded-xl flex items-center justify-between transition-colors cursor-pointer"
+                  className="w-full text-left p-2 sm:p-2.5 hover:bg-gray-800/80 rounded-xl flex items-center justify-between transition-colors cursor-pointer"
                 >
                   <div>
                     <div className="font-extrabold text-white font-mono text-sm">{q.symbol}</div>
@@ -2154,9 +2328,9 @@ export default function TradingViewPSXChart({
 
       {/* D. COMPARE SYMBOL MODAL */}
       {showCompareModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
           <div className="bg-[#0F172A] border border-amber-500/40 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-gray-800 bg-[#0B0F19] flex items-center justify-between">
+            <div className="p-3 sm:p-4 border-b border-gray-800 bg-[#0B0F19] flex items-center justify-between">
               <h3 className="font-extrabold text-white text-sm">Compare / Overlay Symbol</h3>
               <button
                 onClick={() => setShowCompareModal(false)}
@@ -2166,10 +2340,10 @@ export default function TradingViewPSXChart({
               </button>
             </div>
 
-            <div className="p-4 space-y-3">
+            <div className="p-3 sm:p-4 space-y-3">
               <input
                 type="text"
-                placeholder="Search symbol to compare (e.g. HUBC, SYS, PSO)..."
+                placeholder="Search symbol (e.g. HUBC, SYS, PSO)..."
                 value={compareQuery}
                 onChange={(e) => setCompareQuery(e.target.value)}
                 className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-400"
