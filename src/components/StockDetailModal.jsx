@@ -528,7 +528,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
           : 'w-full max-w-[98vw] 2xl:max-w-[1880px] max-h-[96vh] rounded-xl sm:rounded-3xl p-3 sm:p-5 lg:p-6 overflow-x-hidden overflow-y-auto my-auto'
       }`}>
         {/* Actions (Theme Toggle, Maximize / Fullscreen & Close) */}
-        <div className="absolute top-3 sm:top-5 right-3 sm:right-5 flex items-center space-x-1.5 sm:space-x-2 z-20">
+        <div className="absolute top-3 sm:top-5 lg:top-6 right-3 sm:right-5 lg:right-6 flex items-center space-x-1.5 sm:space-x-2 z-20">
           <button
             onClick={() => updateTheme(isDark ? 'light' : 'dark')}
             title={isDark ? 'Switch to Light Theme (☀️ Day)' : 'Switch to Dark Theme (🌙 Night)'}
@@ -565,7 +565,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
         </div>
 
         {/* 1. Header with Sector, Symbol, & Indices Badges */}
-        <div className={`flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4 pb-4 border-b pr-10 sm:pr-12 ${
+        <div className={`flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4 pb-4 border-b pr-[135px] sm:pr-[150px] lg:pr-[160px] ${
           isDark ? 'border-gray-800/80' : 'border-slate-200'
         }`}>
           <div>
@@ -608,7 +608,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
           </div>
 
           {/* Navigation Tabs: Chart, Fundamentals, Technicals (Responsive 3-Col Equal Layout on Mobile) */}
-          <div className={`grid grid-cols-3 sm:flex items-center gap-1 sm:space-x-1.5 p-1 rounded-xl sm:rounded-2xl border w-full sm:w-auto ${
+          <div className={`grid grid-cols-3 sm:flex items-center gap-1 sm:space-x-1.5 p-1 rounded-xl sm:rounded-2xl border w-full sm:w-auto shrink-0 ${
             isDark ? 'bg-[#070B12] border-gray-800' : 'bg-slate-100 border-slate-200 shadow-inner'
           }`}>
             <button
