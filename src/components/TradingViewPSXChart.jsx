@@ -899,6 +899,96 @@ export default function TradingViewPSXChart({
   const mainChartHeight = svgHeight - paddingTop - paddingBottom - totalSubPanelsHeight - volumePanelHeight;
   const chartWidth = svgWidth - paddingLeft - paddingRight;
 
+  // 1. Synchronized & Normalized Compared Stock Series
+  const alignedCompare = useMemo(() => {
+    if (!compareSymbol || !compareData?.bars || compareData.bars.length === 0 || !displayBars || displayBars.length === 0) {
+      return null;
+    }
+
+    const compBars = compareData.bars;
+
+    // Fast lookup maps for compared stock
+    const dateMap = new Map();
+    const timeMap = new Map();
+    compBars.forEach(b => {
+      if (b.fullDate) dateMap.set(b.fullDate, b);
+      if (b.date) dateMap.set(b.date, b);
+      if (b.timestamp) timeMap.set(Number(b.timestamp), b);
+    });
+
+    let lastKnownBar = compBars[0];
+    const matchedBars = displayBars.map((baseBar, i) => {
+      let match = null;
+      if (baseBar.fullDate && dateMap.has(baseBar.fullDate)) {
+        match = dateMap.get(baseBar.fullDate);
+      } else if (baseBar.date && dateMap.has(baseBar.date)) {
+        match = dateMap.get(baseBar.date);
+      } else if (baseBar.timestamp && timeMap.has(Number(baseBar.timestamp))) {
+        match = timeMap.get(Number(baseBar.timestamp));
+      }
+
+      if (!match && baseBar.timestamp) {
+        const baseT = Number(baseBar.timestamp);
+        let closest = null;
+        let minDiff = Infinity;
+        for (const cb of compBars) {
+          const diff = Math.abs(Number(cb.timestamp) - baseT);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closest = cb;
+          }
+        }
+        if (closest && minDiff <= 86400 * 3) {
+          match = closest;
+        }
+      }
+
+      if (!match) {
+        const fallbackIdx = Math.min(compBars.length - 1, Math.round((i / (displayBars.length - 1 || 1)) * (compBars.length - 1)));
+        match = compBars[fallbackIdx] || lastKnownBar;
+      }
+
+      if (match) lastKnownBar = match;
+      return match || lastKnownBar;
+    });
+
+    const baseFirstClose = displayBars[0]?.close || 1;
+    const compFirstClose = matchedBars[0]?.close || 1;
+
+    const series = matchedBars.map((cb, idx) => {
+      const baseClose = displayBars[idx]?.close || baseFirstClose;
+      const compClose = cb?.close || compFirstClose;
+
+      const basePct = ((baseClose - baseFirstClose) / baseFirstClose) * 100;
+      const compPct = ((compClose - compFirstClose) / compFirstClose) * 100;
+      const mappedPrice = baseFirstClose * (1 + compPct / 100);
+
+      return {
+        compBar: cb,
+        compClose,
+        compPct,
+        baseClose,
+        basePct,
+        mappedPrice,
+        date: displayBars[idx]?.date,
+        fullDate: displayBars[idx]?.fullDate
+      };
+    });
+
+    const latestComp = series[series.length - 1];
+    const latestCompPrice = Number(latestComp?.compClose || compareData?.quote?.currentPrice || 0);
+    const latestCompPct = Number(latestComp?.compPct || 0);
+
+    return {
+      series,
+      compFirstClose,
+      baseFirstClose,
+      latestCompPrice,
+      latestCompPct,
+      mappedPrices: series.map(s => s.mappedPrice)
+    };
+  }, [compareSymbol, compareData, displayBars]);
+
   // Price range computation
   const chartDims = useMemo(() => {
     if (!displayBars || displayBars.length === 0) {
@@ -907,8 +997,8 @@ export default function TradingViewPSXChart({
 
     const lows = displayBars.map(d => d.low);
     const highs = displayBars.map(d => d.high);
-    let minP = Math.min(...lows) * 0.994;
-    let maxP = Math.max(...highs) * 1.006;
+    let minP = Math.min(...lows);
+    let maxP = Math.max(...highs);
 
     if (activeIndicators.bollinger && indicatorSeries.bbUpper) {
       const validUppers = indicatorSeries.bbUpper.filter(v => v !== null);
@@ -916,6 +1006,17 @@ export default function TradingViewPSXChart({
       if (validUppers.length) maxP = Math.max(maxP, Math.max(...validUppers));
       if (validLowers.length) minP = Math.min(minP, Math.min(...validLowers));
     }
+
+    // Include compared stock mapped prices in minP and maxP so it NEVER clips or flies off-screen!
+    if (alignedCompare?.mappedPrices?.length) {
+      const compMin = Math.min(...alignedCompare.mappedPrices);
+      const compMax = Math.max(...alignedCompare.mappedPrices);
+      minP = Math.min(minP, compMin);
+      maxP = Math.max(maxP, compMax);
+    }
+
+    minP = minP * 0.992;
+    maxP = maxP * 1.008;
 
     const priceRange = maxP - minP || 1;
     const maxVol = Math.max(...displayBars.map(d => d.volume)) || 1;
@@ -1124,21 +1225,16 @@ export default function TradingViewPSXChart({
 
   // Compare Price Series Normalized Line
   const comparePath = useMemo(() => {
-    if (!compareData?.bars || compareData.bars.length === 0 || !chartDims.points.length) return '';
-    const compBars = compareData.bars;
-    const baseFirst = compBars[0]?.close || 1;
-    const baseTargetFirst = displayBars[0]?.close || 1;
+    if (!alignedCompare?.series?.length || !chartDims.points.length) return '';
 
-    const pts = compBars.map((b, i) => {
+    const pts = alignedCompare.series.map((item, i) => {
       if (!chartDims.points[i]) return null;
-      const pct = (b.close - baseFirst) / baseFirst;
-      const mappedPrice = baseTargetFirst * (1 + pct);
-      const y = paddingTop + mainChartHeight - ((mappedPrice - chartDims.minPrice) / chartDims.priceRange) * mainChartHeight;
+      const y = paddingTop + mainChartHeight - ((item.mappedPrice - chartDims.minPrice) / chartDims.priceRange) * mainChartHeight;
       return { x: chartDims.points[i].x, y };
     }).filter(Boolean);
 
     return pts.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '');
-  }, [compareData, displayBars, chartDims]);
+  }, [alignedCompare, chartDims, paddingTop, mainChartHeight]);
 
   // Volume Formatter Helper
   const formatVol = (v) => {
@@ -1891,10 +1987,27 @@ export default function TradingViewPSXChart({
                 </>
               )}
 
-              {compareSymbol && compareData && (
-                <div className={`flex items-center space-x-1 pl-1.5 border-l ${isLight ? 'border-gray-300 text-amber-700' : 'border-gray-700 text-amber-300'}`}>
-                  <span>vs {compareSymbol}:</span>
-                  <span className="font-bold">PKR {Number(compareData?.quote?.currentPrice || 0).toFixed(2)}</span>
+              {compareSymbol && alignedCompare && (
+                <div className={`flex items-center space-x-1.5 pl-2 border-l ${isLight ? 'border-gray-300 text-amber-700' : 'border-gray-700 text-amber-300'}`}>
+                  <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                  <span className="font-semibold">{compareSymbol}:</span>
+                  <span className="font-bold">
+                    PKR {Number(hoverIndex !== null && alignedCompare.series[hoverIndex] ? alignedCompare.series[hoverIndex].compClose : alignedCompare.latestCompPrice).toFixed(2)}
+                  </span>
+                  <span className={`text-[10px] font-black ${
+                    (hoverIndex !== null && alignedCompare.series[hoverIndex] ? alignedCompare.series[hoverIndex].compPct : alignedCompare.latestCompPct) >= 0
+                      ? 'text-emerald-500' : 'text-rose-500'
+                  }`}>
+                    ({(hoverIndex !== null && alignedCompare.series[hoverIndex] ? alignedCompare.series[hoverIndex].compPct : alignedCompare.latestCompPct) >= 0 ? '+' : ''}
+                    {Number(hoverIndex !== null && alignedCompare.series[hoverIndex] ? alignedCompare.series[hoverIndex].compPct : alignedCompare.latestCompPct).toFixed(2)}%)
+                  </span>
+                  <button
+                    onClick={() => setCompareSymbol(null)}
+                    className="ml-1 p-0.5 hover:bg-amber-500/20 rounded text-gray-400 hover:text-white cursor-pointer"
+                    title="Remove Comparison"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </div>
               )}
             </div>
@@ -2246,9 +2359,38 @@ export default function TradingViewPSXChart({
                 </g>
               )}
 
-              {/* Compare Stock Overlay Line */}
+              {/* Compare Stock Overlay Line & Interactive Nodes */}
               {compareSymbol && comparePath && (
-                <path d={comparePath} fill="none" stroke="#F59E0B" strokeWidth="2.2" strokeDasharray="5 3" />
+                <g key="compare_overlay_group">
+                  {/* Subtle Glow Behind Line */}
+                  <path d={comparePath} fill="none" stroke="#F59E0B" strokeWidth="4" opacity="0.25" />
+                  <path d={comparePath} fill="none" stroke="#F59E0B" strokeWidth="2.5" strokeDasharray="5 3" />
+
+                  {/* Active hover circle on comparison line */}
+                  {hoverIndex !== null && alignedCompare?.series?.[hoverIndex] && activePt && (
+                    (() => {
+                      const compItem = alignedCompare.series[hoverIndex];
+                      const compY = paddingTop + mainChartHeight - ((compItem.mappedPrice - chartDims.minPrice) / chartDims.priceRange) * mainChartHeight;
+                      return (
+                        <g key="comp_hover_node">
+                          <circle cx={activePt.x} cy={compY} r="5" fill="#F59E0B" stroke="#FFFFFF" strokeWidth="2" />
+                        </g>
+                      );
+                    })()
+                  )}
+
+                  {/* End node on comparison line */}
+                  {hoverIndex === null && alignedCompare?.series?.length > 0 && chartDims.points.length > 0 && (
+                    (() => {
+                      const lastItem = alignedCompare.series[alignedCompare.series.length - 1];
+                      const lastPt = chartDims.points[chartDims.points.length - 1];
+                      const compY = paddingTop + mainChartHeight - ((lastItem.mappedPrice - chartDims.minPrice) / chartDims.priceRange) * mainChartHeight;
+                      return (
+                        <circle key="comp_last_node" cx={lastPt.x} cy={compY} r="4" fill="#F59E0B" stroke="#FFFFFF" strokeWidth="1.5" />
+                      );
+                    })()
+                  )}
+                </g>
               )}
 
               {/* 3. VOLUME SUB-PANEL */}
@@ -2463,6 +2605,26 @@ export default function TradingViewPSXChart({
                   </text>
                 </g>
               </g>
+
+              {/* Compare Stock Live Watermark Line & Badge on Y-Axis */}
+              {compareSymbol && alignedCompare?.series?.length > 0 && chartDims.points.length > 0 && (
+                (() => {
+                  const lastItem = alignedCompare.series[alignedCompare.series.length - 1];
+                  const compY = paddingTop + mainChartHeight - ((lastItem.mappedPrice - chartDims.minPrice) / chartDims.priceRange) * mainChartHeight;
+                  const isCompBull = lastItem.compPct >= 0;
+                  return (
+                    <g key="compare_watermark">
+                      <line x1={paddingLeft} y1={compY} x2={svgWidth - paddingRight} y2={compY} stroke="#F59E0B" strokeWidth="1" strokeDasharray="3 3" opacity="0.9" />
+                      <g transform={`translate(${svgWidth - paddingRight + 2}, ${compY - 9})`}>
+                        <rect width="66" height="18" fill="#F59E0B" rx="3" />
+                        <text x="33" y="12" fill="#000000" fontSize="9" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
+                          {isCompBull ? '+' : ''}{lastItem.compPct.toFixed(1)}%
+                        </text>
+                      </g>
+                    </g>
+                  );
+                })()
+              )}
 
               {/* DAY HIGH, DAY CLOSE & DAY LOW HORIZONTAL PRICE REFERENCE LEVELS */}
               {showPriceLevels && chartDims.priceRange > 0 && (
