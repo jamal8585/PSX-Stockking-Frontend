@@ -595,7 +595,7 @@ export default function TradingViewPSXChart({
     const totalBars = rawLiveBars.length;
     const defaultBars = isFullScreen || chartDimensions.width > 1200 ? 80 : 50;
     const baseCount = selectedRange ? totalBars : Math.min(totalBars, defaultBars);
-    const targetCount = Math.max(5, Math.min(totalBars, Math.round(baseCount / zoomLevel)));
+    const targetCount = Math.min(totalBars, Math.max(1, Math.round(baseCount / zoomLevel)));
     
     // Max pan allowed so we don't scroll past the oldest bar
     const maxPan = Math.max(0, totalBars - targetCount);
