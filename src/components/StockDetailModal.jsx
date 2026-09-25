@@ -25,13 +25,17 @@ import {
   Minimize2,
   Sun,
   Moon,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Coins,
+  Bell
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 import { getStockHistory } from '../services/api';
 import { MASTER_STOCKS_LIST } from '../utils/marketSession';
 import TradingViewPSXChart from './TradingViewPSXChart';
 import CompanyFinancialsView from './CompanyFinancialsView';
+import CompanyPayoutsView from './CompanyPayoutsView';
+import CompanyAnnouncementsView from './CompanyAnnouncementsView';
 
 // High-Performance Interactive SVG Stock Chart (Supports both Area and Candlestick OHLC + Volume)
 function InteractiveStockChart({ 
@@ -609,13 +613,13 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
             </div>
           </div>
 
-          {/* Navigation Tabs: Chart, Fundamentals, Financials, Technicals (Responsive 4-Col Layout) */}
-          <div className={`grid grid-cols-4 sm:flex items-center gap-1 sm:space-x-1.5 p-1 rounded-xl sm:rounded-2xl border w-full sm:w-auto shrink-0 ${
+          {/* Navigation Tabs: Chart, Fundamentals, Financials, Payouts, Announcements, Technicals */}
+          <div className={`flex items-center gap-1 sm:space-x-1 p-1 rounded-xl sm:rounded-2xl border w-full sm:w-auto shrink-0 overflow-x-auto ${
             isDark ? 'bg-[#070B12] border-gray-800' : 'bg-slate-100 border-slate-200 shadow-inner'
           }`}>
             <button
               onClick={() => setActiveTab('chart')}
-              className={`w-full sm:w-auto px-2 sm:px-3.5 py-2 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 whitespace-nowrap ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 whitespace-nowrap shrink-0 ${
                 activeTab === 'chart'
                   ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
                   : isDark ? 'text-gray-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
@@ -626,7 +630,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
             </button>
             <button
               onClick={() => setActiveTab('fundamentals')}
-              className={`w-full sm:w-auto px-2 sm:px-3.5 py-2 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 whitespace-nowrap ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 whitespace-nowrap shrink-0 ${
                 activeTab === 'fundamentals'
                   ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
                   : isDark ? 'text-gray-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
@@ -637,7 +641,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
             </button>
             <button
               onClick={() => setActiveTab('financials')}
-              className={`w-full sm:w-auto px-2 sm:px-3.5 py-2 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 whitespace-nowrap ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 whitespace-nowrap shrink-0 ${
                 activeTab === 'financials'
                   ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
                   : isDark ? 'text-gray-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
@@ -647,8 +651,30 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
               <span>Financials</span>
             </button>
             <button
+              onClick={() => setActiveTab('payouts')}
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 whitespace-nowrap shrink-0 ${
+                activeTab === 'payouts'
+                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
+                  : isDark ? 'text-gray-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Coins className="w-3.5 h-3.5 shrink-0" />
+              <span>Payouts & Dividends</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('announcements')}
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 whitespace-nowrap shrink-0 ${
+                activeTab === 'announcements'
+                  ? 'bg-sky-500 text-black shadow-md shadow-sky-500/20'
+                  : isDark ? 'text-gray-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Bell className="w-3.5 h-3.5 shrink-0" />
+              <span>Announcements</span>
+            </button>
+            <button
               onClick={() => setActiveTab('technicals')}
-              className={`w-full sm:w-auto px-2 sm:px-3.5 py-2 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 whitespace-nowrap ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 whitespace-nowrap shrink-0 ${
                 activeTab === 'technicals'
                   ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
                   : isDark ? 'text-gray-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
@@ -984,6 +1010,20 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
         {activeTab === 'financials' && (
           <div className="my-5">
             <CompanyFinancialsView stock={currentStock} isDark={isDark} />
+          </div>
+        )}
+
+        {/* 4. Real Payouts & Dividends History Tab */}
+        {activeTab === 'payouts' && (
+          <div className="my-5">
+            <CompanyPayoutsView stock={currentStock} isDark={isDark} />
+          </div>
+        )}
+
+        {/* 5. Official PSX Announcements & Regulatory Filings Tab */}
+        {activeTab === 'announcements' && (
+          <div className="my-5">
+            <CompanyAnnouncementsView stock={currentStock} isDark={isDark} />
           </div>
         )}
 

@@ -211,3 +211,16 @@ export const fetchStockFinancials = async (symbol) => {
   const res = await API.get(`/stocks/${symbol}/financials`);
   return res.data;
 };
+
+// Stock Dividends & Payouts Endpoint
+export const fetchStockPayouts = async (symbol) => {
+  const res = await API.get(`/stocks/${symbol}/payouts`);
+  return res.data;
+};
+
+// Stock Official PSX Announcements Endpoint
+export const fetchStockAnnouncements = async (symbol) => {
+  const res = await API.get(`/stocks/${symbol}/announcements`);
+  return res.data;
+};
+
