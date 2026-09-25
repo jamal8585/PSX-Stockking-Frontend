@@ -205,3 +205,9 @@ export const deletePortfolioPosition = async (id) => {
   const res = await API.delete('/portfolio/' + id);
   return res.data;
 };
+
+// Stock Financials Endpoint
+export const fetchStockFinancials = async (symbol) => {
+  const res = await API.get(`/stocks/${symbol}/financials`);
+  return res.data;
+};

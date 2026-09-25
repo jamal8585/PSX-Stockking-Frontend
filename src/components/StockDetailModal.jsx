@@ -24,12 +24,14 @@ import {
   Maximize2,
   Minimize2,
   Sun,
-  Moon
+  Moon,
+  FileSpreadsheet
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 import { getStockHistory } from '../services/api';
 import { MASTER_STOCKS_LIST } from '../utils/marketSession';
 import TradingViewPSXChart from './TradingViewPSXChart';
+import CompanyFinancialsView from './CompanyFinancialsView';
 
 // High-Performance Interactive SVG Stock Chart (Supports both Area and Candlestick OHLC + Volume)
 function InteractiveStockChart({ 
@@ -607,8 +609,8 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
             </div>
           </div>
 
-          {/* Navigation Tabs: Chart, Fundamentals, Technicals (Responsive 3-Col Equal Layout on Mobile) */}
-          <div className={`grid grid-cols-3 sm:flex items-center gap-1 sm:space-x-1.5 p-1 rounded-xl sm:rounded-2xl border w-full sm:w-auto shrink-0 ${
+          {/* Navigation Tabs: Chart, Fundamentals, Financials, Technicals (Responsive 4-Col Layout) */}
+          <div className={`grid grid-cols-4 sm:flex items-center gap-1 sm:space-x-1.5 p-1 rounded-xl sm:rounded-2xl border w-full sm:w-auto shrink-0 ${
             isDark ? 'bg-[#070B12] border-gray-800' : 'bg-slate-100 border-slate-200 shadow-inner'
           }`}>
             <button
@@ -632,6 +634,17 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
             >
               <PieChart className="w-3.5 h-3.5 shrink-0" />
               <span>Fundamentals</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('financials')}
+              className={`w-full sm:w-auto px-2 sm:px-3.5 py-2 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 sm:space-x-1.5 whitespace-nowrap ${
+                activeTab === 'financials'
+                  ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
+                  : isDark ? 'text-gray-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
+              <span>Financials</span>
             </button>
             <button
               onClick={() => setActiveTab('technicals')}
@@ -964,6 +977,13 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* 3. Real Unconsolidated Financial Statements & Balance Sheet Tab */}
+        {activeTab === 'financials' && (
+          <div className="my-5">
+            <CompanyFinancialsView stock={currentStock} isDark={isDark} />
           </div>
         )}
 
