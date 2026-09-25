@@ -561,169 +561,31 @@ export default function TradingViewPSXChart({
       return;
     }
 
-    // High-resolution realistic generator based on timeframe and selectedRange
-    const isSeconds = timeframe === '1s' || timeframe === '5s' || timeframe === '15s' || timeframe === '30s';
-    const isMinute = timeframe.endsWith('m');
-    const isHour = timeframe.endsWith('h');
-
-    let count = 120;
-    let stepSec = 60;
-    const nowTime = Date.now();
-
-    if (selectedRange === '1d') {
-      count = 50;
-      stepSec = 300;
-    } else if (selectedRange === '5d') {
-      count = 5;
-      stepSec = 86400;
-    } else if (selectedRange === '1m') {
-      count = 22;
-      stepSec = 86400;
-    } else if (selectedRange === '6m') {
-      count = 130;
-      stepSec = 86400;
-    } else if (selectedRange === '1y') {
-      count = 250;
-      stepSec = 86400;
-    } else if (selectedRange === '3y') {
-      count = 156;
-      stepSec = 604800;
-    } else if (selectedRange === 'All') {
-      count = 60;
-      stepSec = 2592000;
-    } else {
-      if (timeframe === '1s') { stepSec = 1; count = 60; }
-      else if (timeframe === '5s') { stepSec = 5; count = 60; }
-      else if (timeframe === '15s') { stepSec = 15; count = 60; }
-      else if (timeframe === '30s') { stepSec = 30; count = 60; }
-      else if (timeframe === '1m') { stepSec = 60; count = 60; }
-      else if (timeframe === '3m') { stepSec = 180; count = 60; }
-      else if (timeframe === '5m') { stepSec = 300; count = 60; }
-      else if (timeframe === '15m') { stepSec = 900; count = 60; }
-      else if (timeframe === '30m') { stepSec = 1800; count = 60; }
-      else if (timeframe === '45m') { stepSec = 2700; count = 60; }
-      else if (timeframe === '1h') { stepSec = 3600; count = 60; }
-      else if (timeframe === '2h') { stepSec = 7200; count = 60; }
-      else if (timeframe === '4h') { stepSec = 14400; count = 60; }
-      else if (timeframe === '1D') { stepSec = 86400; count = 120; }
-      else if (timeframe === '1W') { stepSec = 604800; count = 52; }
-      else if (timeframe === '1M') { stepSec = 2592000; count = 60; }
-    }
-
-    const generated = Array.from({ length: count }, (_, i) => {
-      const idxFromEnd = count - 1 - i;
-      const barTime = new Date(nowTime - idxFromEnd * stepSec * 1000);
-      
-      let label = '';
-      if (selectedRange === '1d' || isSeconds) {
-        label = barTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-      } else if (selectedRange === '3y' || timeframe === '1W') {
-        label = barTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
-      } else if (selectedRange === 'All' || timeframe === '1M') {
-        label = barTime.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-      } else if (isMinute || isHour) {
-        label = barTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-      } else {
-        label = barTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    // Factual anchor fallback only if multi-day history is loading (uses 100% official quote records)
+    const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Karachi' });
+    setRawLiveBars([
+      {
+        date: todayStr,
+        timestamp: Math.floor(Date.now() / 1000),
+        open: Number((quote.open || prevClose || currentPrice).toFixed(2)),
+        high: Number((quote.high || currentPrice).toFixed(2)),
+        low: Number((quote.low || currentPrice).toFixed(2)),
+        close: Number(currentPrice.toFixed(2)),
+        price: Number(currentPrice.toFixed(2)),
+        volume: Math.round(Number(volume || 0))
       }
+    ]);
+  }, [historyData, externalBars, currentPrice, prevClose, quote, volume]);
 
-      // Volatility & Volume scaling
-      const trendFactor = 0.94 + (i / count) * 0.06 + Math.sin(i * 0.28) * 0.015;
-      const base = currentPrice * trendFactor;
-      const open = Number((base * (1 + Math.sin(i * 1.3) * 0.005)).toFixed(2));
-      const close = Number((base * (1 + Math.cos(i * 1.5) * 0.006)).toFixed(2));
-      const hi = Number((Math.max(open, close) * (1 + Math.abs(Math.sin(i * 2)) * 0.004 + 0.002)).toFixed(2));
-      const lo = Number((Math.min(open, close) * (1 - Math.abs(Math.cos(i * 2)) * 0.004 - 0.002)).toFixed(2));
-
-      // Granular volume per second / bar
-      let barVol = 1000;
-      if (timeframe === '1s') {
-        barVol = Math.round(200 + Math.random() * 2500 + (i % 7 === 0 ? 8000 : 0));
-      } else if (timeframe === '5s') {
-        barVol = Math.round(1500 + Math.random() * 12000);
-      } else if (timeframe === '15s') {
-        barVol = Math.round(5000 + Math.random() * 35000);
-      } else if (timeframe === '1m') {
-        barVol = Math.round(25000 + Math.random() * 120000);
-      } else {
-        barVol = Math.round((volume / count) * (0.6 + Math.sin(i) * 0.35 + 0.35));
-      }
-
-      return {
-        date: label,
-        timestamp: Math.floor(barTime.getTime() / 1000),
-        open,
-        high: hi,
-        low: lo,
-        close,
-        price: close,
-        volume: barVol
-      };
-    });
-
-    setRawLiveBars(generated);
-  }, [historyData, externalBars, timeframe, selectedRange, currentPrice, volume]);
-
-  // LIVE 1-SECOND REAL-TIME TICKER INTERVAL (Only active during live PSX hours)
+  // LIVE TELEMETRY: Sync with 100% authentic market prices (NO artificial random ticks)
   useEffect(() => {
-    if (!marketStatus.isOpen) {
-      setLastTickInfo({
-        price: currentPrice,
-        change: change,
-        vol: volume,
-        time: marketStatus.pktTimeString || new Date().toLocaleTimeString('en-GB')
-      });
-      return;
-    }
-
-    const interval = setInterval(() => {
-      const tickVol = Math.round(150 + Math.random() * 3200 + (Math.random() > 0.85 ? 7500 : 0));
-      const tickDelta = (Math.random() - 0.485) * (currentPrice * 0.0012);
-      const newClose = Number((Math.max(0.5, currentPrice + tickDelta)).toFixed(2));
-      const now = new Date();
-      const timeStrSec = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-      setLastTickInfo({
-        price: newClose,
-        change: Number((newClose - prevClose).toFixed(2)),
-        vol: tickVol,
-        time: timeStrSec
-      });
-
-      setRawLiveBars(prevBars => {
-        if (!prevBars || prevBars.length === 0) return prevBars;
-
-        const updated = [...prevBars];
-        const lastBar = { ...updated[updated.length - 1] };
-
-        if (timeframe === '1s') {
-          const newBar = {
-            date: timeStrSec,
-            timestamp: Math.floor(now.getTime() / 1000),
-            open: lastBar.close,
-            high: Math.max(lastBar.close, newClose, Number((newClose * 1.001).toFixed(2))),
-            low: Math.min(lastBar.close, newClose, Number((newClose * 0.999).toFixed(2))),
-            close: newClose,
-            price: newClose,
-            volume: tickVol
-          };
-          if (updated.length > 150) updated.shift();
-          updated.push(newBar);
-          return updated;
-        } else {
-          lastBar.close = newClose;
-          lastBar.price = newClose;
-          lastBar.high = Math.max(lastBar.high, newClose);
-          lastBar.low = Math.min(lastBar.low, newClose);
-          lastBar.volume = (lastBar.volume || 0) + tickVol;
-          updated[updated.length - 1] = lastBar;
-          return updated;
-        }
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [marketStatus.isOpen, currentPrice, prevClose, timeframe, change, volume]);
+    setLastTickInfo({
+      price: currentPrice,
+      change: change,
+      vol: volume,
+      time: marketStatus.pktTimeString || new Date().toLocaleTimeString('en-GB')
+    });
+  }, [currentPrice, change, volume, marketStatus]);
 
   // ZOOM & PAN FILTER: Slices raw bars based on zoomLevel and panOffset
   const liveBars = useMemo(() => {
