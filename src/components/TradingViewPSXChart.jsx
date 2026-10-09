@@ -405,7 +405,7 @@ export default function TradingViewPSXChart({
 
     let targetTf = '1D';
     if (rng === '1d') {
-      targetTf = '1m';
+      targetTf = '1s';
     } else if (rng === '5d') {
       targetTf = '15m';
     } else if (rng === '1m') {
@@ -1026,9 +1026,10 @@ export default function TradingViewPSXChart({
     const slotWidth = chartWidth / numBars;
 
     // Binance Candle Geometry:
-    // Gap is tightly bounded (1.5px to 3.0px) so candles look continuous, dense, and connected.
-    const candleGap = Math.max(1.5, Math.min(3.0, slotWidth * 0.15));
-    const candleWidth = Math.max(2, slotWidth - candleGap);
+    // Gap is tightly bounded (1.2px to 3.0px) so candles look continuous, dense, and connected.
+    const candleGap = Math.max(1.2, Math.min(3.0, slotWidth * 0.15));
+    // Candle width capped to 18px maximum so it NEVER expands into giant fat rectangular boxes!
+    const candleWidth = Math.max(1.8, Math.min(18, slotWidth - candleGap));
 
     const points = displayBars.map((d, i) => {
       // Slot-centered X coordinate: exactly in the middle of slot i

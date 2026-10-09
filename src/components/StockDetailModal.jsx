@@ -90,8 +90,8 @@ function InteractiveStockChart({
   const volumeTop = height - paddingBottom + 5;
 
   const slotWidth = chartWidth / (data.length || 1);
-  const candleGap = Math.max(1.5, Math.min(3.0, slotWidth * 0.15));
-  const candleWidth = Math.max(2, slotWidth - candleGap);
+  const candleGap = Math.max(1.2, Math.min(3.0, slotWidth * 0.15));
+  const candleWidth = Math.max(1.8, Math.min(18, slotWidth - candleGap));
 
   const points = data.map((d, i) => {
     const x = paddingLeft + (i + 0.5) * slotWidth;
