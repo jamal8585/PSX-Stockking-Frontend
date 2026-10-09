@@ -89,8 +89,12 @@ function InteractiveStockChart({
   const volumeHeight = 28;
   const volumeTop = height - paddingBottom + 5;
 
+  const slotWidth = chartWidth / (data.length || 1);
+  const candleGap = Math.max(1.5, Math.min(3.0, slotWidth * 0.15));
+  const candleWidth = Math.max(2, slotWidth - candleGap);
+
   const points = data.map((d, i) => {
-    const x = paddingLeft + (i / (data.length - 1 || 1)) * chartWidth;
+    const x = paddingLeft + (i + 0.5) * slotWidth;
     const priceVal = Number(d.price || d.close || currentPrice);
     const openVal = Number(d.open || priceVal * 0.995);
     const highVal = Number(d.high || Math.max(openVal, priceVal) * 1.01);
@@ -129,7 +133,6 @@ function InteractiveStockChart({
   const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${(paddingTop + mainChartHeight).toFixed(1)} L ${points[0].x.toFixed(1)} ${(paddingTop + mainChartHeight).toFixed(1)} Z`;
 
   const activePoint = hoverIndex !== null && points[hoverIndex] ? points[hoverIndex] : points[points.length - 1];
-  const candleWidth = Math.max(3, Math.min(16, (chartWidth / points.length) * 0.72));
 
   return (
     <div className="relative w-full h-[280px] select-none overflow-hidden">
@@ -139,8 +142,8 @@ function InteractiveStockChart({
         onMouseMove={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           const mouseX = e.clientX - rect.left;
-          const ratio = Math.max(0, Math.min(1, (mouseX - paddingLeft) / chartWidth));
-          const idx = Math.round(ratio * (data.length - 1));
+          const slot = Math.floor((mouseX - paddingLeft) / (slotWidth || 1));
+          const idx = Math.max(0, Math.min(data.length - 1, slot));
           setHoverIndex(idx);
         }}
         onMouseLeave={() => setHoverIndex(null)}
@@ -188,8 +191,10 @@ function InteractiveStockChart({
 
             {points.map((pt, i) => {
               const bodyTop = Math.min(pt.yOpen, pt.yClose);
-              const bodyHeight = Math.max(2, Math.abs(pt.yClose - pt.yOpen));
-              const color = pt.isBull ? '#10B981' : '#EF4444';
+              const diffY = Math.abs(pt.yClose - pt.yOpen);
+              const isDoji = diffY < 1.5;
+              const bodyHeight = isDoji ? 1.5 : Math.max(2, diffY);
+              const color = pt.isBull ? '#0ECB81' : '#F6465D';
 
               return (
                 <g key={i}>
@@ -201,16 +206,28 @@ function InteractiveStockChart({
                     y2={pt.yLow} 
                     stroke={color} 
                     strokeWidth="1.2" 
+                    strokeLinecap="round"
                   />
-                  {/* Candlestick Real Body */}
-                  <rect 
-                    x={pt.x - candleWidth / 2} 
-                    y={bodyTop} 
-                    width={candleWidth} 
-                    height={bodyHeight} 
-                    fill={color} 
-                    rx="1"
-                  />
+                  {/* Candlestick Real Body or Doji Line */}
+                  {isDoji ? (
+                    <line
+                      x1={pt.x - candleWidth / 2}
+                      y1={pt.yClose}
+                      x2={pt.x + candleWidth / 2}
+                      y2={pt.yClose}
+                      stroke={color}
+                      strokeWidth="1.5"
+                    />
+                  ) : (
+                    <rect 
+                      x={pt.x - candleWidth / 2} 
+                      y={bodyTop} 
+                      width={candleWidth} 
+                      height={bodyHeight} 
+                      fill={color} 
+                      rx="0.5"
+                    />
+                  )}
                   {/* Volume Bar Underneath */}
                   <rect 
                     x={pt.x - candleWidth / 2} 
@@ -218,7 +235,7 @@ function InteractiveStockChart({
                     width={candleWidth} 
                     height={pt.volHeight} 
                     fill={color} 
-                    opacity="0.5" 
+                    opacity="0.65" 
                     rx="0.5"
                   />
                 </g>
@@ -849,7 +866,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
             <div className="lg:col-span-8 xl:col-span-9 flex flex-col space-y-4">
               <div className={`rounded-2xl border overflow-hidden flex-1 flex flex-col min-h-[560px] lg:min-h-[640px] xl:min-h-[700px] transition-colors ${
                 isDark 
-                  ? 'bg-[#070B12] border-gray-800/90 shadow-none' 
+                  ? 'bg-[#181A20] border-[#1E2329] shadow-none' 
                   : 'bg-white border-slate-200 shadow-sm'
               }`}>
                 <TradingViewPSXChart

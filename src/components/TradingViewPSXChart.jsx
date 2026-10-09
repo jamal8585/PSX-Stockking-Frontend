@@ -150,11 +150,11 @@ export default function TradingViewPSXChart({
     });
   }, [onThemeChange]);
 
-  // 2. Chart Type & Timeframe State
+  // 2. Chart Type & Timeframe State (Binance Standard: 1D timeframe & 6m dense history default)
   const [currentSymbol, setCurrentSymbol] = useState(symbol || 'OGDC');
   const [chartType, setChartType] = useState('candles');
-  const [timeframe, setTimeframe] = useState('1m');
-  const [selectedRange, setSelectedRange] = useState('1d');
+  const [timeframe, setTimeframe] = useState('1D');
+  const [selectedRange, setSelectedRange] = useState('6m');
   const [isFullScreen, setIsFullScreen] = useState(initialFullScreen);
 
   // 2. Data & Telemetry
@@ -218,10 +218,10 @@ export default function TradingViewPSXChart({
     obv: false
   });
 
-  // 6. Chart Settings
+  // 6. Chart Settings (Binance Standard Color Palette)
   const [chartSettings, setChartSettings] = useState({
-    upColor: '#10B981',
-    downColor: '#EF4444',
+    upColor: '#0ECB81',  // Binance signature emerald green
+    downColor: '#F6465D', // Binance signature crimson red
     gridStyle: 'dotted',
     scaleMode: 'auto',
     showVolume: true,
@@ -430,8 +430,8 @@ export default function TradingViewPSXChart({
     if (['1s', '5s', '15s', '30s', '1m', '3m', '5m', '15m', '30m', '45m', '1h', '2h', '4h'].includes(tf)) {
       setSelectedRange('1d');
     } else if (tf === '1D') {
-      if (!['5d', '1m', '6m', '1y'].includes(selectedRange)) {
-        setSelectedRange('1m');
+      if (!['5d', '1m', '6m', '1y'].includes(selectedRange) || selectedRange === '1m') {
+        setSelectedRange('6m');
       }
     } else if (tf === '1W') {
       setSelectedRange('3y');
@@ -1022,8 +1022,17 @@ export default function TradingViewPSXChart({
     const maxVol = Math.max(...displayBars.map(d => d.volume)) || 1;
     const baselineY = paddingTop + mainChartHeight / 2;
 
+    const numBars = displayBars.length || 1;
+    const slotWidth = chartWidth / numBars;
+
+    // Binance Candle Geometry:
+    // Gap is tightly bounded (1.5px to 3.0px) so candles look continuous, dense, and connected.
+    const candleGap = Math.max(1.5, Math.min(3.0, slotWidth * 0.15));
+    const candleWidth = Math.max(2, slotWidth - candleGap);
+
     const points = displayBars.map((d, i) => {
-      const x = paddingLeft + (i / (displayBars.length - 1 || 1)) * chartWidth;
+      // Slot-centered X coordinate: exactly in the middle of slot i
+      const x = paddingLeft + (i + 0.5) * slotWidth;
       const yClose = paddingTop + mainChartHeight - ((d.close - minP) / priceRange) * mainChartHeight;
       const yOpen = paddingTop + mainChartHeight - ((d.open - minP) / priceRange) * mainChartHeight;
       const yHigh = paddingTop + mainChartHeight - ((d.high - minP) / priceRange) * mainChartHeight;
@@ -1054,11 +1063,11 @@ export default function TradingViewPSXChart({
       };
     });
 
-    return { minPrice: minP, maxPrice: maxP, priceRange, points, maxVol, baselineY };
+    return { minPrice: minP, maxPrice: maxP, priceRange, points, maxVol, baselineY, slotWidth, candleWidth, candleGap };
   }, [displayBars, mainChartHeight, chartWidth, activeIndicators, indicatorSeries, volumePanelHeight]);
 
-  // Candle width based on point count (scales smoothly with zoom)
-  const candleWidth = Math.max(1.8, Math.min(26, (chartWidth / (displayBars.length || 1)) * 0.72));
+  // Candle width based on point count (scales smoothly with zoom, exact Binance slot width minus 2px gap)
+  const candleWidth = chartDims.candleWidth || Math.max(2, (chartWidth / (displayBars.length || 1)) - 2.5);
 
   // Snap magnet helper
   const getNearestPoint = (mouseX, mouseY) => {
@@ -1160,8 +1169,10 @@ export default function TradingViewPSXChart({
     const mouseX = ((e.clientX - rect.left) / rect.width) * svgWidth;
     const mouseY = ((e.clientY - rect.top) / rect.height) * svgHeight;
 
-    const ratio = Math.max(0, Math.min(1, (mouseX - paddingLeft) / chartWidth));
-    const idx = Math.round(ratio * (displayBars.length - 1));
+    const numBars = displayBars.length || 1;
+    const slotW = chartDims.slotWidth || (chartWidth / numBars);
+    const slot = Math.floor((mouseX - paddingLeft) / slotW);
+    const idx = Math.max(0, Math.min(numBars - 1, slot));
     setHoverIndex(idx);
 
     const calcPrice = chartDims.maxPrice - ((mouseY - paddingTop) / mainChartHeight) * chartDims.priceRange;
@@ -1248,14 +1259,14 @@ export default function TradingViewPSXChart({
     <div
       ref={containerRef}
       className={`relative select-none flex flex-col font-sans overflow-hidden border transition-all ${
-        isLight ? 'bg-white text-gray-900 border-gray-200' : 'bg-[#0B0F19] text-gray-200 border-gray-800'
+        isLight ? 'bg-white text-gray-900 border-gray-200' : 'bg-[#181A20] text-gray-200 border-[#1E2329]'
       } ${
         isFullScreen ? 'fixed inset-0 z-[1000] w-screen h-screen rounded-none' : 'w-full rounded-2xl shadow-2xl min-h-[420px] sm:min-h-[500px] md:min-h-[580px]'
       }`}
     >
       {/* 1. SMART ADAPTIVE MULTI-TIER HEADER TOOLBAR */}
       <div className={`flex flex-col text-xs shrink-0 divide-y ${
-        isLight ? 'bg-[#F8FAFC] border-b border-gray-200 divide-gray-200' : 'bg-[#0E1322] border-b border-gray-800 divide-gray-800/60'
+        isLight ? 'bg-[#F8FAFC] border-b border-gray-200 divide-gray-200' : 'bg-[#181A20] border-b border-[#1E2329] divide-[#1E2329]/70'
       }`}>
         {/* TIER 1: Symbol Search, Compare, Zoom Controls, Settings, Snapshot & Fullscreen */}
         <div className="flex items-center justify-between px-2.5 sm:px-3 py-1.5 gap-1.5 flex-wrap">
@@ -1461,7 +1472,7 @@ export default function TradingViewPSXChart({
         </div>
 
         {/* TIER 2: Timeframe Ribbon, 12 Chart Styles Selector, Indicators Trigger */}
-        <div className={`flex items-center justify-between px-2.5 sm:px-3 py-1 gap-2 relative z-30 ${isLight ? 'bg-[#F8FAFC]' : 'bg-[#0B0F19]'}`}>
+        <div className={`flex items-center justify-between px-2.5 sm:px-3 py-1 gap-2 relative z-30 ${isLight ? 'bg-[#F8FAFC]' : 'bg-[#181A20]'}`}>
           {/* Left: Timeframe Selector Ribbon */}
           <div className="flex items-center space-x-1 shrink-0">
             <div className={`flex items-center space-x-0.5 p-0.5 rounded-lg border font-mono text-[11px] font-bold ${
@@ -1723,7 +1734,7 @@ export default function TradingViewPSXChart({
           className={`${
             showMobileDrawingTools ? 'flex absolute top-0 left-0 bottom-0 shadow-2xl z-40' : 'hidden md:flex'
           } w-10 sm:w-11 ${
-            isLight ? 'bg-slate-50 border-gray-200' : 'bg-[#0A0E1A] border-gray-800/90'
+            isLight ? 'bg-slate-50 border-gray-200' : 'bg-[#181A20] border-[#1E2329]'
           } border-r flex-col items-center py-2 space-y-1 z-30 shrink-0 select-none overflow-y-auto`}
         >
           {/* 1. Crosshair Pointer */}
@@ -1933,12 +1944,12 @@ export default function TradingViewPSXChart({
           </button>
         </div>
 
-        {/* CHART CANVAS DISPLAY AREA */}
-        <div className={`flex-1 flex flex-col relative overflow-hidden ${isLight ? 'bg-white' : 'bg-[#070B14]'}`}>
-          {/* Top OHLC & Volume Telemetry Legend (Clean & Compact on Mobile) */}
+        {/* CHART CANVAS DISPLAY AREA (Binance Signature Dark Canvas #121722) */}
+        <div className={`flex-1 flex flex-col relative overflow-hidden ${isLight ? 'bg-white' : 'bg-[#121722]'}`}>
+          {/* Top OHLC & Volume Telemetry Legend (Binance Pro Style) */}
           {chartSettings.showLegend && (
-            <div className={`absolute top-2 left-2 sm:left-3 z-20 flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-0.5 font-mono text-[9.5px] sm:text-[11px] backdrop-blur-md px-2 py-1 rounded-lg border pointer-events-none max-w-[calc(100%-16px)] ${
-              isLight ? 'bg-white/95 border-gray-200 text-gray-800 shadow-sm' : 'bg-[#070B14]/90 border-gray-800/80 text-gray-200 shadow-md'
+            <div className={`absolute top-2 left-2 sm:left-3 z-20 flex flex-wrap items-center gap-x-2.5 sm:gap-x-3.5 gap-y-0.5 font-mono text-[9.5px] sm:text-[11px] backdrop-blur-md px-2.5 py-1 rounded-lg border pointer-events-none max-w-[calc(100%-16px)] ${
+              isLight ? 'bg-white/95 border-gray-200 text-gray-800 shadow-sm' : 'bg-[#181A20]/90 border-[#1E2329] text-gray-200 shadow-md'
             }`}>
               <div className="flex items-center space-x-1">
                 <span className={`font-black ${isLight ? 'text-gray-900' : 'text-white'}`}>{currentSymbol}</span>
@@ -1952,36 +1963,37 @@ export default function TradingViewPSXChart({
               {activePt && (
                 <>
                   <div className="flex items-center space-x-0.5">
-                    <span className={isLight ? 'text-gray-400' : 'text-gray-500'}>O:</span>
-                    <span className={`font-bold ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>{Number(activePt.open).toFixed(2)}</span>
+                    <span className={isLight ? 'text-gray-400' : 'text-[#848E9C]'}>O:</span>
+                    <span className={`font-bold ${activePt.isBull ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>{Number(activePt.open).toFixed(2)}</span>
                   </div>
                   <div className="flex items-center space-x-0.5">
-                    <span className="text-emerald-500 font-bold">
-                      {timeframe === '1D' ? 'Day High:' : (timeframe === '1W' ? 'Wk High:' : (timeframe === '1M' ? 'Mo High:' : 'H:'))}
-                    </span>
-                    <span className="text-emerald-500 font-black">{Number(activePt.high).toFixed(2)}</span>
+                    <span className={isLight ? 'text-gray-400' : 'text-[#848E9C]'}>H:</span>
+                    <span className={`font-bold ${activePt.isBull ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>{Number(activePt.high).toFixed(2)}</span>
                   </div>
                   <div className="flex items-center space-x-0.5">
-                    <span className="text-rose-500 font-bold">
-                      {timeframe === '1D' ? 'Day Low:' : (timeframe === '1W' ? 'Wk Low:' : (timeframe === '1M' ? 'Mo Low:' : 'L:'))}
-                    </span>
-                    <span className="text-rose-500 font-bold">{Number(activePt.low).toFixed(2)}</span>
+                    <span className={isLight ? 'text-gray-400' : 'text-[#848E9C]'}>L:</span>
+                    <span className={`font-bold ${activePt.isBull ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>{Number(activePt.low).toFixed(2)}</span>
                   </div>
                   <div className="flex items-center space-x-0.5">
-                    <span className={`font-bold ${isLight ? 'text-sky-600' : 'text-cyan-400'}`}>
-                      {timeframe === '1D' ? 'Day Close:' : (timeframe === '1W' ? 'Wk Close:' : (timeframe === '1M' ? 'Mo Close:' : 'C:'))}
-                    </span>
-                    <span className={`font-black ${activePt.isBull ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    <span className={isLight ? 'text-gray-400' : 'text-[#848E9C]'}>C:</span>
+                    <span className={`font-black ${activePt.isBull ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
                       {Number(activePt.close).toFixed(2)}
                     </span>
                   </div>
+                  <div className="flex items-center space-x-0.5">
+                    <span className={`font-bold text-[10px] ${activePt.isBull ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+                      {activePt.open > 0 ? (
+                        `${activePt.close >= activePt.open ? '+' : ''}${(((activePt.close - activePt.open) / activePt.open) * 100).toFixed(2)}%`
+                      ) : ''}
+                    </span>
+                  </div>
                   <div className={`flex items-center space-x-1 px-1 py-0.2 rounded border ${
-                    isLight ? 'bg-sky-50 border-sky-200' : 'bg-cyan-500/10 border-cyan-500/20'
+                    isLight ? 'bg-sky-50 border-sky-200' : 'bg-[#1E2329]/70 border-[#2B313A]'
                   }`}>
-                    <span className={`font-bold ${isLight ? 'text-sky-700' : 'text-cyan-400'}`}>Vol:</span>
+                    <span className={`font-bold ${isLight ? 'text-sky-700' : 'text-[#848E9C]'}`}>Vol:</span>
                     <span className={`font-black ${isLight ? 'text-gray-900' : 'text-white'}`}>{formatVol(activePt.volume)}</span>
                   </div>
-                  <div className={`${isLight ? 'text-gray-500' : 'text-gray-400'} text-[9px] hidden sm:inline`}>
+                  <div className={`${isLight ? 'text-gray-500' : 'text-[#848E9C]'} text-[9px] hidden sm:inline`}>
                     [{activePt.date}]
                   </div>
                 </>
@@ -2120,10 +2132,10 @@ export default function TradingViewPSXChart({
                 </linearGradient>
               </defs>
 
-              {/* Background Canvas Layer */}
-              <rect width={svgWidth} height={svgHeight} fill={isLight ? '#FFFFFF' : '#070B14'} />
+              {/* Background Canvas Layer (Binance Dark #121722) */}
+              <rect width={svgWidth} height={svgHeight} fill={isLight ? '#FFFFFF' : '#121722'} />
 
-              {/* Grid Lines */}
+              {/* Grid Lines (Subtle Binance #1E2329 Grid) */}
               {chartSettings.gridStyle !== 'none' && (
                 <g opacity={isLight ? '0.6' : '0.4'}>
                   {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => {
@@ -2132,8 +2144,8 @@ export default function TradingViewPSXChart({
                     const dash = chartSettings.gridStyle === 'dotted' ? '2 2' : chartSettings.gridStyle === 'dashed' ? '5 5' : 'none';
                     return (
                       <g key={`ygrid_${i}`}>
-                        <line x1={paddingLeft} y1={y} x2={svgWidth - paddingRight} y2={y} stroke={isLight ? '#E2E8F0' : '#1E293B'} strokeDasharray={dash} />
-                        <text x={svgWidth - paddingRight + 6} y={y + 3} fill={isLight ? '#475569' : '#64748B'} fontSize="9" fontFamily="monospace">
+                        <line x1={paddingLeft} y1={y} x2={svgWidth - paddingRight} y2={y} stroke={isLight ? '#E2E8F0' : '#1E2329'} strokeDasharray={dash} />
+                        <text x={svgWidth - paddingRight + 6} y={y + 3} fill={isLight ? '#475569' : '#848E9C'} fontSize="9" fontFamily="monospace">
                           {priceAtY.toFixed(2)}
                         </text>
                       </g>
@@ -2146,7 +2158,7 @@ export default function TradingViewPSXChart({
                     const x = paddingLeft + chartWidth * pct;
                     const dash = chartSettings.gridStyle === 'dotted' ? '2 2' : chartSettings.gridStyle === 'dashed' ? '5 5' : 'none';
                     return (
-                      <line key={`xgrid_${i}`} x1={x} y1={paddingTop} x2={x} y2={paddingTop + mainChartHeight} stroke={isLight ? '#E2E8F0' : '#1E293B'} strokeDasharray={dash} />
+                      <line key={`xgrid_${i}`} x1={x} y1={paddingTop} x2={x} y2={paddingTop + mainChartHeight} stroke={isLight ? '#E2E8F0' : '#1E2329'} strokeDasharray={dash} />
                     );
                   })}
                 </g>
@@ -2160,23 +2172,38 @@ export default function TradingViewPSXChart({
                     <g>
                       {chartDims.points.map((pt, i) => {
                         const bodyTop = Math.min(pt.yOpen, pt.yClose);
-                        const bodyHeight = Math.max(2, Math.abs(pt.yClose - pt.yOpen));
+                        const diffY = Math.abs(pt.yClose - pt.yOpen);
+                        const isDoji = diffY < 1.5;
+                        const bodyHeight = isDoji ? 1.5 : Math.max(2, diffY);
                         const color = pt.isBull ? chartSettings.upColor : chartSettings.downColor;
                         const isHollow = chartType === 'hollow_candles' && pt.isBull;
 
                         return (
                           <g key={`candle_${i}`}>
-                            <line x1={pt.x} y1={pt.yHigh} x2={pt.x} y2={pt.yLow} stroke={color} strokeWidth="1.2" />
-                            <rect
-                              x={pt.x - candleWidth / 2}
-                              y={bodyTop}
-                              width={candleWidth}
-                              height={bodyHeight}
-                              fill={isHollow ? (isLight ? '#FFFFFF' : '#070B14') : color}
-                              stroke={color}
-                              strokeWidth={isHollow ? '1.5' : '0'}
-                              rx="1"
-                            />
+                            {/* High-Low Wick */}
+                            <line x1={pt.x} y1={pt.yHigh} x2={pt.x} y2={pt.yLow} stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+                            {/* Real Body or Flat Doji Line */}
+                            {isDoji ? (
+                              <line
+                                x1={pt.x - candleWidth / 2}
+                                y1={pt.yClose}
+                                x2={pt.x + candleWidth / 2}
+                                y2={pt.yClose}
+                                stroke={color}
+                                strokeWidth="1.5"
+                              />
+                            ) : (
+                              <rect
+                                x={pt.x - candleWidth / 2}
+                                y={bodyTop}
+                                width={candleWidth}
+                                height={bodyHeight}
+                                fill={isHollow ? (isLight ? '#FFFFFF' : '#121722') : color}
+                                stroke={color}
+                                strokeWidth={isHollow ? '1.5' : '0'}
+                                rx="0.5"
+                              />
+                            )}
                           </g>
                         );
                       })}
@@ -2570,16 +2597,18 @@ export default function TradingViewPSXChart({
                 </g>
               )}
 
-              {/* 6. CROSSHAIR & HOVER TRACKER */}
+              {/* 6. CROSSHAIR & HOVER TRACKER (Binance Pro Snapping & Badges) */}
               {activePt && selectedTool === 'crosshair' && (
                 <g>
-                  <line x1={activePt.x} y1={paddingTop} x2={activePt.x} y2={svgHeight - paddingBottom} stroke="#38BDF8" strokeWidth="1" strokeDasharray="3 3" />
-                  <line x1={paddingLeft} y1={mouseCoord.y > 0 && mouseCoord.y < svgHeight - paddingBottom ? mouseCoord.y : activePt.y} x2={svgWidth - paddingRight} y2={mouseCoord.y > 0 && mouseCoord.y < svgHeight - paddingBottom ? mouseCoord.y : activePt.y} stroke="#38BDF8" strokeWidth="1" strokeDasharray="3 3" />
-                  <circle cx={activePt.x} cy={activePt.y} r="4.5" fill="#06B6D4" stroke="#FFFFFF" strokeWidth="2" />
+                  {/* Vertical & Horizontal Crosshair Guide Lines */}
+                  <line x1={activePt.x} y1={paddingTop} x2={activePt.x} y2={svgHeight - paddingBottom} stroke="#848E9C" strokeWidth="1" strokeDasharray="3 3" opacity="0.65" />
+                  <line x1={paddingLeft} y1={mouseCoord.y > 0 && mouseCoord.y < svgHeight - paddingBottom ? mouseCoord.y : activePt.y} x2={svgWidth - paddingRight} y2={mouseCoord.y > 0 && mouseCoord.y < svgHeight - paddingBottom ? mouseCoord.y : activePt.y} stroke="#848E9C" strokeWidth="1" strokeDasharray="3 3" opacity="0.65" />
+                  {/* Candle Center Indicator Node */}
+                  <circle cx={activePt.x} cy={activePt.yClose} r="3.5" fill="#FFFFFF" stroke={activePt.isBull ? chartSettings.upColor : chartSettings.downColor} strokeWidth="2" />
 
                   {/* Y-Axis Hover Price Badge */}
                   <g transform={`translate(${svgWidth - paddingRight + 2}, ${(mouseCoord.y > 0 && mouseCoord.y < svgHeight - paddingBottom ? mouseCoord.y : activePt.y) - 9})`}>
-                    <rect width="64" height="18" fill="#0284C7" rx="3" />
+                    <rect width="64" height="18" fill={isLight ? '#0284C7' : '#2B313A'} stroke={isLight ? '#0284C7' : '#848E9C'} strokeWidth="0.8" rx="2" />
                     <text x="32" y="12" fill="#FFFFFF" fontSize="9.5" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
                       {mouseCoord.price ? Number(mouseCoord.price).toFixed(2) : Number(activePt.close).toFixed(2)}
                     </text>
@@ -2587,20 +2616,20 @@ export default function TradingViewPSXChart({
 
                   {/* X-Axis Hover Time Badge */}
                   <g transform={`translate(${Math.max(paddingLeft, Math.min(activePt.x - 38, svgWidth - paddingRight - 76))}, ${svgHeight - paddingBottom + 3})`}>
-                    <rect width="76" height="16" fill={isLight ? '#F1F5F9' : '#1E293B'} stroke="#0284C7" strokeWidth="1" rx="3" />
-                    <text x="38" y="11" fill={isLight ? '#0369A1' : '#38BDF8'} fontSize="9" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
+                    <rect width="76" height="16" fill={isLight ? '#F1F5F9' : '#2B313A'} stroke={isLight ? '#0284C7' : '#848E9C'} strokeWidth="0.8" rx="2" />
+                    <text x="38" y="11" fill={isLight ? '#0369A1' : '#EAECEF'} fontSize="9" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
                       {activePt.date}
                     </text>
                   </g>
                 </g>
               )}
 
-              {/* Current Price Live Watermark Line */}
+              {/* Current Price Live Watermark Line (Binance High-Contrast Ribbon) */}
               <g>
-                <line x1={paddingLeft} y1={chartDims.points[chartDims.points.length - 1]?.y || 100} x2={svgWidth - paddingRight} y2={chartDims.points[chartDims.points.length - 1]?.y || 100} stroke={isBullish ? '#10B981' : '#EF4444'} strokeWidth="1" strokeDasharray="4 2" />
+                <line x1={paddingLeft} y1={chartDims.points[chartDims.points.length - 1]?.y || 100} x2={svgWidth - paddingRight} y2={chartDims.points[chartDims.points.length - 1]?.y || 100} stroke={isBullish ? chartSettings.upColor : chartSettings.downColor} strokeWidth="1.2" strokeDasharray="4 2" />
                 <g transform={`translate(${svgWidth - paddingRight + 2}, ${(chartDims.points[chartDims.points.length - 1]?.y || 100) - 9})`}>
-                  <rect width="64" height="18" fill={isBullish ? '#10B981' : '#EF4444'} rx="3" />
-                  <text x="32" y="12" fill="#FFFFFF" fontSize="9.5" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
+                  <rect width="64" height="18" fill={isBullish ? chartSettings.upColor : chartSettings.downColor} rx="2" />
+                  <text x="32" y="12" fill="#FFFFFF" fontSize="9.5" fontFamily="monospace" fontWeight="black" textAnchor="middle">
                     {Number(currentPrice).toFixed(2)}
                   </text>
                 </g>
@@ -2701,7 +2730,7 @@ export default function TradingViewPSXChart({
 
       {/* 3. BOTTOM TIMEFRAME RANGES & SCALE CONTROLS TOOLBAR (Responsive) */}
       <div className={`flex flex-wrap items-center justify-between px-2.5 sm:px-3 py-1 text-[10px] sm:text-[11px] font-mono shrink-0 gap-1.5 ${
-        isLight ? 'bg-slate-50 border-t border-gray-200' : 'bg-[#0A0E1A] border-t border-gray-800'
+        isLight ? 'bg-slate-50 border-t border-gray-200' : 'bg-[#181A20] border-t border-[#1E2329]'
       }`}>
         {/* Left: Quick Date Range Buttons */}
         <div className="flex items-center space-x-1">
