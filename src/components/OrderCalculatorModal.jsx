@@ -119,7 +119,7 @@ Risk-to-Reward: 1 : ${riskRewardRatio}`;
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold tracking-tight">
-                PSX Alpha Order Execution Calculator
+                PSX STOCKKING Order Execution Calculator
               </h2>
               <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
                 Position Sizing for <b className="text-[#0F172A] dark:text-[#F8FAFC] mono">{stock.symbol}</b> {stock.name ? `• ${stock.name}` : ''}

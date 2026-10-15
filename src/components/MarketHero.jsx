@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TrendingUp, TrendingDown, Activity, Layers, Radio, Lock } from 'lucide-react';
-import { getPSXMarketStatus } from '../utils/marketSession';
+import { getPSXMarketStatus, DEFAULT_KSE100_SUMMARY } from '../utils/marketSession';
 
 const DEFAULT_SECTORS = [
   { sector: 'Commercial Banks', changePercent: 1.25, volume: 45000000 },
@@ -16,16 +16,16 @@ const DEFAULT_SECTORS = [
 export default function MarketHero({ marketSummary }) {
   const [viewAllSectors, setViewAllSectors] = useState(false);
 
-  const rawVal = marketSummary?.currentValue || marketSummary?.current || 176688.42;
+  const rawVal = marketSummary?.currentValue || marketSummary?.current || DEFAULT_KSE100_SUMMARY.current;
   const currentValue = Number(rawVal);
-  const change = marketSummary?.change !== undefined ? Number(marketSummary.change) : -287.25;
-  const changePercent = marketSummary?.changePercent !== undefined ? Number(marketSummary.changePercent) : -0.16;
-  const high = Number(marketSummary?.high || 177800.28);
-  const low = Number(marketSummary?.low || 176688.42);
-  const indexName = marketSummary?.indexName || 'KSE-100';
-  const advances = marketSummary?.advances !== undefined ? marketSummary.advances : 468;
-  const declines = marketSummary?.declines !== undefined ? marketSummary.declines : 267;
-  const unchanged = marketSummary?.unchanged !== undefined ? marketSummary.unchanged : 28;
+  const change = marketSummary?.change !== undefined ? Number(marketSummary.change) : DEFAULT_KSE100_SUMMARY.change;
+  const changePercent = marketSummary?.changePercent !== undefined ? Number(marketSummary.changePercent) : DEFAULT_KSE100_SUMMARY.changePercent;
+  const high = Number(marketSummary?.high || DEFAULT_KSE100_SUMMARY.high);
+  const low = Number(marketSummary?.low || DEFAULT_KSE100_SUMMARY.low);
+  const indexName = marketSummary?.indexName || DEFAULT_KSE100_SUMMARY.indexName;
+  const advances = marketSummary?.advances !== undefined ? marketSummary.advances : DEFAULT_KSE100_SUMMARY.advances;
+  const declines = marketSummary?.declines !== undefined ? marketSummary.declines : DEFAULT_KSE100_SUMMARY.declines;
+  const unchanged = marketSummary?.unchanged !== undefined ? marketSummary.unchanged : DEFAULT_KSE100_SUMMARY.unchanged;
   const sectorPerformance = marketSummary?.sectorPerformance || [];
   const marketSentiment = marketSummary?.marketSentiment || (change >= 0 ? 'BULLISH' : 'BEARISH');
   const marketStatus = marketSummary?.marketStatus || getPSXMarketStatus();

@@ -201,10 +201,10 @@ export default function StockScreenerTable({
       {/* Filter Row */}
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
         {/* Quick Filter Badges */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth touch-pan-x py-1 w-full lg:w-auto">
           <button
             onClick={() => { setActiveFilter('ALL'); setCurrentPage(1); }}
-            className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
               activeFilter === 'ALL' 
                 ? 'bg-[#2563EB] dark:bg-[#3B82F6] text-white shadow-sm' 
                 : 'bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] border border-[#E2E8F0] dark:border-[#243044]'
@@ -215,7 +215,7 @@ export default function StockScreenerTable({
 
           <button
             onClick={() => { setActiveFilter('KSE100'); setCurrentPage(1); }}
-            className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
               activeFilter === 'KSE100' 
                 ? 'bg-[#2563EB] dark:bg-[#3B82F6] text-white shadow-sm' 
                 : 'bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] border border-[#E2E8F0] dark:border-[#243044]'
@@ -226,7 +226,7 @@ export default function StockScreenerTable({
 
           <button
             onClick={() => { setActiveFilter('STRONG_BUY'); setCurrentPage(1); }}
-            className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1 cursor-pointer shrink-0 whitespace-nowrap ${
               activeFilter === 'STRONG_BUY' 
                 ? 'bg-[#16A34A] dark:bg-[#22C55E] text-white shadow-sm' 
                 : 'bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] border border-[#E2E8F0] dark:border-[#243044]'
@@ -238,7 +238,7 @@ export default function StockScreenerTable({
 
           <button
             onClick={() => { setActiveFilter('HIGH_DIVIDEND'); setCurrentPage(1); }}
-            className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
               activeFilter === 'HIGH_DIVIDEND' 
                 ? 'bg-[#D97706] dark:bg-[#F59E0B] text-white dark:text-black font-black shadow-sm' 
                 : 'bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] border border-[#E2E8F0] dark:border-[#243044]'
@@ -249,7 +249,7 @@ export default function StockScreenerTable({
 
           <button
             onClick={() => { setActiveFilter('OVERSOLD'); setCurrentPage(1); }}
-            className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
               activeFilter === 'OVERSOLD' 
                 ? 'bg-[#2563EB] dark:bg-[#3B82F6] text-white shadow-sm' 
                 : 'bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] border border-[#E2E8F0] dark:border-[#243044]'
@@ -260,7 +260,7 @@ export default function StockScreenerTable({
         </div>
 
         {/* Dropdowns Row */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth touch-pan-x py-1 w-full lg:w-auto">
           <div className="flex items-center space-x-1.5 bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg px-2.5 py-1.5 text-xs">
             <Layers className="w-3.5 h-3.5 text-[#2563EB] dark:text-[#3B82F6] shrink-0" />
             <select

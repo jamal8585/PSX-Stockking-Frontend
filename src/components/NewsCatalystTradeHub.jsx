@@ -119,33 +119,59 @@ const STOCK_VOLATILITY_PROFILES = {
 export const evaluateArticleSentiment = (title = '', desc = '') => {
   const text = (title + ' ' + (desc || '')).toLowerCase();
 
-  const negativeKeywords = [
-    'drop', 'fall', 'slump', 'plunge', 'tumble', 'loss', 'decline', 'deficit', 'crash',
-    'tax hike', 'levy hike', 'tariff hike', 'cost jump', 'shutdown', 'penalty', 'fine',
-    'dispute', 'debt crisis', 'circular debt', 'default', 'curb', 'ban', 'stagnant',
-    'bearish', 'headwind', 'inflation jumps', 'inflation rises', 'warning', 'downside',
-    'probe', 'fraud', 'investigation', 'scam'
+  // Explicit positive phrases (duty rationalization, smuggling curb, tax relief, etc.)
+  const compoundPositivePhrases = [
+    'duty rationalization', 'duties rationalization', 'tariff rationalization',
+    'smuggling curb', 'curb smuggling', 'curb on smuggling', 'curbing smuggling',
+    'tax relief', 'rate cut', 'cut rate', 'rate drops', 'inflation drops',
+    'inflation falls', 'reserves rise', 'exports rise', 'sales rise', 'demand accelerates',
+    'imf approval', 'imf deal', 'agreement signed', 'capacity expansion',
+    'margin expansion', 'profit jumps', 'earnings jump'
   ];
 
   const positiveKeywords = [
     'surge', 'jump', 'rise', 'gain', 'profit', 'dividend', 'growth', 'upgrade', 'rally',
-    'cut rate', 'rate cut', 'rate drops', 'drops to', 'inflation drops', 'inflation falls',
     'soars', 'record', 'high', 'boost', 'expansion', 'recovery', 'surplus', 'rebound', 'bullish',
-    'deal', 'agreement', 'incentive', 'tax relief', 'subsidy', 'approved', 'imf approval', 'inflow',
-    'reserves rise', 'exports rise', 'sales rise', 'demand accelerates', 'holds above', 'help transform',
-    'modernization', 'package', 'tenders', 'contracts', 'order'
+    'deal', 'agreement', 'incentive', 'subsidy', 'approved', 'inflow', 'support', 'supports',
+    'supporting', 'supported', 'rationalization', 'rationalize', 'rationalized', 'improve',
+    'improves', 'improved', 'improvement', 'benefit', 'benefits', 'benefiting', 'lift',
+    'lifts', 'lifting', 'strengthen', 'strengthens', 'strengthening', 'advances', 'advance',
+    'modernization', 'package', 'tenders', 'contracts', 'order', 'upward', 'favorable',
+    'positive', 'outperform', 'accumulate', 'lucrative', 'tailwind'
   ];
 
-  let negScore = 0;
-  let posScore = 0;
+  const negativeKeywords = [
+    'slump', 'plunge', 'tumble', 'loss', 'deficit', 'crash',
+    'tax hike', 'levy hike', 'tariff hike', 'cost jump', 'shutdown', 'penalty', 'fine',
+    'dispute', 'debt crisis', 'circular debt', 'default', 'ban', 'stagnant',
+    'bearish', 'headwind', 'inflation jumps', 'inflation rises', 'warning', 'downside',
+    'probe', 'fraud', 'investigation', 'scam', 'curb imports', 'export curb', 'decline'
+  ];
 
-  negativeKeywords.forEach(kw => {
-    if (text.includes(kw)) negScore += 1;
+  let posScore = 0;
+  let negScore = 0;
+
+  compoundPositivePhrases.forEach(ph => {
+    if (text.includes(ph)) posScore += 2; // Strong weight for compound economic catalysts
   });
 
   positiveKeywords.forEach(kw => {
     if (text.includes(kw)) posScore += 1;
   });
+
+  negativeKeywords.forEach(kw => {
+    if (text.includes(kw)) negScore += 1;
+  });
+
+  // Handle standalone 'drop' or 'fall' only if not referring to rate/inflation/cost drop
+  if ((text.includes('drop') || text.includes('fall')) && !text.includes('inflation drop') && !text.includes('rate drop') && !text.includes('cost drop') && !text.includes('drops to')) {
+    negScore += 1;
+  }
+
+  // Handle standalone 'curb' only if not 'smuggling curb'
+  if (text.includes('curb') && !text.includes('smuggling')) {
+    negScore += 1;
+  }
 
   if (negScore > posScore) return 'NEGATIVE';
   if (posScore > negScore) return 'POSITIVE';
@@ -637,31 +663,59 @@ export default function NewsCatalystTradeHub({
       const tagLabel = articlePolarity === 'POSITIVE' ? '(Positive)' : '(Negative)';
 
       const impactedStockSymbols = new Set();
-
-      (newsItem.upStocks || []).forEach(s => s?.symbol && impactedStockSymbols.add(s.symbol.toUpperCase().trim()));
-      (newsItem.downStocks || []).forEach(s => s?.symbol && impactedStockSymbols.add(s.symbol.toUpperCase().trim()));
-      (newsItem.tradeSuggestions || []).forEach(s => s?.symbol && impactedStockSymbols.add(s.symbol.toUpperCase().trim()));
-
       const lowerTitle = (newsItem.title || '').toLowerCase();
       const lowerDesc = (newsItem.impactSummary || newsItem.description || '').toLowerCase();
       const fullText = lowerTitle + ' ' + lowerDesc;
 
-      // Match all master stocks by symbol word boundary or company keywords
+      const escapeRegex = (s) => String(s).replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+
+      // Generic words to exclude from single-word stock matching to prevent cross-sector bleed
+      const GENERIC_EXCLUSIONS = new Set([
+        'limited', 'company', 'pakistan', 'bank', 'the', 'co', 'ltd', 'corp', 'corporation',
+        'industries', 'industry', 'national', 'general', 'standard', 'commercial', 'enterprises',
+        'holdings', 'services', 'products', 'group', 'international', 'mills', 'factory', 'sugar',
+        'foods', 'power', 'generation', 'refinery', 'petroleum', 'oil', 'gas', 'electric', 'electronic'
+      ]);
+
+      // 1. Match stocks explicitly mentioned by exact ticker symbol word boundary (\bSYM\b)
       MASTER_STOCKS_LIST.forEach(st => {
         const sym = st.symbol.toLowerCase();
-        const nameKeywords = st.name.toLowerCase().split(' ').filter(w => w.length > 3 && !['limited', 'company', 'pakistan', 'bank', 'the', 'co', 'ltd'].includes(w));
-        
-        const hasSymWord = new RegExp(`\\b${sym}\\b`, 'i').test(newsItem.title);
-        const hasNameKeyword = nameKeywords.some(kw => fullText.includes(kw));
+        const hasSymInText = new RegExp(`\\b${escapeRegex(sym)}\\b`, 'i').test(fullText);
 
-        if (hasSymWord || hasNameKeyword) {
-          impactedStockSymbols.add(st.symbol.toUpperCase());
+        const distinctNameWords = st.name.toLowerCase().split(/\s+/).filter(w => w.length > 3 && !GENERIC_EXCLUSIONS.has(w));
+        const hasDistinctBrand = distinctNameWords.length > 0 && distinctNameWords.some(w => new RegExp(`\\b${escapeRegex(w)}\\b`, 'i').test(fullText));
+
+        if (hasSymInText || hasDistinctBrand) {
+          // If news has a specific category (not macro), verify sector compatibility or explicit title mention
+          const isExplicitInTitle = new RegExp(`\\b${escapeRegex(sym)}\\b`, 'i').test(lowerTitle);
+          const isSectorAligned = !newsItem.category || newsItem.category === 'MACRO_ECONOMY' || newsItem.category === st.category;
+          
+          if (isExplicitInTitle || isSectorAligned) {
+            impactedStockSymbols.add(st.symbol.toUpperCase());
+          }
         }
       });
 
-      // If no stock matched directly, attach to flagship stocks belonging to the news item's category
+      // 2. If article has pre-assigned upStocks/downStocks/tradeSuggestions, only add sector-aligned ones
+      const preassigned = [
+        ...(newsItem.upStocks || []),
+        ...(newsItem.downStocks || []),
+        ...(newsItem.tradeSuggestions || [])
+      ];
+
+      preassigned.forEach(s => {
+        if (!s?.symbol) return;
+        const upper = s.symbol.toUpperCase().trim();
+        const masterObj = MASTER_STOCKS_LIST.find(st => st.symbol === upper);
+        // Only allow if category matches or news is macro economy
+        if (!newsItem.category || newsItem.category === 'MACRO_ECONOMY' || masterObj?.category === newsItem.category) {
+          impactedStockSymbols.add(upper);
+        }
+      });
+
+      // 3. If no stock matched directly, attach ONLY to flagship stocks belonging strictly to this news item's category
       if (impactedStockSymbols.size === 0 && newsItem.category) {
-        MASTER_STOCKS_LIST.filter(st => st.category === newsItem.category).slice(0, 5).forEach(st => {
+        MASTER_STOCKS_LIST.filter(st => st.category === newsItem.category).slice(0, 4).forEach(st => {
           impactedStockSymbols.add(st.symbol.toUpperCase());
         });
       }
@@ -685,10 +739,11 @@ export default function NewsCatalystTradeHub({
       });
     });
 
-    // 3. For any stock that still has 0 news items, attach the primary news from its category
+    // 3. For any stock that still has 0 news items, attach the primary news strictly from its category or macro economy
     stockNewsMap.forEach((entry, sym) => {
       if (entry.newsItems.length === 0) {
-        const catNews = cleanNewsList.find(n => n.category === entry.category) || cleanNewsList[0];
+        const catNews = cleanNewsList.find(n => n.category === entry.category) ||
+                        cleanNewsList.find(n => n.category === 'MACRO_ECONOMY');
         if (catNews) {
           const pol = evaluateArticleSentiment(catNews.title, catNews.impactSummary || catNews.description);
           entry.newsItems.push({
@@ -1585,6 +1640,11 @@ export default function NewsCatalystTradeHub({
                           Live Chart
                         </button>
                       </div>
+
+                      {/* SECP / PSX Algorithmic Risk Disclaimer */}
+                      <p className="text-[9.5px] text-[#64748B] dark:text-[#94A3B8] italic text-center mt-2 px-1">
+                        ⚠️ Signals are for informational/algorithmic research purposes only and do not constitute financial advice.
+                      </p>
                     </div>
                   </div>
                 );
@@ -1874,39 +1934,45 @@ function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculato
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 bg-[#F8FAFC] dark:bg-[#0B0F19] border-t border-[#E2E8F0] dark:border-[#243044] flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center space-x-2 text-xs text-[#64748B] dark:text-[#94A3B8]">
-            <Activity className="w-4 h-4 text-[#2563EB]" />
-            <span>AI Confidence: <b className="text-[#0F172A] dark:text-[#F8FAFC]">{confidencePct}%</b></span>
-          </div>
+        <div className="p-4 bg-[#F8FAFC] dark:bg-[#0B0F19] border-t border-[#E2E8F0] dark:border-[#243044] space-y-2.5">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center space-x-2 text-xs text-[#64748B] dark:text-[#94A3B8]">
+              <Activity className="w-4 h-4 text-[#2563EB]" />
+              <span>AI Confidence: <b className="text-[#0F172A] dark:text-[#F8FAFC]">{confidencePct}%</b></span>
+            </div>
 
-          <div className="flex items-center space-x-2 w-full sm:w-auto">
-            <button
-              onClick={() => {
-                onClose();
-                onOpenCalculator({
-                  symbol: trade.symbol,
-                  companyName: trade.name,
-                  currentPrice: Number(currentPrice),
-                  stopLoss: Number(stopLoss),
-                  target1: Number(tomorrowTarget2),
-                  signal: isBullish ? 'BUY_NOW' : 'SELL_EXIT'
-                });
-              }}
-              className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all cursor-pointer"
-            >
-              Set Trade Order
-            </button>
-            <button
-              onClick={() => {
-                onClose();
-                onSelectStock(trade.symbol);
-              }}
-              className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#FFFFFF] dark:bg-[#151E2E] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] font-bold text-xs border border-[#E2E8F0] dark:border-[#243044] transition-all cursor-pointer"
-            >
-              Open Live Chart
-            </button>
+            <div className="flex items-center space-x-2 w-full sm:w-auto">
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenCalculator({
+                    symbol: trade.symbol,
+                    companyName: trade.name,
+                    currentPrice: Number(currentPrice),
+                    stopLoss: Number(stopLoss),
+                    target1: Number(tomorrowTarget2),
+                    signal: isBullish ? 'BUY_NOW' : 'SELL_EXIT'
+                  });
+                }}
+                className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+              >
+                Set Trade Order
+              </button>
+              <button
+                onClick={() => {
+                  onClose();
+                  onSelectStock(trade.symbol);
+                }}
+                className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#FFFFFF] dark:bg-[#151E2E] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] font-bold text-xs border border-[#E2E8F0] dark:border-[#243044] transition-all cursor-pointer"
+              >
+                Open Live Chart
+              </button>
+            </div>
           </div>
+          
+          <p className="text-[10px] text-[#64748B] dark:text-[#94A3B8] italic text-center pt-2 border-t border-[#E2E8F0] dark:border-[#243044]">
+            ⚠️ Signals are for informational/algorithmic research purposes only and do not constitute financial advice.
+          </p>
         </div>
 
       </div>

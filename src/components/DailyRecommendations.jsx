@@ -900,7 +900,7 @@ export default function DailyRecommendations({
 
         {/* Quick Popular Ticker Chips & Reset All */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-3 pt-3 border-t border-[#E2E8F0] dark:border-[#243044]">
-          <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs">
+          <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar scroll-smooth touch-pan-x pb-1 text-xs">
             <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8] font-bold shrink-0 mr-1 flex items-center">
               <SlidersHorizontal className="w-3 h-3 mr-1 text-[#2563EB]" /> Quick Select:
             </span>
@@ -1246,6 +1246,11 @@ export default function DailyRecommendations({
                   </div>
                 </div>
 
+                {/* SECP / PSX Algorithmic Risk Disclaimer */}
+                <p className="text-[9.5px] text-[#64748B] dark:text-[#94A3B8] italic text-center mb-2 px-1">
+                  ⚠️ Signals are for informational/algorithmic research purposes only and do not constitute financial advice.
+                </p>
+
                 {/* Card Actions */}
                 <div className="grid grid-cols-2 gap-2 pt-3 border-t border-[#E2E8F0] dark:border-[#243044]">
                   <button
@@ -1268,6 +1273,13 @@ export default function DailyRecommendations({
           })}
         </div>
       )}
+
+      {/* Section-Level Regulatory Compliance Notice */}
+      <div className="p-3 rounded-xl bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] text-center">
+        <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] italic">
+          ⚠️ <b>SECP Compliance Notice:</b> PSX STOCKKING algorithmic signals and price projection models are strictly for educational and technical market research. They do not constitute investment advice or a recommendation to buy or sell securities.
+        </p>
+      </div>
     </div>
   );
 }

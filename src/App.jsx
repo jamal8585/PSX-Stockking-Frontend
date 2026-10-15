@@ -1085,8 +1085,11 @@ export default function App() {
           ? 'bg-[#FFFFFF] border-[#E2E8F0] text-[#64748B]' 
           : 'bg-[#151E2E] border-[#243044] text-[#94A3B8]'
       }`}>
-        <div className="max-w-[1680px] mx-auto px-4">
-          <p>© 2026 PSX STOCKKING • Real-Time Financial Intelligence, Portfolio Tracker & Algorithmic Stock Screening Engine.</p>
+        <div className="max-w-[1680px] mx-auto px-4 space-y-1.5">
+          <p className="font-bold">© 2026 PSX STOCKKING • Real-Time Financial Intelligence, Portfolio Tracker & Algorithmic Stock Screening Engine.</p>
+          <p className="text-[11px] opacity-80 max-w-4xl mx-auto leading-relaxed">
+            ⚠️ <b>Regulatory & Risk Disclaimer:</b> All AI signals, target sell prices, entry zones, and catalyst trade setups on PSX STOCKKING are strictly for informational and algorithmic research purposes only and do not constitute financial advice or investment recommendations under SECP / PSX guidelines. Always conduct independent due diligence before executing trades.
+          </p>
         </div>
       </footer>
 

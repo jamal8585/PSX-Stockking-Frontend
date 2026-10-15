@@ -1248,6 +1248,12 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
               <span className="font-extrabold text-rose-500 mono">PKR {stopLoss} (-5.0%)</span>
             </div>
           </div>
+
+          <p className={`text-[10px] italic text-center pt-2 border-t ${
+            isDark ? 'text-gray-400 border-gray-800' : 'text-slate-500 border-slate-100'
+          }`}>
+            ⚠️ Signals are for informational/algorithmic research purposes only and do not constitute financial advice.
+          </p>
         </div>
 
         {/* 6. Bottom Action Bar */}

@@ -21,7 +21,7 @@ import {
   TrendingDown
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
-import { getPSXMarketStatus } from '../utils/marketSession';
+import { getPSXMarketStatus, DEFAULT_KSE100_SUMMARY } from '../utils/marketSession';
 
 const POPULAR_SYMBOLS = [
   'CNERGY', 'PRL', 'WAVESAPPR', 'BOP', 'OGDC', 'PPL', 'SYS', 'MARI', 'LUCK', 
@@ -51,11 +51,10 @@ export default function Navbar({
   theme = 'dark', 
   onToggleTheme 
 }) {
-  const kse = (marketSummary?.currentValue || marketSummary?.current) 
-    ? Number(marketSummary.currentValue || marketSummary.current).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
-    : '177,783.65';
-  const change = marketSummary?.change !== undefined ? Number(marketSummary.change) : 807.98;
-  const changePct = marketSummary?.changePercent !== undefined ? Number(marketSummary.changePercent) : 0.46;
+  const kseRaw = marketSummary?.currentValue || marketSummary?.current || DEFAULT_KSE100_SUMMARY.current;
+  const kse = Number(kseRaw).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const change = marketSummary?.change !== undefined ? Number(marketSummary.change) : DEFAULT_KSE100_SUMMARY.change;
+  const changePct = marketSummary?.changePercent !== undefined ? Number(marketSummary.changePercent) : DEFAULT_KSE100_SUMMARY.changePercent;
   const isPositive = change >= 0;
   const marketStatus = marketSummary?.marketStatus || getPSXMarketStatus();
 
@@ -129,8 +128,8 @@ export default function Navbar({
         </div>
 
         {/* Live Moving Ticker Marquee Container */}
-        <div className="flex-1 overflow-hidden relative mx-3">
-          <div className="animate-marquee flex items-center space-x-8 text-[11px]">
+        <div className="flex-1 overflow-x-auto no-scrollbar touch-pan-x relative mx-2 sm:mx-3">
+          <div className="animate-marquee flex items-center space-x-8 text-[11px] whitespace-nowrap">
             {/* Set 1 */}
             <span className="mono font-bold whitespace-nowrap">
               KSE-100: <b className={isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'}>{kse}</b>{' '}
@@ -204,8 +203,8 @@ export default function Navbar({
                 <span className={`font-black text-xs sm:text-base md:text-lg tracking-tight ${
                   isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'
                 }`}>
-                  <span className="inline sm:hidden">PSX ALPHA</span>
-                  <span className="hidden sm:inline">PSX ALPHA TERMINAL</span>
+                  <span className="inline sm:hidden">PSX STOCKKING</span>
+                  <span className="hidden sm:inline">PSX STOCKKING TERMINAL</span>
                 </span>
                 <span className={`hidden md:inline-block text-[8px] sm:text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-md border tracking-wider ${
                   isLight ? 'bg-[#2563EB]/10 text-[#2563EB] border-[#2563EB]/20' : 'bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/30'
