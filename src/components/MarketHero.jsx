@@ -49,10 +49,16 @@ export default function MarketHero({ marketSummary }) {
   const rangeSpan = Math.max(1, high - low);
   const dayRangeProgressPct = Math.min(100, Math.max(0, ((currentValue - low) / rangeSpan) * 100));
 
-  // Compute dynamic sector performance across all 39 PSX sectors
+  // Compute dynamic sector performance across all 39 PSX sectors with circuit-breaker sanity filter
   const displaySectors = useMemo(() => {
     const validServerSectors = Array.isArray(sectorPerformance) 
-      ? sectorPerformance.filter(s => s && s.sector && s.sector !== 'General Market') 
+      ? sectorPerformance
+          .filter(s => s && s.sector && s.sector !== 'General Market')
+          .map(s => ({
+            ...s,
+            // Clamp any unadjusted server outlier to PSX realistic circuit breaker range
+            changePercent: Number(Math.max(-15, Math.min(15, Number(s.changePercent || 0))).toFixed(2))
+          }))
       : [];
 
     if (validServerSectors.length >= 5) {
@@ -64,11 +70,20 @@ export default function MarketHero({ marketSummary }) {
       Object.values(officialQuotes).forEach(q => {
         const secName = q?.sector;
         if (!secName || secName === 'General Market') return;
+
+        // Skip Unpaid Rights (LoR) and penny share anomalies from sector index calculation
+        const sym = String(q.symbol || '').toUpperCase().trim();
+        const isRightOrLoR = sym.endsWith('R') || sym.includes('APPR') || sym.includes('LOR') || 
+          (Number(q.currentPrice || 0) < 1.0 && Math.abs(Number(q.changePercent || 0)) > 20);
+        if (isRightOrLoR) return;
+
         if (!secMap.has(secName)) {
           secMap.set(secName, { sector: secName, totalChange: 0, count: 0, volume: 0 });
         }
         const record = secMap.get(secName);
-        record.totalChange += Number(q.changePercent || 0);
+        // Clamp individual stock change to PSX max circuit breaker limit (±15%)
+        const clampedChange = Math.max(-15, Math.min(15, Number(q.changePercent || 0)));
+        record.totalChange += clampedChange;
         record.volume += Number(q.volume || 0);
         record.count += 1;
       });

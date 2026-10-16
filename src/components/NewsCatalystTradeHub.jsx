@@ -192,7 +192,8 @@ export const isNonFinancialNews = (title = '', desc = '') => {
     'grammy', 'oscar', 'nobel prize', 'gaza', 'ukraine war', 'syria', 'beirut', 'tel aviv',
     'lebanon', 'yemen', 'sudan', 'haiti', 'prince harry', 'meghan markle', 'royal family',
     'celebrity', 'tennis', 'cricket match', 'world cup qualifier', 'premier league', 'la liga',
-    'suicide', 'assassination', 'traffic jam', 'weather update', 'cold wave', 'fog', 'smog in lahore'
+    'suicide', 'assassination', 'traffic jam', 'weather update', 'cold wave', 'fog', 'smog in lahore',
+    'banknote', 'rs10', 'rs 10', 'currency note', 'currency notes', 'clears air on', 'discontinuation claims'
   ];
   return nonFinancialKeywords.some(kw => text.includes(kw));
 };
@@ -218,20 +219,28 @@ export const ALL_SECTOR_BASE_CATALYSTS = [
   },
   // 2. COMMERCIAL_BANKS
   {
-    title: 'Commercial Banks expand private sector credit; Meezan Bank, Bank Alfalah, and BOP rally',
-    description: 'Banking sector deposit growth outpaces annual targets. Islamic banking leaders MEBL, BAFL, and BOP see solid institutional accumulation.',
+    title: 'Meezan Bank, Bank Alfalah and Bank of Punjab report strong private sector deposit inflows',
+    description: 'Islamic banking and low-cost CASA deposit mobilization support resilient balance sheet expansion for MEBL, BAFL, and BOP.',
     source: 'Dawn Business',
     category: 'COMMERCIAL_BANKS',
     minuteOffset: 25,
-    upSymbols: ['MEBL', 'BAFL', 'BOP', 'MCB', 'UBL', 'BAHL']
+    upSymbols: ['MEBL', 'BAFL', 'BOP']
   },
   {
-    title: 'State Bank reports record banking sector ROE; MCB Bank and United Bank announce dividend payouts',
-    description: 'High net interest margins and prudent non-performing loan coverage propel earnings for MCB and UBL, supporting defensive dividend yields.',
+    title: 'MCB Bank and United Bank (UBL) maintain institutional dividend appeal backed by healthy capital adequacy',
+    description: 'High net interest margins and robust non-performing loan provisioning protect forward payout capabilities for MCB, UBL, and BAHL.',
     source: 'Express Tribune Business',
     category: 'COMMERCIAL_BANKS',
     minuteOffset: 50,
-    upSymbols: ['MCB', 'UBL', 'HBL', 'NBP', 'BIPL']
+    upSymbols: ['MCB', 'UBL', 'BAHL']
+  },
+  {
+    title: 'Commercial banks navigate advance-to-deposit ratio (ADR) rebalancing as treasury yields adjust',
+    description: 'Habib Bank (HBL), National Bank (NBP), and BankIslami focus on risk-weighted lending optimization amid sovereign yield curve transitions.',
+    source: 'Business Recorder Pakistan',
+    category: 'COMMERCIAL_BANKS',
+    minuteOffset: 75,
+    upSymbols: ['HBL', 'NBP', 'BIPL']
   },
   // 3. TECHNOLOGY
   {
@@ -371,20 +380,36 @@ export const ALL_SECTOR_BASE_CATALYSTS = [
   },
   // 11. SUGAR_FOOD
   {
-    title: 'FMCG & Food processors benefit from stable input commodities; National Foods & Organic Meat gain',
-    description: 'Packaged foods manufacturer National Foods (NATF) and Organic Meat (TOMCL) expand halal export footprints across GCC markets.',
+    title: 'The Organic Meat Company (TOMCL) secures new GCC & East Asian cooked beef export authorizations',
+    description: 'Expansion into regional export corridors boosts processing throughput and foreign exchange realization for TOMCL.',
     source: 'Dawn Business',
     category: 'SUGAR_FOOD',
     minuteOffset: 245,
-    upSymbols: ['NATF', 'NESTLE', 'TOMCL', 'UNITY']
+    upSymbols: ['TOMCL']
   },
   {
-    title: 'Sugar export quota and high-yielding ethanol crushing expand cash flows for agribusiness processors',
-    description: 'Value-added ethanol distillation and packaged retail margins boost outlook for NESTLE, NATF, and TOMCL.',
+    title: 'National Foods (NATF) expands packaged recipe and condiments export footprints across North America and GCC',
+    description: 'Strong brand equity and margin preservation through value-added product mix support earnings growth for NATF.',
+    source: 'Express Tribune Business',
+    category: 'SUGAR_FOOD',
+    minuteOffset: 260,
+    upSymbols: ['NATF']
+  },
+  {
+    title: 'Nestle Pakistan posts resilient dairy and nutrition sales volume expansion with improved operating cash flows',
+    description: 'Value-chain efficiencies and localized dairy sourcing optimize gross margins for NESTLE.',
     source: 'Business Recorder Pakistan',
     category: 'SUGAR_FOOD',
-    minuteOffset: 270,
-    upSymbols: ['NESTLE', 'TOMCL', 'NATF', 'UNITY']
+    minuteOffset: 275,
+    upSymbols: ['NESTLE']
+  },
+  {
+    title: 'Unity Foods accelerates edible oil refinery throughput and bulk agribusiness distribution',
+    description: 'Stabilizing palm olein import costs and enhanced distribution networks boost operational volumes for UNITY.',
+    source: 'Dawn Business',
+    category: 'SUGAR_FOOD',
+    minuteOffset: 290,
+    upSymbols: ['UNITY']
   },
   // 12. MACRO_ECONOMY
   {
@@ -505,6 +530,7 @@ export default function NewsCatalystTradeHub({
     const sym = (symbol || '').toUpperCase().trim();
     const foundStock = Array.isArray(stocks) ? stocks.find(s => s.symbol?.toUpperCase() === sym) : null;
     const foundOfficial = officialQuotes ? officialQuotes[sym] : null;
+    const masterStock = MASTER_STOCKS_LIST.find(s => s.symbol?.toUpperCase() === sym);
 
     const currentPrice = Number(
       foundStock?.currentPrice || 
@@ -531,20 +557,21 @@ export default function NewsCatalystTradeHub({
           ? Number(foundOfficial.changePercent) 
           : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0));
 
-    const name = foundStock?.name || foundOfficial?.name || fallbackName || sym;
+    // Resolve official company name from master list to avoid repeating ticker symbol
+    const name = foundStock?.name || masterStock?.name || foundOfficial?.name || fallbackName || sym;
     const sector = (foundStock?.sector && foundStock.sector !== 'General Market') 
       ? foundStock.sector 
-      : ((foundOfficial?.sector && foundOfficial.sector !== 'General Market') 
+      : (masterStock?.sector || ((foundOfficial?.sector && foundOfficial.sector !== 'General Market') 
           ? foundOfficial.sector 
-          : 'Miscellaneous');
+          : 'Miscellaneous'));
 
-    // Ground target calculations on technical resistance (Pivot R1/R2, ATR, Day High/Low)
+    // Ground target calculations on technical levels (Pivot R1/R2, S1/S2, ATR, Day High/Low)
     const high = Number(foundStock?.high || foundOfficial?.high || (currentPrice * 1.025));
     const low = Number(foundStock?.low || foundOfficial?.low || (currentPrice * 0.975));
     const pivot = (high + low + currentPrice) / 3;
-    const range = Math.max(high - low, currentPrice * 0.035);
     const r1 = 2 * pivot - low;
     const s1 = 2 * pivot - high;
+    const s2 = pivot - (high - low);
 
     // Derive deterministic ticker volatility modifier from symbol hash
     let symHash = 0;
@@ -554,11 +581,50 @@ export default function NewsCatalystTradeHub({
     }
     const hashFactor = 1 + ((Math.abs(symHash) % 35) / 100); // 1.00 to 1.35 multiplier
 
-    // Momentum multiplier from net news catalysts
+    const isDownsideRisk = negativeCount > positiveCount;
+
+    if (isDownsideRisk) {
+      // DOWNSIDE RISK SETUP: Protective exit triggers, defensive range & pullback support
+      let downsideRiskPct = Number((Math.max(3.5, Math.min(9.5, (((currentPrice - s1) / currentPrice) * 100)))).toFixed(1));
+      if (isNaN(downsideRiskPct) || downsideRiskPct < 3.5) {
+        downsideRiskPct = Number((4.5 + ((Math.abs(symHash) % 30) / 10)).toFixed(1));
+      }
+
+      const downsideTarget = Number((currentPrice * (1 - downsideRiskPct / 100)).toFixed(2));
+      const s2Floor = Number(Math.min(s2, currentPrice * (1 - (downsideRiskPct * 1.4) / 100)).toFixed(2));
+      const exitTrigger = Number((currentPrice * 0.985).toFixed(2)); // 1.5% protective exit stop
+      const defensiveRangeMin = Number((currentPrice * 0.992).toFixed(2));
+      const defensiveRangeMax = Number((currentPrice * 1.008).toFixed(2));
+
+      return {
+        symbol: sym,
+        name,
+        sector,
+        currentPrice,
+        prevClose,
+        change,
+        changePercent,
+        isDownsideRisk: true,
+        downsideTarget,
+        s2Floor,
+        downsideRiskPct,
+        exitTrigger,
+        defensiveRangeMin,
+        defensiveRangeMax,
+        targetSellPrice: downsideTarget,
+        stopLoss: exitTrigger,
+        entryPriceMin: defensiveRangeMin,
+        entryPriceMax: defensiveRangeMax,
+        expectedGainPct: -downsideRiskPct,
+        stopLossPct: 1.5
+      };
+    }
+
+    // BULLISH / BALANCED SETUP
     const netDiff = positiveCount - negativeCount;
     const catalystMultiplier = 1 + Math.max(-0.10, Math.min(0.20, netDiff * 0.035));
 
-    // Calculate realistic technical target1 aiming for R1 with volatility expansion
+    // Calculate realistic technical target aiming for R1 with volatility expansion
     let baseGainPct = (((r1 - currentPrice) / currentPrice) * 100);
     if (baseGainPct < 5.5) baseGainPct = 5.5 + ((Math.abs(symHash) % 40) / 10); // 5.5% to 9.5%
     if (baseGainPct > 18.0) baseGainPct = 12.0 + ((Math.abs(symHash) % 50) / 10); // 12.0% to 17.0%
@@ -581,6 +647,7 @@ export default function NewsCatalystTradeHub({
       prevClose,
       change,
       changePercent,
+      isDownsideRisk: false,
       targetSellPrice,
       stopLoss,
       entryPriceMin,
@@ -807,6 +874,9 @@ export default function NewsCatalystTradeHub({
       let confidence = 75;
       let primaryReason = '';
 
+      const leadPos = data.newsItems.find(n => n.polarity === 'POSITIVE');
+      const leadNeg = data.newsItems.find(n => n.polarity === 'NEGATIVE');
+
       if (positiveCount > negativeCount) {
         netSentiment = 'POSITIVE';
         netVerdict = `🟢 Net Bullish Setup (${positiveCount} Positive vs ${negativeCount} Negative News)`;
@@ -814,7 +884,8 @@ export default function NewsCatalystTradeHub({
         direction = 'UP';
         badgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
         confidence = Math.min(95, 80 + (positiveCount - negativeCount) * 5);
-        primaryReason = `Strong positive catalyst balance: ${positiveCount} favorable market drivers outweighing ${negativeCount} headwinds. Target PKR ${quote.targetSellPrice} (+${quote.expectedGainPct}%) projected for upcoming session.`;
+        const headlineSnippet = leadPos?.title ? `"${leadPos.title.slice(0, 48)}..."` : `${quote.sector} tailwinds`;
+        primaryReason = `${positiveCount} bullish catalysts active (${headlineSnippet}). Technical target projected at PKR ${quote.targetSellPrice} (+${quote.expectedGainPct}%) on Pivot R1 expansion.`;
       } else if (negativeCount > positiveCount) {
         netSentiment = 'NEGATIVE';
         netVerdict = `🔴 Net Downside Risk (${negativeCount} Negative vs ${positiveCount} Positive News)`;
@@ -822,7 +893,8 @@ export default function NewsCatalystTradeHub({
         direction = 'DOWN';
         badgeClass = 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20';
         confidence = Math.min(95, 78 + (negativeCount - positiveCount) * 5);
-        primaryReason = `Negative catalyst drag: ${negativeCount} adverse news developments outweighing positive factors. Caution and protective stop loss at PKR ${quote.stopLoss} advised.`;
+        const headlineSnippet = leadNeg?.title ? `"${leadNeg.title.slice(0, 48)}..."` : `${quote.sector} margin pressure`;
+        primaryReason = `${negativeCount} adverse drivers active (${headlineSnippet}). Pullback floor projected at PKR ${quote.downsideTarget} (${quote.expectedGainPct}%); protective exit trigger at PKR ${quote.exitTrigger}.`;
       } else {
         netSentiment = 'BALANCED';
         netVerdict = `⚖️ Balanced / Mixed Impact (${positiveCount} Positive & ${negativeCount} Negative News)`;
@@ -830,7 +902,7 @@ export default function NewsCatalystTradeHub({
         direction = 'NEUTRAL';
         badgeClass = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
         confidence = 72;
-        primaryReason = `Conflicting catalysts present (${positiveCount} bullish vs ${negativeCount} bearish). Technical range resistance at PKR ${quote.targetSellPrice}.`;
+        primaryReason = `Mixed catalysts in ${quote.sector} (${positiveCount} positive vs ${negativeCount} negative). Range-bound consolidation expected between PKR ${quote.entryPriceMin} - ${quote.targetSellPrice}.`;
       }
 
       results.push({
@@ -841,11 +913,19 @@ export default function NewsCatalystTradeHub({
         prevClose: quote.prevClose,
         change: quote.change,
         changePercent: quote.changePercent,
+        isDownsideRisk: Boolean(quote.isDownsideRisk),
+        downsideTarget: quote.downsideTarget,
+        downsideRiskPct: quote.downsideRiskPct,
+        exitTrigger: quote.exitTrigger,
+        defensiveRangeMin: quote.defensiveRangeMin,
+        defensiveRangeMax: quote.defensiveRangeMax,
+        s2Floor: quote.s2Floor,
         targetSellPrice: quote.targetSellPrice,
         stopLoss: quote.stopLoss,
         entryPriceMin: quote.entryPriceMin,
         entryPriceMax: quote.entryPriceMax,
         expectedGainPct: quote.expectedGainPct,
+        stopLossPct: quote.stopLossPct,
         positiveCount,
         negativeCount,
         totalCount,
@@ -1492,20 +1572,27 @@ export default function NewsCatalystTradeHub({
                 return (
                   <div
                     key={stockData.symbol || sIdx}
-                    className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] hover:border-[#2563EB] dark:hover:border-[#3B82F6] rounded-xl p-5 shadow-sm dark:shadow-md transition-all flex flex-col justify-between"
+                    className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] hover:border-[#2563EB] dark:hover:border-[#3B82F6] rounded-xl p-4 shadow-sm dark:shadow-md transition-all flex flex-col justify-between"
                   >
                     <div>
-                      {/* Card Header: Symbol, Name, Sector, Session Badge */}
-                      <div className="flex items-start justify-between gap-2 mb-3">
+                      {/* Card Header: Symbol + Name on left; Badges on right */}
+                      <div className="flex items-start justify-between gap-2 mb-2.5">
                         <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                            <h3 className="text-xl font-black text-[#0F172A] dark:text-[#F8FAFC] tracking-tight mono">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-lg font-black text-[#0F172A] dark:text-[#F8FAFC] tracking-tight font-mono">
                               {stockData.symbol}
                             </h3>
-                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] font-bold border border-[#E2E8F0] dark:border-[#243044] truncate max-w-[120px]">
+                            {stockData.name && stockData.name.toUpperCase() !== stockData.symbol.toUpperCase() && (
+                              <span className="text-xs text-[#64748B] dark:text-[#94A3B8] font-normal truncate max-w-[180px]" title={stockData.name}>
+                                {stockData.name}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] font-semibold border border-[#E2E8F0] dark:border-[#243044] truncate max-w-[130px]">
                               {stockData.sector}
                             </span>
-                            <span className={`text-[9px] px-2 py-0.5 rounded-md font-mono font-bold border shrink-0 ${
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-semibold border ${
                               marketSession.isWeekend || marketSession.isFridayEod
                                 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
                                 : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
@@ -1513,32 +1600,35 @@ export default function NewsCatalystTradeHub({
                               {marketSession.cardDateFormatted}
                             </span>
                           </div>
-                          <p className="text-xs text-[#64748B] dark:text-[#94A3B8] truncate max-w-[200px]" title={stockData.name}>
-                            {stockData.name}
-                          </p>
                         </div>
 
-                        {/* Net Sentiment Verdict Pill */}
-                        <span className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center shrink-0 border ${stockData.badgeClass}`}>
+                        {/* Net Sentiment Verdict Badge */}
+                        <div className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center shrink-0 border font-mono ${stockData.badgeClass}`}>
                           {stockData.netSentiment === 'POSITIVE' ? (
-                            <ArrowUpRight className="w-3.5 h-3.5 mr-0.5 stroke-[3]" />
+                            <ArrowUpRight className="w-3.5 h-3.5 mr-1 stroke-[2.5]" />
                           ) : stockData.netSentiment === 'NEGATIVE' ? (
-                            <ArrowDownRight className="w-3.5 h-3.5 mr-0.5 stroke-[3]" />
+                            <ArrowDownRight className="w-3.5 h-3.5 mr-1 stroke-[2.5]" />
                           ) : (
                             <Scale className="w-3.5 h-3.5 mr-1" />
                           )}
-                          <span>{stockData.netSentiment === 'POSITIVE' ? 'BULLISH SETUP' : stockData.netSentiment === 'NEGATIVE' ? 'DOWNSIDE RISK' : 'BALANCED'}</span>
-                        </span>
+                          <span>
+                            {stockData.netSentiment === 'POSITIVE' 
+                              ? 'BULLISH SETUP' 
+                              : stockData.netSentiment === 'NEGATIVE' 
+                                ? 'DOWNSIDE RISK' 
+                                : 'BALANCED'}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Price & Target Matrix Grid */}
-                      <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-3 border border-[#E2E8F0] dark:border-[#243044] mb-3">
+                      <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-2.5 border border-[#E2E8F0] dark:border-[#243044] mb-2.5">
                         <div className="flex items-baseline justify-between mb-2">
                           <div>
                             <span className="text-[10px] uppercase text-[#64748B] dark:text-[#94A3B8] font-bold">
                               {isMarketOpen ? 'Current Live Price' : 'Closing Price (EOD)'}
                             </span>
-                            <p className="text-lg font-extrabold text-[#0F172A] dark:text-[#F8FAFC] mono flex items-center">
+                            <p className="text-base font-extrabold text-[#0F172A] dark:text-[#F8FAFC] font-mono flex items-center">
                               PKR {stockData.currentPrice.toFixed(2)}
                               <span className={`text-[11px] ml-1.5 font-bold ${isUp ? 'text-[#16A34A] dark:text-[#22C55E]' : 'text-[#DC2626] dark:text-[#EF4444]'}`}>
                                 ({isUp ? '+' : ''}{stockData.changePercent}%)
@@ -1546,43 +1636,103 @@ export default function NewsCatalystTradeHub({
                             </p>
                           </div>
                           <div className="text-right">
-                            <span className="text-[10px] uppercase text-[#16A34A] dark:text-[#22C55E] font-bold">Target Sell Price</span>
-                            <p className="text-sm font-bold text-[#16A34A] dark:text-[#22C55E] mono">
-                              PKR {stockData.targetSellPrice.toFixed(2)} (+{stockData.expectedGainPct}%)
-                            </p>
+                            {stockData.netSentiment === 'NEGATIVE' ? (
+                              <>
+                                <span className="text-[10px] uppercase text-[#DC2626] dark:text-[#EF4444] font-bold">Downside Pullback Floor</span>
+                                <p className="text-sm font-bold text-[#DC2626] dark:text-[#EF4444] font-mono">
+                                  PKR {stockData.downsideTarget ? stockData.downsideTarget.toFixed(2) : stockData.targetSellPrice.toFixed(2)} ({stockData.expectedGainPct}%)
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-[10px] uppercase text-[#16A34A] dark:text-[#22C55E] font-bold">
+                                  {stockData.netSentiment === 'BALANCED' ? 'Range Resistance' : 'Target Sell Price'}
+                                </span>
+                                <p className="text-sm font-bold text-[#16A34A] dark:text-[#22C55E] font-mono">
+                                  PKR {stockData.targetSellPrice.toFixed(2)} (+{stockData.expectedGainPct}%)
+                                </p>
+                              </>
+                            )}
                           </div>
                         </div>
 
                         {/* Trade Setup Limits */}
                         <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#E2E8F0] dark:border-[#243044] text-[11px]">
-                          <div className="bg-[#FFFFFF] dark:bg-[#151E2E] rounded p-1.5 border border-[#E2E8F0] dark:border-[#243044]">
-                            <span className="text-[9px] uppercase text-[#2563EB] dark:text-[#3B82F6] block font-bold">Entry Buy Zone</span>
-                            <b className="text-xs font-mono text-[#0F172A] dark:text-[#F8FAFC]">
-                              PKR {stockData.entryPriceMin.toFixed(2)} - {stockData.entryPriceMax.toFixed(2)}
-                            </b>
-                          </div>
-                          <div className="bg-[#FFFFFF] dark:bg-[#151E2E] rounded p-1.5 border border-[#E2E8F0] dark:border-[#243044]">
-                            <span className="text-[9px] uppercase text-[#DC2626] dark:text-[#EF4444] block font-bold">Protective Stop Loss</span>
-                            <b className="text-xs font-mono text-[#DC2626] dark:text-[#EF4444]">
-                              PKR {stockData.stopLoss.toFixed(2)}
-                            </b>
-                          </div>
+                          {stockData.netSentiment === 'NEGATIVE' ? (
+                            <>
+                              <div className="bg-[#FFFFFF] dark:bg-[#151E2E] rounded p-1.5 border border-[#E2E8F0] dark:border-[#243044]">
+                                <span className="text-[9px] uppercase text-amber-600 dark:text-amber-400 block font-bold">Defensive Range</span>
+                                <b className="text-xs font-mono text-[#0F172A] dark:text-[#F8FAFC]">
+                                  PKR {stockData.defensiveRangeMin ? stockData.defensiveRangeMin.toFixed(2) : stockData.entryPriceMin.toFixed(2)} - {stockData.defensiveRangeMax ? stockData.defensiveRangeMax.toFixed(2) : stockData.entryPriceMax.toFixed(2)}
+                                </b>
+                              </div>
+                              <div className="bg-[#FFFFFF] dark:bg-[#151E2E] rounded p-1.5 border border-[#E2E8F0] dark:border-[#243044]">
+                                <span className="text-[9px] uppercase text-[#DC2626] dark:text-[#EF4444] block font-bold">Exit Trigger / Stop</span>
+                                <b className="text-xs font-mono text-[#DC2626] dark:text-[#EF4444]">
+                                  PKR {stockData.exitTrigger ? stockData.exitTrigger.toFixed(2) : stockData.stopLoss.toFixed(2)}
+                                </b>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="bg-[#FFFFFF] dark:bg-[#151E2E] rounded p-1.5 border border-[#E2E8F0] dark:border-[#243044]">
+                                <span className="text-[9px] uppercase text-[#2563EB] dark:text-[#3B82F6] block font-bold">
+                                  {stockData.netSentiment === 'BALANCED' ? 'Consolidation Band' : 'Entry Buy Zone'}
+                                </span>
+                                <b className="text-xs font-mono text-[#0F172A] dark:text-[#F8FAFC]">
+                                  PKR {stockData.entryPriceMin.toFixed(2)} - {stockData.entryPriceMax.toFixed(2)}
+                                </b>
+                              </div>
+                              <div className="bg-[#FFFFFF] dark:bg-[#151E2E] rounded p-1.5 border border-[#E2E8F0] dark:border-[#243044]">
+                                <span className="text-[9px] uppercase text-[#DC2626] dark:text-[#EF4444] block font-bold">
+                                  {stockData.netSentiment === 'BALANCED' ? 'Support Floor' : 'Protective Stop Loss'}
+                                </span>
+                                <b className="text-xs font-mono text-[#DC2626] dark:text-[#EF4444]">
+                                  PKR {stockData.stopLoss.toFixed(2)}
+                                </b>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
 
-                      {/* Net Synthesis Explanation */}
-                      <p className="text-xs text-[#0F172A] dark:text-[#F8FAFC] leading-tight bg-[#F8FAFC] dark:bg-[#0B0F19] p-2.5 rounded-lg border border-[#E2E8F0] dark:border-[#243044] mb-3 font-medium">
-                        💡 {stockData.primaryReason}
-                      </p>
+                      {/* Net Synthesis Explanation (Clickable for full AI analysis modal) */}
+                      <div 
+                        onClick={() => setPredictionModalData({ 
+                          trade: {
+                            symbol: stockData.symbol,
+                            name: stockData.name,
+                            currentPrice: stockData.currentPrice,
+                            targetSellPrice: stockData.targetSellPrice,
+                            stopLoss: stockData.stopLoss,
+                            entryPriceMin: stockData.entryPriceMin,
+                            entryPriceMax: stockData.entryPriceMax,
+                            expectedGainPct: stockData.expectedGainPct,
+                            stopLossPct: stockData.stopLossPct,
+                            tradeReason: stockData.primaryReason,
+                            isDownsideRisk: stockData.isDownsideRisk,
+                            downsideTarget: stockData.downsideTarget,
+                            exitTrigger: stockData.exitTrigger
+                          }, 
+                          newsItem: stockData.newsItems[0] || { title: `Synthesized Net Setup for ${stockData.symbol}`, category: stockData.category, source: 'Consolidated AI Engine' }, 
+                          isBullish: stockData.netSentiment === 'POSITIVE',
+                          multiNews: stockData.newsItems
+                        })}
+                        className="text-xs text-[#0F172A] dark:text-[#F8FAFC] leading-relaxed bg-[#F8FAFC] dark:bg-[#0B0F19] p-2.5 rounded-lg border border-[#E2E8F0] dark:border-[#243044] mb-2.5 font-medium cursor-pointer hover:border-[#2563EB]/50 transition-colors group"
+                        title="Click to view deep AI catalyst breakdown"
+                      >
+                        <p className="line-clamp-2">
+                          <span className="font-bold text-[#2563EB] dark:text-[#3B82F6] mr-1 group-hover:underline">AI Catalyst:</span>
+                          {stockData.primaryReason}
+                        </p>
+                      </div>
 
-                      {/* ========================================================================= */}
-                      {/* MULTI-NEWS IMPACT CATALYSTS LIST (Explicit Consistent Positive/Negative)   */}
-                      {/* ========================================================================= */}
-                      <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-3 border border-[#E2E8F0] dark:border-[#243044] mb-3 space-y-2">
+                      {/* MULTI-NEWS IMPACT CATALYSTS LIST */}
+                      <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-2.5 border border-[#E2E8F0] dark:border-[#243044] mb-2.5 space-y-2">
                         <div className="flex items-center justify-between text-xs font-bold">
                           <span className="flex items-center text-[#2563EB] dark:text-[#3B82F6]">
                             <Layers className="w-3.5 h-3.5 mr-1" />
-                            Impacting News Catalysts ({stockData.totalCount}):
+                            Impacting Catalysts ({stockData.totalCount}):
                           </span>
                           <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">
                             {stockData.positiveCount > 0 && <b className="text-emerald-600 dark:text-emerald-400 mr-1.5">{stockData.positiveCount} Positive</b>}
@@ -1590,8 +1740,7 @@ export default function NewsCatalystTradeHub({
                           </span>
                         </div>
 
-                        {/* List of News Items with guaranteed consistent tags */}
-                        <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-0.5">
+                        <div className="space-y-1.5 max-h-[130px] overflow-y-auto pr-0.5">
                           {stockData.newsItems.map((newsItem, nIdx) => {
                             const isPos = newsItem.polarity === 'POSITIVE';
                             return (
@@ -1622,64 +1771,40 @@ export default function NewsCatalystTradeHub({
                       </div>
                     </div>
 
-                    {/* Action Buttons Matrix */}
-                    <div className="space-y-2 pt-2 border-t border-[#E2E8F0] dark:border-[#243044]">
-                      <button
-                        onClick={() => setPredictionModalData({ 
-                          trade: {
-                            symbol: stockData.symbol,
-                            name: stockData.name,
-                            currentPrice: stockData.currentPrice,
-                            targetSellPrice: stockData.targetSellPrice,
-                            stopLoss: stockData.stopLoss,
-                            entryPriceMin: stockData.entryPriceMin,
-                            entryPriceMax: stockData.entryPriceMax,
-                            expectedGainPct: stockData.expectedGainPct,
-                            stopLossPct: stockData.stopLossPct,
-                            tradeReason: stockData.primaryReason
-                          }, 
-                          newsItem: stockData.newsItems[0] || { title: `Synthesized Net Setup for ${stockData.symbol}`, category: stockData.category, source: 'Consolidated AI Engine' }, 
-                          isBullish: stockData.netSentiment === 'POSITIVE',
-                          multiNews: stockData.newsItems
-                        })}
-                        className="w-full h-[50px] px-3 rounded-xl bg-gradient-to-r from-[#2563EB] via-[#4F46E5] to-[#7C3AED] hover:from-[#1D4ED8] hover:to-[#6D28D9] text-white font-extrabold text-sm shadow-md shadow-blue-500/20 flex items-center justify-center space-x-2 cursor-pointer transition-all"
-                      >
-                        <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-                        <span>AI Next-Day Signal & Prediction</span>
-                      </button>
-
-                      <div className="grid grid-cols-2 gap-2 text-sm">
+                    {/* Compact Flat Action Buttons (h-8 institutional density) */}
+                    <div className="pt-2 border-t border-[#E2E8F0] dark:border-[#243044]">
+                      <div className="grid grid-cols-2 gap-2">
                         <button
                           onClick={() => onOpenCalculator({
                             symbol: stockData.symbol,
                             companyName: stockData.name,
                             currentPrice: Number(stockData.currentPrice),
-                            stopLoss: Number(stockData.stopLoss),
-                            target1: Number(stockData.targetSellPrice),
+                            stopLoss: Number(stockData.netSentiment === 'NEGATIVE' ? (stockData.exitTrigger || stockData.stopLoss) : stockData.stopLoss),
+                            target1: Number(stockData.netSentiment === 'NEGATIVE' ? (stockData.downsideTarget || stockData.targetSellPrice) : stockData.targetSellPrice),
                             signal: stockData.netSentiment === 'POSITIVE' ? 'BUY_NOW' : 'SELL_EXIT'
                           })}
-                          className="h-[50px] rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-sm shadow-sm cursor-pointer flex items-center justify-center transition-colors"
+                          className="h-8 rounded-md bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#2563EB] text-white font-bold text-xs shadow-sm cursor-pointer flex items-center justify-center transition-colors"
                         >
-                          Order Planner
+                          Order Calc
                         </button>
                         <button
                           onClick={() => onSelectStock(stockData.symbol)}
-                          className="h-[50px] rounded-xl bg-[#F1F5F9] dark:bg-[#1E293B] hover:bg-[#E2E8F0] dark:hover:bg-[#243044] text-[#0F172A] dark:text-[#F8FAFC] font-bold text-sm border border-[#E2E8F0] dark:border-[#243044] cursor-pointer flex items-center justify-center transition-colors"
+                          className="h-8 rounded-md bg-[#F1F5F9] dark:bg-[#1E293B] hover:bg-[#E2E8F0] dark:hover:bg-[#243044] text-[#0F172A] dark:text-[#F8FAFC] font-bold text-xs border border-[#E2E8F0] dark:border-[#243044] cursor-pointer flex items-center justify-center transition-colors"
                         >
                           Live Chart
                         </button>
                       </div>
-
-                      {/* SECP / PSX Algorithmic Risk Disclaimer */}
-                      <p className="text-[9.5px] text-[#64748B] dark:text-[#94A3B8] italic text-center mt-2 px-1">
-                        Signals are for informational/algorithmic research purposes only and do not constitute financial advice.
-                      </p>
                     </div>
                   </div>
                 );
               })}
             </div>
           )}
+
+          {/* Single Consolidated Platform Disclaimer */}
+          <div className="mt-6 p-3 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] text-center text-[10px] text-[#64748B] dark:text-[#94A3B8] font-mono">
+            SECP / PSX Algorithmic Risk Disclaimer: Multi-news catalyst synthesis and technical levels are generated for quantitative research & trade planning. Verify liquidity and apply strict risk control before executing orders.
+          </div>
         </div>
       )}
 
@@ -1807,19 +1932,26 @@ export default function NewsCatalystTradeHub({
 function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculator, onSelectStock }) {
   const { trade, newsItem, isBullish, multiNews = [] } = data;
   const currentPrice = Number(trade.currentPrice || 100);
-  const gainPct = Number(trade.expectedGainPct || (isBullish ? 12.5 : 8.5));
+  const isDownside = !isBullish || Boolean(trade.isDownsideRisk);
+  const gainPct = Math.abs(Number(trade.expectedGainPct || (isBullish ? 12.5 : 6.5)));
   const stopLossPct = Number(trade.stopLossPct || 4.5);
 
-  const expectedHigh = (currentPrice * (isBullish ? (1 + (gainPct * 0.6) / 100) : 1.008)).toFixed(2);
-  const expectedLow = (currentPrice * (isBullish ? 0.988 : (1 - (stopLossPct * 0.8) / 100))).toFixed(2);
-  const tomorrowTarget1 = (currentPrice * (isBullish ? (1 + (gainPct * 0.5) / 100) : 0.96)).toFixed(2);
-  const tomorrowTarget2 = Number(trade.targetSellPrice || (currentPrice * (1 + gainPct / 100))).toFixed(2);
-  const stopLoss = Number(trade.stopLoss || (currentPrice * (1 - stopLossPct / 100))).toFixed(2);
+  const expectedHigh = (currentPrice * (isBullish ? (1 + (gainPct * 0.6) / 100) : 1.006)).toFixed(2);
+  const expectedLow = (currentPrice * (isBullish ? 0.988 : (1 - (gainPct * 0.9) / 100))).toFixed(2);
+  const tomorrowTarget1 = isDownside 
+    ? (trade.downsideTarget ? Number(trade.downsideTarget).toFixed(2) : (currentPrice * (1 - (gainPct * 0.6) / 100)).toFixed(2))
+    : (currentPrice * (1 + (gainPct * 0.5) / 100)).toFixed(2);
+  const tomorrowTarget2 = isDownside 
+    ? (currentPrice * (1 - (gainPct * 1.2) / 100)).toFixed(2)
+    : Number(trade.targetSellPrice || (currentPrice * (1 + gainPct / 100))).toFixed(2);
+  const stopLoss = isDownside 
+    ? (trade.exitTrigger ? Number(trade.exitTrigger).toFixed(2) : (currentPrice * 0.985).toFixed(2))
+    : Number(trade.stopLoss || (currentPrice * (1 - stopLossPct / 100))).toFixed(2);
   const confidencePct = isBullish ? 88 : 84;
 
   const openingBias = isBullish 
     ? 'Gap-Up Opening (+1.5% to +3.5%)' 
-    : 'Gap-Down / Sell Pressure Opening (-1.0% to -3.0%)';
+    : 'Gap-Down / Sell Pressure Opening (-1.0% to -2.5%)';
 
   const circuitLockProbability = isBullish ? '65% (Strong Volume Driven)' : 'Low Risk of Lower Lock';
 
@@ -1920,23 +2052,47 @@ function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculato
 
           {/* 3. Key Targets & Stop Loss */}
           <div className="grid grid-cols-3 gap-3 text-center">
-            <div className="p-3 rounded-xl bg-[#16A34A]/5 border border-[#16A34A]/20 space-y-0.5">
-              <span className="text-[10px] uppercase font-black text-[#16A34A] dark:text-[#22C55E]">Target 1</span>
-              <p className="text-base font-black mono text-[#16A34A] dark:text-[#22C55E]">PKR {tomorrowTarget1}</p>
-              <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Intraday Swing</span>
-            </div>
+            {isDownside ? (
+              <>
+                <div className="p-3 rounded-xl bg-[#DC2626]/5 border border-[#DC2626]/20 space-y-0.5">
+                  <span className="text-[10px] uppercase font-black text-[#DC2626] dark:text-[#EF4444]">Pullback Floor S1</span>
+                  <p className="text-base font-black mono text-[#DC2626] dark:text-[#EF4444]">PKR {tomorrowTarget1}</p>
+                  <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">First Support</span>
+                </div>
 
-            <div className="p-3 rounded-xl bg-[#2563EB]/5 border border-[#2563EB]/20 space-y-0.5">
-              <span className="text-[10px] uppercase font-black text-[#2563EB] dark:text-[#3B82F6]">Target 2 (Catalyst)</span>
-              <p className="text-base font-black mono text-[#2563EB] dark:text-[#3B82F6]">PKR {tomorrowTarget2}</p>
-              <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">+{gainPct}% Max Potential</span>
-            </div>
+                <div className="p-3 rounded-xl bg-[#DC2626]/5 border border-[#DC2626]/20 space-y-0.5">
+                  <span className="text-[10px] uppercase font-black text-[#DC2626] dark:text-[#EF4444]">Major Floor S2</span>
+                  <p className="text-base font-black mono text-[#DC2626] dark:text-[#EF4444]">PKR {tomorrowTarget2}</p>
+                  <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Deep Support</span>
+                </div>
 
-            <div className="p-3 rounded-xl bg-[#DC2626]/5 border border-[#DC2626]/20 space-y-0.5">
-              <span className="text-[10px] uppercase font-black text-[#DC2626] dark:text-[#EF4444]">Strict Stop Loss</span>
-              <p className="text-base font-black mono text-[#DC2626] dark:text-[#EF4444]">PKR {stopLoss}</p>
-              <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Risk Control</span>
-            </div>
+                <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-0.5">
+                  <span className="text-[10px] uppercase font-black text-amber-600 dark:text-amber-400">Exit Stop Trigger</span>
+                  <p className="text-base font-black mono text-amber-600 dark:text-amber-400">PKR {stopLoss}</p>
+                  <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Breakdown Level</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="p-3 rounded-xl bg-[#16A34A]/5 border border-[#16A34A]/20 space-y-0.5">
+                  <span className="text-[10px] uppercase font-black text-[#16A34A] dark:text-[#22C55E]">Target 1</span>
+                  <p className="text-base font-black mono text-[#16A34A] dark:text-[#22C55E]">PKR {tomorrowTarget1}</p>
+                  <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Intraday Swing</span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#2563EB]/5 border border-[#2563EB]/20 space-y-0.5">
+                  <span className="text-[10px] uppercase font-black text-[#2563EB] dark:text-[#3B82F6]">Target 2 (Catalyst)</span>
+                  <p className="text-base font-black mono text-[#2563EB] dark:text-[#3B82F6]">PKR {tomorrowTarget2}</p>
+                  <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">+{gainPct}% Max Potential</span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#DC2626]/5 border border-[#DC2626]/20 space-y-0.5">
+                  <span className="text-[10px] uppercase font-black text-[#DC2626] dark:text-[#EF4444]">Strict Stop Loss</span>
+                  <p className="text-base font-black mono text-[#DC2626] dark:text-[#EF4444]">PKR {stopLoss}</p>
+                  <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Risk Control</span>
+                </div>
+              </>
+            )}
           </div>
 
           {/* 4. Strategic AI Execution Plan */}
