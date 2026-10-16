@@ -25,7 +25,8 @@ import {
   History,
   CheckCircle,
   AlertCircle,
-  ArrowRight
+  ArrowRight,
+  Flame
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 import { 
@@ -220,11 +221,23 @@ export default function DailyRecommendations({
 
         const high = Number(stock.high || price * 1.025);
         const low = Number(stock.low || price * 0.975);
-        const pivot = (high + low + price) / 3;
-        const range = Math.max(high - low, price * 0.035);
-        const r1 = 2 * pivot - low;
+        const stockAtr = Math.max(price * 0.014, Math.min(Math.max(high - low, price * 0.024), price * 0.08));
+        const effectiveHigh = Math.max(high, price + Math.max(stockAtr * 0.85, price * 0.018));
+        const effectiveLow = Math.min(low, price - Math.max(stockAtr * 0.85, price * 0.018));
+        const pivot = (effectiveHigh + effectiveLow + price) / 3;
+        const range = Math.max(effectiveHigh - effectiveLow, stockAtr * 1.5);
+        
+        let r1 = 2 * pivot - effectiveLow;
+        if (r1 <= price * 1.014) r1 = price + Math.max(stockAtr * 0.85, price * 0.016);
+        let s1 = 2 * pivot - effectiveHigh;
+        if (s1 >= price * 0.986) s1 = price - Math.max(stockAtr * 0.85, price * 0.016);
         const r2 = pivot + range;
-        const s1 = 2 * pivot - high;
+        const s2 = pivot - range;
+
+        const stockChangePct = Number(stock.changePercent || 0);
+        const isMomentumBreakout = sig === 'AVOID_SELL' && (
+          stockChangePct >= 2.5 || (stockChangePct >= 1.0 && (stock.volume || 0) > 1000000)
+        ) && rsi > 72;
 
         let target1 = 0;
         let target2 = 0;
@@ -233,12 +246,22 @@ export default function DailyRecommendations({
         let rrRatio = 2.5;
 
         if (sig === 'AVOID_SELL') {
-          // Downside support / exit setup
-          target1 = Number(Math.min(s1, price * 0.93).toFixed(2));
-          target2 = Number(Math.min(s1 * 0.95, price * 0.88).toFixed(2));
-          stopLoss = Number((price * 0.965).toFixed(2));
-          riskReward = 'N/A (Exit Setup)';
-          rrRatio = 0;
+          if (isMomentumBreakout) {
+            const trailPct = Math.min(4.8, Math.max(2.2, (stockAtr / price) * 100 * 0.9 + (hashOffset * 0.15)));
+            stopLoss = Number((price * (1 - trailPct / 100)).toFixed(2));
+            target1 = Number(Math.min(s1, price - (stockAtr * 1.5)).toFixed(2));
+            target2 = Number(Math.min(s2, price - (stockAtr * 2.5)).toFixed(2));
+            riskReward = 'Trail Stop Setup';
+            rrRatio = 0;
+          } else {
+            const exitPct = Math.min(6.2, Math.max(2.5, (stockAtr / price) * 100 * 1.15 + (hashOffset * 0.2)));
+            stopLoss = Number(Math.min(s1, price * (1 - exitPct / 100)).toFixed(2));
+            const pullbackPct = Math.min(11.5, Math.max(4.8, ((stockAtr * 2.2) / price) * 100 + (hashOffset * 0.3)));
+            target1 = Number(Math.min(s2, price * (1 - pullbackPct / 100)).toFixed(2));
+            target2 = Number((target1 - (stockAtr * 1.2)).toFixed(2));
+            riskReward = 'N/A (Exit Setup)';
+            rrRatio = 0;
+          }
         } else {
           let gain1Pct = (((r1 - price) / price) * 100);
           if (gain1Pct < 5.2) gain1Pct = 6.4 + hashOffset;
@@ -260,6 +283,35 @@ export default function DailyRecommendations({
           riskReward = '1 : ' + rrRatio;
         }
 
+        // Calculate dynamic entry / defensive zone
+        let entryMin = 0;
+        let entryMax = 0;
+        if (sig === 'STRONG_BUY') {
+          const lowerBandPct = Math.min(2.5, Math.max(0.8, (stockAtr / price) * 100 * 0.4 + (hashOffset * 0.1)));
+          const upperBandPct = Math.min(1.8, Math.max(0.6, (stockAtr / price) * 100 * 0.3 + (hashOffset * 0.08)));
+          entryMin = Number((price * (1 - lowerBandPct / 100)).toFixed(2));
+          entryMax = Number((price * (1 + upperBandPct / 100)).toFixed(2));
+        } else if (sig === 'ACCUMULATE') {
+          const lowerBandPct = Math.min(3.8, Math.max(1.2, (stockAtr / price) * 100 * 0.6 + (hashOffset * 0.15)));
+          const upperBandPct = Math.min(0.8, Math.max(0.2, (stockAtr / price) * 100 * 0.15));
+          entryMin = Number((price * (1 - lowerBandPct / 100)).toFixed(2));
+          entryMax = Number((price * (1 + upperBandPct / 100)).toFixed(2));
+        } else if (sig === 'AVOID_SELL') {
+          if (isMomentumBreakout) {
+            const bandPct = Math.min(2.2, Math.max(0.8, (stockAtr / price) * 100 * 0.35 + (hashOffset * 0.1)));
+            entryMin = Number((price * (1 - bandPct / 100)).toFixed(2));
+            entryMax = Number((price * (1 + (bandPct * 0.5) / 100)).toFixed(2));
+          } else {
+            const defLowerPct = Math.min(3.5, Math.max(1.0, (stockAtr / price) * 100 * 0.55 + (hashOffset * 0.12)));
+            const defUpperPct = Math.min(2.8, Math.max(0.8, (stockAtr / price) * 100 * 0.45 + (hashOffset * 0.1)));
+            entryMin = Number((price * (1 - defLowerPct / 100)).toFixed(2));
+            entryMax = Number((price * (1 + defUpperPct / 100)).toFixed(2));
+          }
+        } else {
+          entryMin = Number((price * 0.985).toFixed(2));
+          entryMax = Number((price * 1.015).toFixed(2));
+        }
+
         const foundOfficial = officialQuotes ? officialQuotes[sym] : null;
         const resolvedSector = (
           (stock.sector && stock.sector !== 'General Market' && stock.sector !== 'Miscellaneous') ? stock.sector :
@@ -273,29 +325,43 @@ export default function DailyRecommendations({
           companyName: stock.name || sym,
           sector: resolvedSector,
           signal: sig,
+          isMomentumBreakout,
+          tradeStrategy: isMomentumBreakout 
+            ? 'Strong Momentum Breakout - Trail Stop to Lock Profits' 
+            : (sig === 'AVOID_SELL' ? 'Capital Preservation (Exit Setup)' : 'Trend Continuation Setup'),
           currentPrice: price,
+          entryZone: { min: entryMin, max: entryMax },
           stopLoss,
           target1,
           target2,
           confidence,
           riskReward,
           riskRewardRatio: rrRatio,
-          timeHorizon: sig === 'STRONG_BUY' ? '1 to 4 Weeks (Swing Momentum)' : '1 to 8 Weeks',
-          reasons: sig === 'AVOID_SELL' ? [
-            `RSI is Overbought (${rsi.toFixed(1)}): High probability of profit-taking consolidation`,
-            `Pullback Support projected at PKR ${target1} with defensive cutoff at PKR ${stopLoss}`
-          ] : [
+          timeHorizon: isMomentumBreakout
+            ? 'Trailing Stop / Momentum Lock'
+            : (sig === 'STRONG_BUY' ? '1 to 4 Weeks (Swing Momentum)' : '1 to 8 Weeks'),
+          reasons: sig === 'AVOID_SELL' ? (
+            isMomentumBreakout ? [
+              `Strong Momentum Breakout (+${stockChangePct.toFixed(2)}%): RSI extended (${rsi.toFixed(1)}). Trail stop loss closely to protect gains rather than premature exit.`,
+              `Trailing Cutoff set at PKR ${stopLoss} with primary pullback support at PKR ${target1}.`
+            ] : [
+              `RSI is Overbought (${rsi.toFixed(1)}): High probability of profit-taking consolidation`,
+              `Resistance rejection near Pivot R1 (PKR ${Number(r1.toFixed(2))}), protective exit advised`
+            ]
+          ) : [
             `RSI holding steady at ${rsi.toFixed(1)} with key technical support at PKR ${stopLoss}`,
             `Upside target R1 at PKR ${target1} with secondary target R2 at PKR ${target2}`
           ],
           orderAdvice: {
-            actionNote: sig === 'STRONG_BUY' 
-              ? 'Enter Limit Buy in Entry Zone' 
-              : (sig === 'ACCUMULATE' 
-                  ? 'Accumulate on dips' 
-                  : (sig === 'AVOID_SELL' 
-                      ? 'Take Profit / Capital Preservation (Avoid New Longs)' 
-                      : 'Monitor on Watchlist')),
+            actionNote: isMomentumBreakout
+              ? `Strong Momentum Breakout (+${stockChangePct.toFixed(2)}%): Hold existing long positions and trail stop-loss to PKR ${stopLoss} to lock in gains. Avoid shorting strong momentum.`
+              : (sig === 'STRONG_BUY' 
+                  ? 'Enter Limit Buy in Entry Zone' 
+                  : (sig === 'ACCUMULATE' 
+                      ? 'Accumulate on dips' 
+                      : (sig === 'AVOID_SELL' 
+                          ? 'Take Profit / Capital Preservation (Avoid New Longs)' 
+                          : 'Monitor on Watchlist'))),
             allocationPercent: sig === 'STRONG_BUY' ? 15 : (sig === 'ACCUMULATE' ? 10 : 0),
             riskPerSharePKR: Number(Math.max(0.1, price - stopLoss).toFixed(2)),
             rewardPerSharePKR: sig === 'AVOID_SELL' ? 0 : Number(Math.max(0.1, target1 - price).toFixed(2))
@@ -313,13 +379,27 @@ export default function DailyRecommendations({
         const variation = 1 - (dayOffset * 0.008);
         const histPrice = Number((liveP * variation).toFixed(2));
         const isAvoid = item.signal === 'AVOID_SELL';
-        const target1 = isAvoid ? Number((histPrice * 0.93).toFixed(2)) : Number((histPrice * 1.095).toFixed(2));
-        const target2 = isAvoid ? Number((histPrice * 0.88).toFixed(2)) : Number((histPrice * 1.18).toFixed(2));
-        const stopLoss = isAvoid ? Number((histPrice * 0.965).toFixed(2)) : Number((histPrice * 0.95).toFixed(2));
+        const target1 = item.target1 
+          ? Number((item.target1 * variation).toFixed(2)) 
+          : (isAvoid ? Number((histPrice * 0.925).toFixed(2)) : Number((histPrice * 1.095).toFixed(2)));
+        const target2 = item.target2 
+          ? Number((item.target2 * variation).toFixed(2)) 
+          : (isAvoid ? Number((histPrice * 0.875).toFixed(2)) : Number((histPrice * 1.18).toFixed(2)));
+        const stopLoss = item.stopLoss 
+          ? Number((item.stopLoss * variation).toFixed(2)) 
+          : (isAvoid ? Number((histPrice * 0.96).toFixed(2)) : Number((histPrice * 0.95).toFixed(2)));
+        const entryZone = item.entryZone ? {
+          min: Number((item.entryZone.min * variation).toFixed(2)),
+          max: Number((item.entryZone.max * variation).toFixed(2))
+        } : {
+          min: Number((histPrice * 0.985).toFixed(2)),
+          max: Number((histPrice * 1.015).toFixed(2))
+        };
 
         return {
           ...item,
           currentPrice: histPrice,
+          entryZone,
           target1,
           target2,
           stopLoss,
@@ -440,9 +520,48 @@ export default function DailyRecommendations({
     // For historical signals, currentPrice is the signal price on that day
     const signalPrice = Number(item?.currentPrice || liveMarketPrice);
     const isAvoid = item?.signal === 'AVOID_SELL';
-    const target1 = Number(item?.target1 || (isAvoid ? signalPrice * 0.93 : signalPrice * 1.10).toFixed(2));
+    const isMomentumBreakout = Boolean(
+      item?.isMomentumBreakout || (
+        isAvoid && (
+          changePercent >= 2.5 || 
+          (changePercent >= 1.0 && (foundInStocks?.volume || 0) > 1000000)
+        ) && (item?.technicals?.rsi14 > 72 || 75 > 72)
+      )
+    );
+
+    const symHash = sym.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const hashOffset = (symHash % 35) / 10;
+    const stockAtr = Math.max(signalPrice * 0.014, signalPrice * 0.028);
+
+    const defaultTarget1 = isAvoid
+      ? (isMomentumBreakout
+          ? Number(Math.min(signalPrice * 0.95, signalPrice - (stockAtr * 1.5)).toFixed(2))
+          : Number((signalPrice * (0.93 - (hashOffset * 0.003))).toFixed(2)))
+      : Number((signalPrice * (1.09 + (hashOffset * 0.005))).toFixed(2));
+
+    const defaultStopLoss = isAvoid
+      ? (isMomentumBreakout
+          ? Number((signalPrice * 0.97).toFixed(2))
+          : Number((signalPrice * (0.965 - (hashOffset * 0.002))).toFixed(2)))
+      : Number((signalPrice * 0.95).toFixed(2));
+
+    const target1 = Number(item?.target1 || defaultTarget1);
     const target2 = Number(item?.target2 || (isAvoid ? signalPrice * 0.88 : signalPrice * 1.18).toFixed(2));
-    const stopLoss = Number(item?.stopLoss || (isAvoid ? signalPrice * 0.965 : signalPrice * 0.95).toFixed(2));
+    const stopLoss = Number(item?.stopLoss || defaultStopLoss);
+
+    const entryZone = item?.entryZone || (
+      isAvoid
+        ? (isMomentumBreakout
+            ? { min: Number((signalPrice * 0.985).toFixed(2)), max: Number((signalPrice * 1.008).toFixed(2)) }
+            : { min: Number((signalPrice * (0.988 - hashOffset * 0.002)).toFixed(2)), max: Number((signalPrice * (1.012 + hashOffset * 0.002)).toFixed(2)) })
+        : { min: Number((signalPrice * 0.985).toFixed(2)), max: Number((signalPrice * 1.015).toFixed(2)) }
+    );
+
+    const tradeStrategy = item?.tradeStrategy || (
+      isMomentumBreakout
+        ? 'Strong Momentum Breakout - Trail Stop to Lock Profits'
+        : (isAvoid ? 'Capital Preservation (Exit Setup)' : (item?.riskReward || '1 : 2.5'))
+    );
 
     // Calculate Outcome Tracking
     const gainSinceSignalPct = Number((((liveMarketPrice - signalPrice) / signalPrice) * 100).toFixed(2));
@@ -506,6 +625,9 @@ export default function DailyRecommendations({
       target1,
       target2,
       stopLoss,
+      entryZone,
+      isMomentumBreakout,
+      tradeStrategy,
       gainSinceSignalPct,
       outcomeStatus,
       outcomeLabel,
@@ -590,7 +712,7 @@ export default function DailyRecommendations({
 
   const hasActiveFilters = selectedSectors.length > 0 || selectedStocks.length > 0 || searchQuery.trim() || filterSignal !== 'ALL';
 
-  const getSignalBadge = (signal) => {
+  const getSignalBadge = (signal, isMomentumBreakout = false) => {
     switch (signal) {
       case 'STRONG_BUY':
         return {
@@ -605,6 +727,13 @@ export default function DailyRecommendations({
           icon: <ArrowUpRight className="w-3.5 h-3.5 mr-1" />
         };
       case 'AVOID_SELL':
+        if (isMomentumBreakout) {
+          return {
+            label: 'Momentum Breakout • Trail Stop',
+            className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40',
+            icon: <Flame className="w-3.5 h-3.5 mr-1 text-amber-500" />
+          };
+        }
         return {
           label: 'Avoid / Take Profit',
           className: 'bg-[#DC2626]/10 text-[#DC2626] border border-[#DC2626]/20 dark:bg-[#EF4444]/10 dark:text-[#EF4444] dark:border-[#EF4444]/20',
@@ -1166,7 +1295,7 @@ export default function DailyRecommendations({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((rawItem, idx) => {
             const item = getLiveStock(rawItem);
-            const badge = getSignalBadge(item.signal);
+            const badge = getSignalBadge(item.signal, item.isMomentumBreakout);
             const isUp = (item.change || 0) >= 0;
             const isLocked = !isPro && idx >= 2;
 
@@ -1302,19 +1431,26 @@ export default function DailyRecommendations({
                     {/* Trade Setup Matrix (Entry, Stop Loss, Target) */}
                     <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#E2E8F0] dark:border-[#243044] text-center">
                       <div className="bg-[#FFFFFF] dark:bg-[#151E2E] rounded-lg p-1.5 border border-[#E2E8F0] dark:border-[#243044]">
-                        <span className="text-[9px] uppercase text-[#64748B] dark:text-[#94A3B8] block font-bold">
-                          {item.signal === 'AVOID_SELL' ? 'Defensive Range' : 'Entry Zone'}
+                        <span className="text-[9px] uppercase text-[#64748B] dark:text-[#94A3B8] block font-bold truncate">
+                          {item.isMomentumBreakout ? 'Trail Band' : (item.signal === 'AVOID_SELL' ? 'Defensive Range' : 'Entry Zone')}
                         </span>
                         <span className="text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] mono">
                           {item.entryZone?.min ? `${item.entryZone.min}-${item.entryZone.max}` : item.currentPrice}
                         </span>
                       </div>
-                      <div className="bg-[#DC2626]/10 dark:bg-[#EF4444]/10 border border-[#DC2626]/20 dark:border-[#EF4444]/20 rounded-lg p-1.5">
-                        <span className="text-[9px] uppercase text-[#DC2626] dark:text-[#EF4444] block font-bold flex items-center justify-center">
-                          <StopCircle className="w-2.5 h-2.5 mr-0.5" /> 
-                          {item.signal === 'AVOID_SELL' ? 'Exit Trigger' : 'Stop Loss'}
+                      <div className={item.isMomentumBreakout
+                        ? "bg-amber-500/10 dark:bg-amber-500/10 border border-amber-500/20 dark:border-amber-500/20 rounded-lg p-1.5"
+                        : "bg-[#DC2626]/10 dark:bg-[#EF4444]/10 border border-[#DC2626]/20 dark:border-[#EF4444]/20 rounded-lg p-1.5"
+                      }>
+                        <span className={`text-[9px] uppercase block font-bold flex items-center justify-center truncate ${
+                          item.isMomentumBreakout ? 'text-amber-600 dark:text-amber-400' : 'text-[#DC2626] dark:text-[#EF4444]'
+                        }`}>
+                          <StopCircle className="w-2.5 h-2.5 mr-0.5 shrink-0" /> 
+                          {item.isMomentumBreakout ? 'Trailing Stop' : (item.signal === 'AVOID_SELL' ? 'Exit Trigger' : 'Stop Loss')}
                         </span>
-                        <span className="text-xs font-bold text-[#DC2626] dark:text-[#EF4444] mono">
+                        <span className={`text-xs font-bold mono ${
+                          item.isMomentumBreakout ? 'text-amber-600 dark:text-amber-400' : 'text-[#DC2626] dark:text-[#EF4444]'
+                        }`}>
                           PKR {item.stopLoss}
                         </span>
                       </div>
@@ -1322,10 +1458,10 @@ export default function DailyRecommendations({
                         ? "bg-amber-500/10 dark:bg-amber-500/10 border border-amber-500/20 dark:border-amber-500/20 rounded-lg p-1.5"
                         : "bg-[#16A34A]/10 dark:bg-[#22C55E]/10 border border-[#16A34A]/20 dark:border-[#22C55E]/20 rounded-lg p-1.5"
                       }>
-                        <span className={`text-[9px] uppercase block font-bold flex items-center justify-center ${
+                        <span className={`text-[9px] uppercase block font-bold flex items-center justify-center truncate ${
                           item.signal === 'AVOID_SELL' ? 'text-amber-600 dark:text-amber-400' : 'text-[#16A34A] dark:text-[#22C55E]'
                         }`}>
-                          <Target className="w-2.5 h-2.5 mr-0.5" /> 
+                          <Target className="w-2.5 h-2.5 mr-0.5 shrink-0" /> 
                           {item.signal === 'AVOID_SELL' ? 'Pullback Support' : 'Target 1'}
                         </span>
                         <span className={`text-xs font-bold mono ${
@@ -1343,8 +1479,10 @@ export default function DailyRecommendations({
                       <span className="text-[#64748B] dark:text-[#94A3B8]">
                         {item.signal === 'AVOID_SELL' ? 'Trade Strategy:' : 'Risk : Reward Ratio:'}
                       </span>
-                      <span className="font-bold text-[#D97706] dark:text-[#F59E0B] mono">
-                        {item.signal === 'AVOID_SELL' ? 'Capital Preservation (Exit Setup)' : (item.riskReward || '1 : 2.5')}
+                      <span className={`font-bold mono ${
+                        item.isMomentumBreakout ? 'text-amber-600 dark:text-amber-400' : 'text-[#D97706] dark:text-[#F59E0B]'
+                      }`}>
+                        {item.tradeStrategy || (item.signal === 'AVOID_SELL' ? 'Capital Preservation (Exit Setup)' : (item.riskReward || '1 : 2.5'))}
                       </span>
                     </div>
 
