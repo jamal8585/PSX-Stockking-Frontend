@@ -22,7 +22,7 @@ export default function OrderExecutionPlannerModal({ stock, onClose }) {
   const commissionPKR = Math.round(totalInvestment * 0.0015);
 
   const handleCopy = () => {
-    const text = `=== PSX ALPHA TERMINAL ORDER EXECUTION PLAN ===
+    const text = `=== PSX STOCKKING TERMINAL ORDER EXECUTION PLAN ===
 Symbol: ${stock.symbol} (${stock.companyName || ''})
 Order Type: BUY LIMIT
 Quantity: ${shares.toLocaleString()} Shares

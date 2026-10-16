@@ -294,13 +294,13 @@ export function getPSXMarketStatus() {
 
 // Authoritative synchronized KSE-100 Default Summary across Ticker Tape & Market Hero
 export const DEFAULT_KSE100_SUMMARY = {
-  current: 166186.16,
-  currentValue: 166186.16,
-  prevClose: 165417.50,
-  change: 768.66,
-  changePercent: 0.46,
-  high: 166877.01,
-  low: 165613.11,
+  current: 166419.71,
+  currentValue: 166419.71,
+  prevClose: 166186.16,
+  change: 233.55,
+  changePercent: 0.14,
+  high: 166708.36,
+  low: 165956.51,
   advances: 468,
   declines: 267,
   unchanged: 28,

@@ -84,7 +84,7 @@ export default function OrderCalculatorModal({ stock, stocks = [], onClose }) {
   };
 
   const handleCopy = () => {
-    const text = `--- PSX ALPHA ORDER EXECUTION PLAN ---
+    const text = `--- PSX STOCKKING TERMINAL ORDER EXECUTION PLAN ---
 Symbol: ${stock.symbol}
 Action: BUY (Limit / Market Order)
 Current Market Price (CMP): PKR ${livePrice.toFixed(2)}

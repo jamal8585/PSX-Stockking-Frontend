@@ -396,13 +396,24 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
     return () => { isMounted = false; };
   }, [sym, selectedTimeframe]);
 
+  useEffect(() => {
+    const t = setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 150);
+    return () => clearTimeout(t);
+  }, []);
+
   const currentPrice = Number(liveHistoryData?.quote?.currentPrice || stockObj.currentPrice || official?.currentPrice || 100);
   const prevClose = Number(liveHistoryData?.quote?.prevClose || stockObj.prevClose || official?.prevClose || (currentPrice * 0.99));
   const change = stockObj.change !== undefined ? Number(stockObj.change) : (official?.change !== undefined ? Number(official.change) : Number((currentPrice - prevClose).toFixed(2)));
   const changePercent = stockObj.changePercent !== undefined ? Number(stockObj.changePercent) : (official?.changePercent !== undefined ? Number(official.changePercent) : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0));
   const volume = Number(liveHistoryData?.quote?.volume || stockObj.volume || official?.volume || 1500000);
   const name = stockObj.name || official?.name || masterEntry?.name || sym;
-  const sector = stockObj.sector || official?.sector || masterEntry?.sector || 'General Market';
+  const sector = (stockObj.sector && stockObj.sector !== 'General Market')
+    ? stockObj.sector
+    : ((official?.sector && official.sector !== 'General Market')
+        ? official.sector
+        : (masterEntry?.sector || 'Miscellaneous'));
   const high = Number(stockObj.high || official?.high || (currentPrice * 1.02));
   const low = Number(stockObj.low || official?.low || (currentPrice * 0.98));
   const peRatio = Number(stockObj.peRatio || 5.35);
@@ -710,7 +721,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
         {activeTab === 'chart' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 my-4">
             {/* Left Column (4 Cols on lg, 3 Cols on xl): Fundamental Quick Matrix & Sliders */}
-            <div className="lg:col-span-4 xl:col-span-3 space-y-4">
+            <div className="order-2 lg:order-1 lg:col-span-4 xl:col-span-3 space-y-4">
               {/* Live Price Box */}
               <div className={`rounded-2xl p-4 border transition-colors ${
                 isDark 
@@ -863,7 +874,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
             </div>
 
             {/* Right Column (8 Cols on lg, 9 Cols on xl): Multi-Timeframe TradingView Pro Chart Station */}
-            <div className="lg:col-span-8 xl:col-span-9 flex flex-col space-y-4">
+            <div className="order-1 lg:order-2 lg:col-span-8 xl:col-span-9 flex flex-col space-y-4">
               <div className={`rounded-2xl border overflow-hidden flex-1 flex flex-col min-h-[560px] lg:min-h-[640px] xl:min-h-[700px] transition-colors ${
                 isDark 
                   ? 'bg-[#181A20] border-[#1E2329] shadow-none' 

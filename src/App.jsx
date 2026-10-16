@@ -162,7 +162,7 @@ const calculateClientPortfolio = (savedPositions = [], stocksList = []) => {
         stockMap.set(symKey, {
           symbol: symKey,
           name: q.name || symKey,
-          sector: q.sector || 'General Market',
+          sector: q.sector || 'Miscellaneous',
           currentPrice: Number(q.currentPrice || 0),
           prevClose: Number(q.prevClose || q.currentPrice || 0),
           change: Number(q.change || 0),
@@ -252,7 +252,7 @@ const calculateClientPortfolio = (savedPositions = [], stocksList = []) => {
       _id: pos._id || ('port_' + sym + '_' + idx),
       symbol: sym,
       name: official?.name || pos.name || sym,
-      sector: official?.sector || pos.sector || 'General Market',
+      sector: (official?.sector && official.sector !== 'General Market') ? official.sector : (pos.sector || 'Miscellaneous'),
       buyPrice,
       commission,
       effectiveBuyRate,
@@ -310,7 +310,7 @@ const mergeWithOfficialQuotes = (serverStocks = []) => {
           ...q,
           symbol: symKey,
           name: q.name || symKey,
-          sector: q.sector || 'General Market',
+          sector: q.sector || 'Miscellaneous',
           currentPrice: Number(q.currentPrice || 0),
           prevClose: Number(q.prevClose || q.currentPrice || 0),
           change: Number(q.change || 0),
@@ -332,12 +332,15 @@ const mergeWithOfficialQuotes = (serverStocks = []) => {
         const existing = stockMap.get(symKey);
         if (existing) {
           const serverPrice = Number(s.currentPrice || 0);
+          const resolvedSector = (existing.sector && existing.sector !== 'General Market') 
+            ? existing.sector 
+            : (s.sector && s.sector !== 'General Market' ? s.sector : 'Miscellaneous');
           stockMap.set(symKey, {
             ...existing,
             ...s,
             symbol: symKey,
             name: existing.name || s.name,
-            sector: existing.sector || s.sector,
+            sector: resolvedSector,
             currentPrice: serverPrice > 0 ? serverPrice : existing.currentPrice,
             prevClose: Number(s.prevClose || existing.prevClose || (serverPrice * 0.99)),
             change: s.change !== undefined ? Number(s.change) : existing.change,
@@ -825,12 +828,12 @@ export default function App() {
       } else {
         const stockInfo = (stocks && stocks.find(s => s.symbol?.toUpperCase() === sym)) || 
           (officialQuotes ? officialQuotes[sym] : null) || 
-          (typeof symbolOrStock === 'object' ? symbolOrStock : { symbol: sym, name: sym, sector: 'General Market' });
+          (typeof symbolOrStock === 'object' ? symbolOrStock : { symbol: sym, name: sym, sector: 'Miscellaneous' });
 
         const newEntry = {
           symbol: sym,
           name: stockInfo.name || sym,
-          sector: stockInfo.sector || 'General Market',
+          sector: (stockInfo.sector && stockInfo.sector !== 'General Market') ? stockInfo.sector : 'Miscellaneous',
           currentPrice: Number(stockInfo.currentPrice || 100),
           addedAt: new Date().toISOString()
         };
@@ -1086,7 +1089,7 @@ export default function App() {
           : 'bg-[#151E2E] border-[#243044] text-[#94A3B8]'
       }`}>
         <div className="max-w-[1680px] mx-auto px-4 space-y-1.5">
-          <p className="font-bold">© 2026 PSX STOCKKING • Real-Time Financial Intelligence, Portfolio Tracker & Algorithmic Stock Screening Engine.</p>
+          <p className="font-bold">© 2026 PSX STOCKKING TERMINAL • Real-Time Financial Intelligence, Portfolio Tracker & Algorithmic Stock Screening Engine.</p>
           <p className="text-[11px] opacity-80 max-w-4xl mx-auto leading-relaxed">
             ⚠️ <b>Regulatory & Risk Disclaimer:</b> All AI signals, target sell prices, entry zones, and catalyst trade setups on PSX STOCKKING are strictly for informational and algorithmic research purposes only and do not constitute financial advice or investment recommendations under SECP / PSX guidelines. Always conduct independent due diligence before executing trades.
           </p>

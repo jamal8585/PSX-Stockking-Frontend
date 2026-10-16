@@ -77,8 +77,8 @@ export default function Navbar({
 
     return POPULAR_SYMBOLS.map(sym => {
       const item = stockMap.get(sym);
-      const price = Number(item?.currentPrice || 100);
-      const prevClose = Number(item?.prevClose || price);
+      const price = Number(item?.currentPrice || item?.prevClose || 0);
+      const prevClose = Number(item?.prevClose || price || 1);
       const diff = item?.change !== undefined ? Number(item.change) : Number((price - prevClose).toFixed(2));
       const pct = item?.changePercent !== undefined 
         ? Number(item.changePercent) 
@@ -87,7 +87,7 @@ export default function Navbar({
 
       return {
         symbol: sym,
-        price: price.toFixed(2),
+        price: price > 0 ? price.toFixed(2) : '—',
         change: `${isPos ? '+' : ''}${pct.toFixed(2)}%`,
         isPos
       };

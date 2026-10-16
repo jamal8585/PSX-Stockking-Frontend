@@ -1,43 +1,89 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { TrendingUp, TrendingDown, Activity, Layers, Radio, Lock } from 'lucide-react';
 import { getPSXMarketStatus, DEFAULT_KSE100_SUMMARY } from '../utils/marketSession';
+import officialQuotes from '../data/official_quotes.json';
+
+const parseCleanNum = (val, fallback = 0) => {
+  if (val === undefined || val === null) return fallback;
+  if (typeof val === 'number') return isNaN(val) ? fallback : val;
+  const cleaned = String(val).replace(/,/g, '').trim();
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? fallback : num;
+};
 
 const DEFAULT_SECTORS = [
   { sector: 'Commercial Banks', changePercent: 1.25, volume: 45000000 },
   { sector: 'Oil & Gas Exploration', changePercent: 0.85, volume: 38000000 },
-  { sector: 'Cement & Construction', changePercent: 1.42, volume: 29000000 },
-  { sector: 'Technology & Comm.', changePercent: 3.18, volume: 62000000 },
-  { sector: 'Fertilizer & Chemicals', changePercent: -0.45, volume: 22000000 },
-  { sector: 'Power Generation', changePercent: 0.50, volume: 18000000 },
-  { sector: 'Automobile Assemblers', changePercent: 1.10, volume: 14000000 },
+  { sector: 'Cement', changePercent: 1.42, volume: 29000000 },
+  { sector: 'Technology & Communication', changePercent: 3.18, volume: 62000000 },
+  { sector: 'Fertilizer', changePercent: -0.45, volume: 22000000 },
+  { sector: 'Power Generation & Distribution', changePercent: 0.50, volume: 18000000 },
+  { sector: 'Automobile Assembler', changePercent: 1.10, volume: 14000000 },
   { sector: 'Textile Composite', changePercent: -0.22, volume: 11000000 }
 ];
 
 export default function MarketHero({ marketSummary }) {
   const [viewAllSectors, setViewAllSectors] = useState(false);
 
-  const rawVal = marketSummary?.currentValue || marketSummary?.current || DEFAULT_KSE100_SUMMARY.current;
-  const currentValue = Number(rawVal);
-  const change = marketSummary?.change !== undefined ? Number(marketSummary.change) : DEFAULT_KSE100_SUMMARY.change;
-  const changePercent = marketSummary?.changePercent !== undefined ? Number(marketSummary.changePercent) : DEFAULT_KSE100_SUMMARY.changePercent;
-  const high = Number(marketSummary?.high || DEFAULT_KSE100_SUMMARY.high);
-  const low = Number(marketSummary?.low || DEFAULT_KSE100_SUMMARY.low);
+  const currentValue = parseCleanNum(marketSummary?.currentValue || marketSummary?.current, DEFAULT_KSE100_SUMMARY.current);
+  const change = marketSummary?.change !== undefined ? parseCleanNum(marketSummary.change, DEFAULT_KSE100_SUMMARY.change) : DEFAULT_KSE100_SUMMARY.change;
+  const changePercent = marketSummary?.changePercent !== undefined ? parseCleanNum(marketSummary.changePercent, DEFAULT_KSE100_SUMMARY.changePercent) : DEFAULT_KSE100_SUMMARY.changePercent;
+  const high = parseCleanNum(marketSummary?.high, DEFAULT_KSE100_SUMMARY.high);
+  const low = parseCleanNum(marketSummary?.low, DEFAULT_KSE100_SUMMARY.low);
   const indexName = marketSummary?.indexName || DEFAULT_KSE100_SUMMARY.indexName;
-  const advances = marketSummary?.advances !== undefined ? marketSummary.advances : DEFAULT_KSE100_SUMMARY.advances;
-  const declines = marketSummary?.declines !== undefined ? marketSummary.declines : DEFAULT_KSE100_SUMMARY.declines;
-  const unchanged = marketSummary?.unchanged !== undefined ? marketSummary.unchanged : DEFAULT_KSE100_SUMMARY.unchanged;
+  const advances = parseCleanNum(marketSummary?.advances, DEFAULT_KSE100_SUMMARY.advances);
+  const declines = parseCleanNum(marketSummary?.declines, DEFAULT_KSE100_SUMMARY.declines);
+  const unchanged = parseCleanNum(marketSummary?.unchanged, DEFAULT_KSE100_SUMMARY.unchanged);
   const sectorPerformance = marketSummary?.sectorPerformance || [];
   const marketSentiment = marketSummary?.marketSentiment || (change >= 0 ? 'BULLISH' : 'BEARISH');
   const marketStatus = marketSummary?.marketStatus || getPSXMarketStatus();
 
   const isPositive = change >= 0;
-  const totalStocks = advances + declines + unchanged;
-  const advancesPct = Math.round((advances / (totalStocks || 1)) * 100);
-  const declinesPct = Math.round((declines / (totalStocks || 1)) * 100);
+  const totalStocks = Math.max(1, advances + declines + unchanged);
+  const advancesPct = Math.round((advances / totalStocks) * 100);
+  const declinesPct = Math.round((declines / totalStocks) * 100);
+  const neutralPct = Math.max(0, 100 - advancesPct - declinesPct);
 
-  const displaySectors = (sectorPerformance && sectorPerformance.length > 0) 
-    ? sectorPerformance 
-    : DEFAULT_SECTORS;
+  // Exact Day Range Percentage calculation
+  const rangeSpan = Math.max(1, high - low);
+  const dayRangeProgressPct = Math.min(100, Math.max(0, ((currentValue - low) / rangeSpan) * 100));
+
+  // Compute dynamic sector performance across all 39 PSX sectors
+  const displaySectors = useMemo(() => {
+    const validServerSectors = Array.isArray(sectorPerformance) 
+      ? sectorPerformance.filter(s => s && s.sector && s.sector !== 'General Market') 
+      : [];
+
+    if (validServerSectors.length >= 5) {
+      return validServerSectors;
+    }
+
+    if (officialQuotes && typeof officialQuotes === 'object') {
+      const secMap = new Map();
+      Object.values(officialQuotes).forEach(q => {
+        const secName = q?.sector;
+        if (!secName || secName === 'General Market') return;
+        if (!secMap.has(secName)) {
+          secMap.set(secName, { sector: secName, totalChange: 0, count: 0, volume: 0 });
+        }
+        const record = secMap.get(secName);
+        record.totalChange += Number(q.changePercent || 0);
+        record.volume += Number(q.volume || 0);
+        record.count += 1;
+      });
+
+      if (secMap.size > 0) {
+        return Array.from(secMap.values()).map(s => ({
+          sector: s.sector,
+          changePercent: Number((s.totalChange / (s.count || 1)).toFixed(2)),
+          volume: s.volume,
+          count: s.count
+        }));
+      }
+    }
+
+    return DEFAULT_SECTORS;
+  }, [sectorPerformance]);
 
   const sortedSectors = [...displaySectors].sort((a, b) => b.changePercent - a.changePercent);
   const renderedSectors = viewAllSectors ? sortedSectors : sortedSectors.slice(0, 8);
@@ -80,14 +126,17 @@ export default function MarketHero({ marketSummary }) {
 
         {/* Day Range Bar */}
         <div className="space-y-1.5 pt-2.5 border-t border-[#E2E8F0] dark:border-[#243044] text-xs">
-          <div className="flex justify-between text-[#64748B] dark:text-[#94A3B8] font-medium">
+          <div className="flex justify-between items-center text-[#64748B] dark:text-[#94A3B8] font-medium">
             <span>Day Low: <b className="text-[#0F172A] dark:text-[#F8FAFC] mono">{low.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></span>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 text-[#2563EB] dark:text-[#3B82F6] mono">
+              {dayRangeProgressPct.toFixed(0)}% of Range
+            </span>
             <span>Day High: <b className="text-[#0F172A] dark:text-[#F8FAFC] mono">{high.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></span>
           </div>
-          <div className="w-full h-1.5 bg-[#E2E8F0] dark:bg-[#1E293B] rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-[#E2E8F0] dark:bg-[#1E293B] rounded-full relative overflow-hidden">
             <div 
-              className="h-full bg-[#2563EB] dark:bg-[#3B82F6] rounded-full transition-all duration-500"
-              style={{ width: `${Math.min(100, Math.max(5, ((currentValue - low) / ((high - low) || 1)) * 100))}%` }}
+              className="h-full bg-gradient-to-r from-[#2563EB] to-[#3B82F6] dark:from-[#3B82F6] dark:to-[#60A5FA] rounded-full transition-all duration-500"
+              style={{ width: `${Math.max(2, dayRangeProgressPct)}%` }}
             />
           </div>
         </div>
@@ -118,15 +167,29 @@ export default function MarketHero({ marketSummary }) {
             <div className="bg-[#F1F5F9] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#243044] rounded-lg p-2">
               <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase">Neutral</span>
               <p className="text-xl font-extrabold text-[#0F172A] dark:text-[#F8FAFC] mono">{unchanged}</p>
-              <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] font-medium">Unchanged</span>
+              <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] font-medium">{neutralPct}%</span>
             </div>
           </div>
         </div>
 
-        <div className="w-full h-2 rounded-full overflow-hidden flex bg-[#E2E8F0] dark:bg-[#1E293B]">
-          <div style={{ width: `${advancesPct}%` }} className="bg-[#16A34A] dark:bg-[#22C55E]" title={`Advances: ${advances}`} />
-          <div style={{ width: `${Math.round((unchanged / totalStocks) * 100)}%` }} className="bg-[#64748B] dark:bg-[#94A3B8]" />
-          <div style={{ width: `${declinesPct}%` }} className="bg-[#DC2626] dark:bg-[#EF4444]" title={`Declines: ${declines}`} />
+        <div className="w-full h-2.5 rounded-full overflow-hidden flex bg-[#E2E8F0] dark:bg-[#1E293B]">
+          <div 
+            style={{ width: `${advancesPct}%` }} 
+            className="h-full shrink-0 bg-[#16A34A] dark:bg-[#22C55E] transition-all duration-300" 
+            title={`Advances: ${advances} (${advancesPct}%)`} 
+          />
+          {neutralPct > 0 && (
+            <div 
+              style={{ width: `${neutralPct}%` }} 
+              className="h-full shrink-0 bg-[#64748B] dark:bg-[#94A3B8] transition-all duration-300" 
+              title={`Neutral: ${unchanged} (${neutralPct}%)`} 
+            />
+          )}
+          <div 
+            style={{ width: `${declinesPct}%` }} 
+            className="h-full shrink-0 bg-[#DC2626] dark:bg-[#EF4444] transition-all duration-300" 
+            title={`Declines: ${declines} (${declinesPct}%)`} 
+          />
         </div>
       </div>
 

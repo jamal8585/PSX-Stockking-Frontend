@@ -35,7 +35,9 @@ export default function DayTradeSuggestionModal({
 
   const symbol = stock.symbol || sym;
   const name = stock.name || official?.name || sym;
-  const sector = stock.sector || official?.sector || 'General Market';
+  const sector = (stock.sector && stock.sector !== 'General Market') 
+    ? stock.sector 
+    : ((official?.sector && official.sector !== 'General Market') ? official.sector : 'Miscellaneous');
   const currentPrice = Number(stock.currentPrice || official?.currentPrice || 100);
   const prevClose = Number(stock.prevClose || official?.prevClose || (currentPrice * 0.99));
   const change = stock.change !== undefined ? Number(stock.change) : (official?.change !== undefined ? Number(official.change) : Number((currentPrice - prevClose).toFixed(2)));

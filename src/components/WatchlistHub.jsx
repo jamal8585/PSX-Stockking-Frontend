@@ -112,7 +112,7 @@ export default function WatchlistHub({
           map.set(sym, {
             symbol: sym,
             name: q.name || sym,
-            sector: q.sector || 'General Market',
+            sector: (q.sector && q.sector !== 'General Market') ? q.sector : 'Miscellaneous',
             currentPrice: Number(q.currentPrice || 100),
             changePercent: Number(q.changePercent || 0)
           });
@@ -130,7 +130,7 @@ export default function WatchlistHub({
             ...existing,
             symbol: sym,
             name: s.name || existing?.name || sym,
-            sector: s.sector || existing?.sector || 'General Market',
+            sector: (s.sector && s.sector !== 'General Market') ? s.sector : (existing?.sector || 'Miscellaneous'),
             currentPrice: Number(s.currentPrice || existing?.currentPrice || 100),
             changePercent: Number(s.changePercent !== undefined ? s.changePercent : (existing?.changePercent || 0))
           });
@@ -200,7 +200,7 @@ export default function WatchlistHub({
       return {
         symbol: sym,
         name: live.name || item?.name || sym,
-        sector: live.sector || item?.sector || 'General Market',
+        sector: (live.sector && live.sector !== 'General Market') ? live.sector : (item?.sector || 'Miscellaneous'),
         currentPrice,
         prevClose,
         change,
