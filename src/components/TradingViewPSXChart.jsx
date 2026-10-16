@@ -441,10 +441,14 @@ export default function TradingViewPSXChart({
     setShowTimeframeDropdown(false);
   }, []);
 
-  // Update current symbol when prop changes
+  // Update current symbol when prop changes - strictly reset to Daily (1D) multi-candle timeframe
   useEffect(() => {
-    if (symbol) setCurrentSymbol(symbol);
-  }, [symbol]);
+    if (symbol) {
+      setCurrentSymbol(symbol);
+      setTimeframe(defaultTimeframe || '1D');
+      setSelectedRange(defaultRange || '6m');
+    }
+  }, [symbol, defaultTimeframe, defaultRange]);
 
   // Load Primary Stock History Data
   useEffect(() => {

@@ -2,7 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { 
   Search, 
   Filter, 
-  ArrowUpDown, 
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   Bookmark, 
   BookmarkCheck, 
   Calculator, 
@@ -156,6 +158,33 @@ export default function StockScreenerTable({
       setSortField(field);
       setSortOrder('desc');
     }
+  };
+
+  const renderSortHeader = (field, label) => {
+    const isActive = sortField === field;
+    return (
+      <th 
+        onClick={() => handleSort(field)} 
+        className={`py-3 px-3 cursor-pointer transition-colors select-none ${
+          isActive 
+            ? 'text-[#2563EB] dark:text-[#3B82F6] font-black' 
+            : 'hover:text-[#0F172A] dark:hover:text-[#F8FAFC]'
+        }`}
+      >
+        <div className="flex items-center space-x-1">
+          <span>{label}</span>
+          {isActive ? (
+            sortOrder === 'asc' ? (
+              <ArrowUp className="w-3.5 h-3.5 text-[#2563EB] dark:text-[#3B82F6] shrink-0 stroke-[2.5]" />
+            ) : (
+              <ArrowDown className="w-3.5 h-3.5 text-[#2563EB] dark:text-[#3B82F6] shrink-0 stroke-[2.5]" />
+            )
+          ) : (
+            <ArrowUpDown className="w-3 h-3 text-[#94A3B8] opacity-50 shrink-0" />
+          )}
+        </div>
+      </th>
+    );
   };
 
   const getRSIColor = (rsi) => {
@@ -326,42 +355,12 @@ export default function StockScreenerTable({
             <tr>
               <th className="py-3 px-4">Symbol / Name</th>
               <th className="py-3 px-3">Sector</th>
-              <th onClick={() => handleSort('currentPrice')} className="py-3 px-3 cursor-pointer hover:text-[#0F172A] dark:hover:text-[#F8FAFC]">
-                <div className="flex items-center space-x-1">
-                  <span>Price (PKR)</span>
-                  <ArrowUpDown className="w-3 h-3 text-[#2563EB] dark:text-[#3B82F6]" />
-                </div>
-              </th>
-              <th onClick={() => handleSort('changePercent')} className="py-3 px-3 cursor-pointer hover:text-[#0F172A] dark:hover:text-[#F8FAFC]">
-                <div className="flex items-center space-x-1">
-                  <span>24h Change</span>
-                  <ArrowUpDown className="w-3 h-3 text-[#2563EB] dark:text-[#3B82F6]" />
-                </div>
-              </th>
-              <th onClick={() => handleSort('volume')} className="py-3 px-3 cursor-pointer hover:text-[#0F172A] dark:hover:text-[#F8FAFC]">
-                <div className="flex items-center space-x-1">
-                  <span>Volume</span>
-                  <ArrowUpDown className="w-3 h-3 text-[#2563EB] dark:text-[#3B82F6]" />
-                </div>
-              </th>
-              <th onClick={() => handleSort('rsi')} className="py-3 px-3 cursor-pointer hover:text-[#0F172A] dark:hover:text-[#F8FAFC]">
-                <div className="flex items-center space-x-1">
-                  <span>RSI (14)</span>
-                  <ArrowUpDown className="w-3 h-3 text-[#2563EB] dark:text-[#3B82F6]" />
-                </div>
-              </th>
-              <th onClick={() => handleSort('peRatio')} className="py-3 px-3 cursor-pointer hover:text-[#0F172A] dark:hover:text-[#F8FAFC]">
-                <div className="flex items-center space-x-1">
-                  <span>P/E</span>
-                  <ArrowUpDown className="w-3 h-3 text-[#2563EB] dark:text-[#3B82F6]" />
-                </div>
-              </th>
-              <th onClick={() => handleSort('dividendYield')} className="py-3 px-3 cursor-pointer hover:text-[#0F172A] dark:hover:text-[#F8FAFC]">
-                <div className="flex items-center space-x-1">
-                  <span>Div Yield</span>
-                  <ArrowUpDown className="w-3 h-3 text-[#2563EB] dark:text-[#3B82F6]" />
-                </div>
-              </th>
+              {renderSortHeader('currentPrice', 'Price (PKR)')}
+              {renderSortHeader('changePercent', '24h Change')}
+              {renderSortHeader('volume', 'Volume')}
+              {renderSortHeader('rsi', 'RSI (14)')}
+              {renderSortHeader('peRatio', 'P/E')}
+              {renderSortHeader('dividendYield', 'Div Yield')}
               <th className="py-3 px-3 text-center">Actions</th>
             </tr>
           </thead>

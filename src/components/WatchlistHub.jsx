@@ -138,7 +138,7 @@ export default function WatchlistHub({
             sector: (s.sector && s.sector !== 'General Market') ? s.sector : (existing?.sector || 'Miscellaneous'),
             currentPrice: Number(s.currentPrice || existing?.currentPrice || 100),
             changePercent: Number(s.changePercent !== undefined ? s.changePercent : (existing?.changePercent || 0)),
-            volume: Number(s.volume !== undefined ? s.volume : (existing?.volume || 0)),
+            volume: Math.max(Number(s.volume || 0), Number(existing?.volume || 0)),
             high: Number(s.high !== undefined ? s.high : (existing?.high || 0)),
             low: Number(s.low !== undefined ? s.low : (existing?.low || 0)),
             prevClose: Number(s.prevClose !== undefined ? s.prevClose : (existing?.prevClose || 0)),
@@ -177,7 +177,7 @@ export default function WatchlistHub({
         ? Number(live.changePercent) 
         : (officialQuote?.changePercent !== undefined ? Number(officialQuote.changePercent) : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0));
       const isPos = change >= 0;
-      const volume = Number(live.volume || officialQuote?.volume || item?.volume || 0);
+      const volume = Math.max(Number(officialQuote?.volume || 0), Number(live.volume || 0), Number(item?.volume || 0));
 
       // Smart AI Technical Calculations
       const rsi14 = live.technicals?.rsi14 || (isPos ? 56 : 44);

@@ -24,7 +24,7 @@ import officialQuotes from '../data/official_quotes.json';
 import { getPSXMarketStatus, DEFAULT_KSE100_SUMMARY } from '../utils/marketSession';
 
 const POPULAR_SYMBOLS = [
-  'CNERGY', 'PRL', 'WAVESAPPR', 'BOP', 'OGDC', 'PPL', 'SYS', 'MARI', 'LUCK', 
+  'CNERGY', 'PRL', 'WAVES', 'BOP', 'OGDC', 'PPL', 'SYS', 'MARI', 'LUCK', 
   'FFC', 'PSO', 'MEBL', 'HUBC', 'EFERT', 'ENGRO', 'SAZEW', 'INDU', 'MLCF', 
   'CHCC', 'MUGHAL', 'ILP', 'NATF', 'TOMCL', 'WTL', 'TELE', 'ATRL', 'NRL', 
   'MCB', 'HBL', 'UBL', 'BAFL', 'BAHL', 'DGKC', 'FCCL', 'KAPCO', 'KEL', 
@@ -75,23 +75,28 @@ export default function Navbar({
       });
     }
 
-    return POPULAR_SYMBOLS.map(sym => {
-      const item = stockMap.get(sym);
-      const price = Number(item?.currentPrice || item?.prevClose || 0);
-      const prevClose = Number(item?.prevClose || price || 1);
-      const diff = item?.change !== undefined ? Number(item.change) : Number((price - prevClose).toFixed(2));
-      const pct = item?.changePercent !== undefined 
-        ? Number(item.changePercent) 
-        : (prevClose > 0 ? Number((((price - prevClose) / prevClose) * 100).toFixed(2)) : 0);
-      const isPos = diff >= 0;
+    return POPULAR_SYMBOLS
+      .filter(sym => !sym.endsWith('APPR') && !sym.endsWith('R'))
+      .map(sym => {
+        const item = stockMap.get(sym);
+        const price = Number(item?.currentPrice || item?.prevClose || 0);
+        const prevClose = Number(item?.prevClose || price || 1);
+        const diff = item?.change !== undefined ? Number(item.change) : Number((price - prevClose).toFixed(2));
+        let pct = item?.changePercent !== undefined 
+          ? Number(item.changePercent) 
+          : (prevClose > 0 ? Number((((price - prevClose) / prevClose) * 100).toFixed(2)) : 0);
+        
+        // Sanity guard against distorted right-share nominal shifts
+        if (price < 0.5 && Math.abs(pct) > 100) pct = 0;
+        const isPos = diff >= 0;
 
-      return {
-        symbol: sym,
-        price: price > 0 ? price.toFixed(2) : '—',
-        change: `${isPos ? '+' : ''}${pct.toFixed(2)}%`,
-        isPos
-      };
-    });
+        return {
+          symbol: sym,
+          price: price > 0 ? price.toFixed(2) : '—',
+          change: `${isPos ? '+' : ''}${pct.toFixed(2)}%`,
+          isPos
+        };
+      });
   }, [stocks]);
 
   const isPro = currentUser?.plan === 'PRO' && currentUser?.subscriptionStatus === 'ACTIVE';
@@ -128,43 +133,47 @@ export default function Navbar({
         </div>
 
         {/* Live Moving Ticker Marquee Container */}
-        <div className="flex-1 overflow-x-auto no-scrollbar touch-pan-x relative mx-2 sm:mx-3">
-          <div className="animate-marquee flex items-center space-x-8 text-[11px] whitespace-nowrap">
+        <div className="flex-1 overflow-x-hidden relative mx-2 sm:mx-3">
+          <div className="animate-marquee flex items-center text-[11px] whitespace-nowrap">
             {/* Set 1 */}
-            <span className="mono font-bold whitespace-nowrap">
-              KSE-100: <b className={isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'}>{kse}</b>{' '}
-              <span className={isPositive ? (isLight ? 'text-[#16A34A]' : 'text-[#22C55E]') : (isLight ? 'text-[#DC2626]' : 'text-[#EF4444]')}>
-                {isPositive ? '+' : ''}{changePct}%
-              </span>
-            </span>
-
-            {tickerItems.map((item) => (
-              <span key={`t1-${item.symbol}`} className="mono font-bold flex items-center space-x-1 whitespace-nowrap">
-                <span className={isLight ? 'text-[#64748B]' : 'text-[#94A3B8]'}>{item.symbol}:</span>
-                <b className={isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'}>{item.price}</b>
-                <span className={item.isPos ? (isLight ? 'text-[#16A34A]' : 'text-[#22C55E]') : (isLight ? 'text-[#DC2626]' : 'text-[#EF4444]')}>
-                  {item.change}
+            <div className="flex items-center space-x-8 pr-8">
+              <span className="mono font-bold whitespace-nowrap">
+                KSE-100: <b className={isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'}>{kse}</b>{' '}
+                <span className={isPositive ? (isLight ? 'text-[#16A34A]' : 'text-[#22C55E]') : (isLight ? 'text-[#DC2626]' : 'text-[#EF4444]')}>
+                  {isPositive ? '+' : ''}{changePct}%
                 </span>
               </span>
-            ))}
 
-            {/* Set 2 (Duplicate for Seamless Marquee Loop) */}
-            <span className="mono font-bold whitespace-nowrap">
-              KSE-100: <b className={isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'}>{kse}</b>{' '}
-              <span className={isPositive ? (isLight ? 'text-[#16A34A]' : 'text-[#22C55E]') : (isLight ? 'text-[#DC2626]' : 'text-[#EF4444]')}>
-                {isPositive ? '+' : ''}{changePct}%
-              </span>
-            </span>
+              {tickerItems.map((item) => (
+                <span key={`t1-${item.symbol}`} className="mono font-bold flex items-center space-x-1 whitespace-nowrap">
+                  <span className={isLight ? 'text-[#64748B]' : 'text-[#94A3B8]'}>{item.symbol}:</span>
+                  <b className={isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'}>{item.price}</b>
+                  <span className={item.isPos ? (isLight ? 'text-[#16A34A]' : 'text-[#22C55E]') : (isLight ? 'text-[#DC2626]' : 'text-[#EF4444]')}>
+                    {item.change}
+                  </span>
+                </span>
+              ))}
+            </div>
 
-            {tickerItems.map((item) => (
-              <span key={`t2-${item.symbol}`} className="mono font-bold flex items-center space-x-1 whitespace-nowrap">
-                <span className={isLight ? 'text-[#64748B]' : 'text-[#94A3B8]'}>{item.symbol}:</span>
-                <b className={isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'}>{item.price}</b>
-                <span className={item.isPos ? (isLight ? 'text-[#16A34A]' : 'text-[#22C55E]') : (isLight ? 'text-[#DC2626]' : 'text-[#EF4444]')}>
-                  {item.change}
+            {/* Set 2 (Exact Duplicate with Equal pr-8 for 100% Seamless Infinite Loop) */}
+            <div className="flex items-center space-x-8 pr-8" aria-hidden="true">
+              <span className="mono font-bold whitespace-nowrap">
+                KSE-100: <b className={isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'}>{kse}</b>{' '}
+                <span className={isPositive ? (isLight ? 'text-[#16A34A]' : 'text-[#22C55E]') : (isLight ? 'text-[#DC2626]' : 'text-[#EF4444]')}>
+                  {isPositive ? '+' : ''}{changePct}%
                 </span>
               </span>
-            ))}
+
+              {tickerItems.map((item) => (
+                <span key={`t2-${item.symbol}`} className="mono font-bold flex items-center space-x-1 whitespace-nowrap">
+                  <span className={isLight ? 'text-[#64748B]' : 'text-[#94A3B8]'}>{item.symbol}:</span>
+                  <b className={isLight ? 'text-[#0F172A]' : 'text-[#F8FAFC]'}>{item.price}</b>
+                  <span className={item.isPos ? (isLight ? 'text-[#16A34A]' : 'text-[#22C55E]') : (isLight ? 'text-[#DC2626]' : 'text-[#EF4444]')}>
+                    {item.change}
+                  </span>
+                </span>
+              ))}
+            </div>
           </div>
         </div>
 
