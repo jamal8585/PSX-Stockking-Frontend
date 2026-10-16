@@ -43,7 +43,7 @@ export default function DayTradeSuggestionModal({
   const change = stock.change !== undefined ? Number(stock.change) : (official?.change !== undefined ? Number(official.change) : Number((currentPrice - prevClose).toFixed(2)));
   const changePercent = stock.changePercent !== undefined ? Number(stock.changePercent) : (official?.changePercent !== undefined ? Number(official.changePercent) : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0));
   const technicals = stock.technicals || {};
-  const volume = Number(stock.volume || official?.volume || 1500000);
+  const volume = Number(stock.volume || official?.volume || 0);
 
   const isPos = change >= 0;
   const price = Number(currentPrice);

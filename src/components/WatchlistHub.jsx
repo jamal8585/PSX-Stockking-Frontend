@@ -114,7 +114,12 @@ export default function WatchlistHub({
             name: q.name || sym,
             sector: (q.sector && q.sector !== 'General Market') ? q.sector : 'Miscellaneous',
             currentPrice: Number(q.currentPrice || 100),
-            changePercent: Number(q.changePercent || 0)
+            changePercent: Number(q.changePercent || 0),
+            volume: Number(q.volume || 0),
+            high: Number(q.high || 0),
+            low: Number(q.low || 0),
+            prevClose: Number(q.prevClose || 0),
+            open: Number(q.open || 0)
           });
         }
       });
@@ -132,7 +137,13 @@ export default function WatchlistHub({
             name: s.name || existing?.name || sym,
             sector: (s.sector && s.sector !== 'General Market') ? s.sector : (existing?.sector || 'Miscellaneous'),
             currentPrice: Number(s.currentPrice || existing?.currentPrice || 100),
-            changePercent: Number(s.changePercent !== undefined ? s.changePercent : (existing?.changePercent || 0))
+            changePercent: Number(s.changePercent !== undefined ? s.changePercent : (existing?.changePercent || 0)),
+            volume: Number(s.volume !== undefined ? s.volume : (existing?.volume || 0)),
+            high: Number(s.high !== undefined ? s.high : (existing?.high || 0)),
+            low: Number(s.low !== undefined ? s.low : (existing?.low || 0)),
+            prevClose: Number(s.prevClose !== undefined ? s.prevClose : (existing?.prevClose || 0)),
+            open: Number(s.open !== undefined ? s.open : (existing?.open || 0)),
+            technicals: s.technicals || existing?.technicals
           });
         }
       });
@@ -158,13 +169,15 @@ export default function WatchlistHub({
     return watchlist.map(item => {
       const sym = getSymKey(item);
       const live = stockMap.get(sym) || {};
-      const currentPrice = Number(live.currentPrice || item?.currentPrice || 100);
-      const prevClose = Number(live.prevClose || (currentPrice * 0.99));
-      const change = live.change !== undefined ? Number(live.change) : Number((currentPrice - prevClose).toFixed(2));
+      const officialQuote = (officialQuotes && officialQuotes[sym]) ? officialQuotes[sym] : null;
+      const currentPrice = Number(live.currentPrice || officialQuote?.currentPrice || item?.currentPrice || 100);
+      const prevClose = Number(live.prevClose || officialQuote?.prevClose || (currentPrice * 0.99));
+      const change = live.change !== undefined ? Number(live.change) : (officialQuote?.change !== undefined ? Number(officialQuote.change) : Number((currentPrice - prevClose).toFixed(2)));
       const changePercent = live.changePercent !== undefined 
         ? Number(live.changePercent) 
-        : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0);
+        : (officialQuote?.changePercent !== undefined ? Number(officialQuote.changePercent) : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0));
       const isPos = change >= 0;
+      const volume = Number(live.volume || officialQuote?.volume || item?.volume || 0);
 
       // Smart AI Technical Calculations
       const rsi14 = live.technicals?.rsi14 || (isPos ? 56 : 44);
@@ -206,9 +219,9 @@ export default function WatchlistHub({
         change,
         changePercent,
         isPos,
-        volume: live.volume || 1500000,
-        high: live.high || (currentPrice * 1.02),
-        low: live.low || (currentPrice * 0.98),
+        volume,
+        high: Number(live.high || officialQuote?.high || (currentPrice * 1.02)),
+        low: Number(live.low || officialQuote?.low || (currentPrice * 0.98)),
         rsi14,
         signal,
         signalColor,

@@ -407,7 +407,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
   const prevClose = Number(liveHistoryData?.quote?.prevClose || stockObj.prevClose || official?.prevClose || (currentPrice * 0.99));
   const change = stockObj.change !== undefined ? Number(stockObj.change) : (official?.change !== undefined ? Number(official.change) : Number((currentPrice - prevClose).toFixed(2)));
   const changePercent = stockObj.changePercent !== undefined ? Number(stockObj.changePercent) : (official?.changePercent !== undefined ? Number(official.changePercent) : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0));
-  const volume = Number(liveHistoryData?.quote?.volume || stockObj.volume || official?.volume || 1500000);
+  const volume = Number(liveHistoryData?.quote?.volume || stockObj.volume || official?.volume || 0);
   const name = stockObj.name || official?.name || masterEntry?.name || sym;
   const sector = (stockObj.sector && stockObj.sector !== 'General Market')
     ? stockObj.sector
@@ -519,29 +519,32 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
     });
   }, [liveHistoryData, selectedTimeframe, price, volume]);
 
-  // AI Decision Summary
+  // AI Decision Summary & Mathematically Calibrated Trade Setup
+  const isOverbought = Number(rsi) > 75;
   const trend = technicals.trend || technicals.signal || (change >= 0 ? 'BULLISH' : 'NEUTRAL');
-  const targetSell = Number((price * 1.115).toFixed(2));
-  const stopLoss = Number((price * 0.95).toFixed(2));
+  const lowerEntry = Number((isOverbought ? Math.min(s2, s1 * 0.96) : Math.min(s1, price * 0.98)).toFixed(2));
+  const upperEntry = Number((isOverbought ? s1 : price).toFixed(2));
+  const stopLoss = Number((lowerEntry * 0.95).toFixed(2)); // Strictly 5% below lower entry bound
+  const targetSell = Number((upperEntry * 1.115).toFixed(2)); // Strictly 11.5% above upper entry
 
   const getExecutiveVerdict = () => {
-    if (Number(rsi) > 75) {
+    if (isOverbought) {
       return {
         verdict: 'OVERBOUGHT • TAKE PARTIAL PROFIT',
         color: 'text-amber-400 border-amber-500/30 bg-amber-500/10',
-        summary: `${name} (${sym}) has witnessed an intense rally and RSI is currently elevated at ${rsi}. While the primary trend in the ${sector} sector remains strong, short-term volatility and profit-taking are anticipated. Existing holders should book partial gains at current rates and raise their stop loss to PKR ${stopLoss}. New entries should wait for a healthier pullback towards S1 (PKR ${s1}).`
+        summary: `${name} (${sym}) has witnessed an intense rally and RSI is currently elevated at ${rsi}. While the primary trend in the ${sector} sector remains strong, short-term volatility and profit-taking are anticipated. Existing holders should book partial gains at current rates. New entries should wait for a healthier pullback towards PKR ${lowerEntry} - ${upperEntry} with protective stop loss at PKR ${stopLoss} (below pullback support).`
       };
     } else if (trend === 'BULLISH' || trend === 'STRONG BUY' || trend === 'ACCUMULATE' || changePercent > 0) {
       return {
         verdict: `${trend.toUpperCase()} • ACCUMULATE / BUY`,
         color: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10',
-        summary: `${name} (${sym}) is demonstrating strong institutional accumulation in the ${sector} sector. Price is holding comfortably above pivot point (PKR ${pp}) and EMA 20 (PKR ${ema20}) with solid trading volume (${(volume).toLocaleString()} shares). Favorable P/E valuation (${peRatio}x vs Sector ${sectorPe}x, P/B ${pbRatio}x) provides attractive upside. Buy zone is PKR ${s1} - ${price.toFixed(2)}, targeting PKR ${targetSell} with stop loss at PKR ${stopLoss}.`
+        summary: `${name} (${sym}) is demonstrating strong institutional accumulation in the ${sector} sector. Price is holding comfortably above pivot point (PKR ${pp}) and EMA 20 (PKR ${ema20}) with solid trading volume (${(volume).toLocaleString()} shares). Favorable P/E valuation (${peRatio}x vs Sector ${sectorPe}x, P/B ${pbRatio}x) provides attractive upside. Buy zone is PKR ${lowerEntry} - ${upperEntry}, targeting PKR ${targetSell} (+11.5%) with stop loss at PKR ${stopLoss} (5.0% below entry).`
       };
     } else {
       return {
         verdict: 'CONSOLIDATION • HOLD & MONITOR',
         color: 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10',
-        summary: `${name} (${sym}) is currently trading in a consolidation range near support S1 (PKR ${s1}). Downside risk is cushioned by historical support at PKR ${s2}. Maintain existing positions with stop loss at PKR ${stopLoss} and wait for volume expansion before adding aggressive new exposure.`
+        summary: `${name} (${sym}) is currently trading in a consolidation range near support S1 (PKR ${s1}). Downside risk is cushioned by historical support at PKR ${s2}. Maintain existing positions with stop loss at PKR ${stopLoss} (5.0% below lower boundary) and wait for volume expansion before adding aggressive new exposure.`
       };
     }
   };
@@ -891,6 +894,8 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
                   high={high}
                   low={low}
                   theme={modalTheme}
+                  defaultTimeframe="1D"
+                  defaultRange="6m"
                   onThemeChange={(newTheme) => {
                     updateTheme(newTheme);
                   }}
@@ -1241,10 +1246,10 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
             }`}>
               <span className={`text-[10px] block font-bold ${
                 isDark ? 'text-gray-400' : 'text-slate-500'
-              }`}>Suggested Buy Zone:</span>
+              }`}>{isOverbought ? 'Pullback / Re-entry Zone:' : 'Suggested Buy Zone:'}</span>
               <span className={`font-extrabold mono ${
                 isDark ? 'text-white' : 'text-slate-900'
-              }`}>PKR {s1} - {price.toFixed(2)}</span>
+              }`}>PKR {lowerEntry} - {upperEntry}</span>
             </div>
             <div className={`p-2.5 rounded-xl border ${
               isDark ? 'bg-[#070B12] border-gray-800' : 'bg-slate-50 border-slate-200'
@@ -1256,7 +1261,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
               isDark ? 'bg-[#070B12] border-gray-800' : 'bg-slate-50 border-slate-200'
             }`}>
               <span className="text-[10px] text-rose-500 block font-bold">Strict Stop Loss:</span>
-              <span className="font-extrabold text-rose-500 mono">PKR {stopLoss} (-5.0%)</span>
+              <span className="font-extrabold text-rose-500 mono">PKR {stopLoss} (-5.0% below entry)</span>
             </div>
           </div>
 
@@ -1294,6 +1299,8 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
             high={high}
             low={low}
             theme={modalTheme}
+            defaultTimeframe="1D"
+            defaultRange="6m"
             onThemeChange={(newTheme) => {
               updateTheme(newTheme);
             }}
