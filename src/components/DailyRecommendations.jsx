@@ -108,16 +108,16 @@ export function getPSXRecentTradingSessions(count = 5) {
 export const mapSectorToCategory = (sectorStr = '') => {
   const s = String(sectorStr || '').toLowerCase();
   if (s.includes('oil') || s.includes('gas') || s.includes('refin') || s.includes('petroleum')) return 'OIL_GAS';
-  if (s.includes('bank') || s.includes('financial')) return 'COMMERCIAL_BANKS';
+  if (s.includes('bank') || s.includes('financial') || s.includes('insurance') || s.includes('modaraba') || s.includes('leasing') || s.includes('securities') || s.includes('inv.')) return 'COMMERCIAL_BANKS';
   if (s.includes('tech') || s.includes('telecom') || s.includes('software') || s.includes('communication')) return 'TECHNOLOGY';
-  if (s.includes('cement') || s.includes('construct')) return 'CEMENT';
+  if (s.includes('cement') || s.includes('construct') || s.includes('glass') || s.includes('ceramics')) return 'CEMENT';
   if (s.includes('fert') || s.includes('agri') || s.includes('chemical')) return 'FERTILIZER';
-  if (s.includes('auto') || s.includes('motor') || s.includes('tractor')) return 'AUTOMOBILE';
+  if (s.includes('auto') || s.includes('motor') || s.includes('tractor') || s.includes('transport')) return 'AUTOMOBILE';
   if (s.includes('power') || s.includes('energy') || s.includes('electric')) return 'POWER_ENERGY';
   if (s.includes('pharm') || s.includes('health')) return 'PHARMACEUTICALS';
   if (s.includes('steel') || s.includes('engineer') || s.includes('metal') || s.includes('cable')) return 'STEEL_ENGINEERING';
-  if (s.includes('textile') || s.includes('apparel') || s.includes('spinning') || s.includes('weaving')) return 'TEXTILE';
-  if (s.includes('food') || s.includes('sugar') || s.includes('dairy') || s.includes('meat') || s.includes('personal')) return 'SUGAR_FOOD';
+  if (s.includes('textile') || s.includes('apparel') || s.includes('spinning') || s.includes('weaving') || s.includes('synthetic') || s.includes('woollen')) return 'TEXTILE';
+  if (s.includes('food') || s.includes('sugar') || s.includes('dairy') || s.includes('meat') || s.includes('personal') || s.includes('vanaspati') || s.includes('tobacco')) return 'SUGAR_FOOD';
   return 'MACRO_ECONOMY';
 };
 
@@ -191,17 +191,31 @@ export default function DailyRecommendations({
         const changePct = Number(stock.changePercent || 0);
         const rsi = Number(stock.technicals?.rsi14 || 52);
         
-        let sig = 'ACCUMULATE';
-        let confidence = 82;
-        if (changePct > 1.8 || rsi > 58) {
-          sig = 'STRONG_BUY';
-          confidence = 89;
-        } else if (changePct < -2.2 || rsi > 74) {
+        // Derive deterministic unique multiplier from symbol hash
+        let symHash = 0;
+        for (let c = 0; c < sym.length; c++) {
+          symHash = (symHash << 5) - symHash + sym.charCodeAt(c);
+          symHash |= 0;
+        }
+        const absHash = Math.abs(symHash);
+        const hashOffset = ((absHash % 40) / 10); // 0.0 to 4.0%
+
+        let sig = 'HOLD';
+        let confidence = 74 + (absHash % 8);
+
+        // Strict technical invariant: If RSI > 72, CANNOT be Strong Buy!
+        if (rsi > 74 || changePct < -2.2) {
           sig = 'AVOID_SELL';
-          confidence = 78;
-        } else if (Math.abs(changePct) <= 0.8) {
+          confidence = Math.min(92, Math.max(76, 80 + (absHash % 12) - 2));
+        } else if ((changePct > 1.8 || rsi > 56) && rsi <= 72) {
+          sig = 'STRONG_BUY';
+          confidence = Math.min(94, Math.max(80, 83 + (absHash % 12) - 2));
+        } else if (changePct >= 0 && rsi >= 42 && rsi <= 74) {
+          sig = 'ACCUMULATE';
+          confidence = Math.min(88, Math.max(75, 78 + (absHash % 10) - 2));
+        } else {
           sig = 'HOLD';
-          confidence = 72;
+          confidence = 68 + (absHash % 8);
         }
 
         const high = Number(stock.high || price * 1.025);
@@ -212,28 +226,47 @@ export default function DailyRecommendations({
         const r2 = pivot + range;
         const s1 = 2 * pivot - high;
 
-        // Derive deterministic unique multiplier from symbol hash
-        let symHash = 0;
-        for (let c = 0; c < sym.length; c++) {
-          symHash = (symHash << 5) - symHash + sym.charCodeAt(c);
-          symHash |= 0;
+        let target1 = 0;
+        let target2 = 0;
+        let stopLoss = 0;
+        let riskReward = '1 : 2.5';
+        let rrRatio = 2.5;
+
+        if (sig === 'AVOID_SELL') {
+          // Downside support / exit setup
+          target1 = Number(Math.min(s1, price * 0.93).toFixed(2));
+          target2 = Number(Math.min(s1 * 0.95, price * 0.88).toFixed(2));
+          stopLoss = Number((price * 0.965).toFixed(2));
+          riskReward = 'N/A (Exit Setup)';
+          rrRatio = 0;
+        } else {
+          let gain1Pct = (((r1 - price) / price) * 100);
+          if (gain1Pct < 5.2) gain1Pct = 6.4 + hashOffset;
+          if (gain1Pct > 16.0) gain1Pct = 12.0 + (hashOffset * 0.6);
+          gain1Pct = Number(gain1Pct.toFixed(1));
+
+          const gain2Pct = Number((gain1Pct + 5.5 + (hashOffset * 0.4)).toFixed(1));
+
+          let stopLossPct = Number((Math.max(3.2, Math.min(5.5, (((price - s1) / price) * 100)))).toFixed(1));
+          if (isNaN(stopLossPct) || stopLossPct < 3.2) stopLossPct = 4.2;
+
+          target1 = Number((price * (1 + gain1Pct / 100)).toFixed(2));
+          target2 = Number((price * (1 + gain2Pct / 100)).toFixed(2));
+          stopLoss = Number((price * (1 - stopLossPct / 100)).toFixed(2));
+
+          const risk = Math.max(0.1, price - stopLoss);
+          const reward = Math.max(0.1, target1 - price);
+          rrRatio = Number((reward / risk).toFixed(2));
+          riskReward = '1 : ' + rrRatio;
         }
-        const hashOffset = ((Math.abs(symHash) % 50) / 10); // 0.0 to 5.0%
 
-        let gain1Pct = (((r1 - price) / price) * 100);
-        if (gain1Pct < 5.0) gain1Pct = 6.2 + hashOffset;
-        if (gain1Pct > 18.0) gain1Pct = 11.5 + hashOffset;
-        gain1Pct = Number(gain1Pct.toFixed(1));
-
-        const gain2Pct = Number((gain1Pct + 6.5 + (hashOffset * 0.4)).toFixed(1));
-
-        let stopLossPct = Number((Math.max(3.2, Math.min(6.5, (((price - s1) / price) * 100)))).toFixed(1));
-        if (isNaN(stopLossPct) || stopLossPct < 3.2) stopLossPct = 4.5;
-
-        const target1 = Number((price * (1 + gain1Pct / 100)).toFixed(2));
-        const target2 = Number((price * (1 + gain2Pct / 100)).toFixed(2));
-        const stopLoss = Number((price * (1 - stopLossPct / 100)).toFixed(2));
-        const resolvedSector = (stock.sector && stock.sector !== 'General Market') ? stock.sector : 'Miscellaneous';
+        const foundOfficial = officialQuotes ? officialQuotes[sym] : null;
+        const resolvedSector = (
+          (stock.sector && stock.sector !== 'General Market' && stock.sector !== 'Miscellaneous') ? stock.sector :
+          (foundOfficial?.sector && foundOfficial.sector !== 'General Market' && foundOfficial.sector !== 'Miscellaneous') ? foundOfficial.sector :
+          (MASTER_STOCKS_LIST.find(m => m.symbol === sym)?.sector) ||
+          'Miscellaneous'
+        );
 
         return {
           symbol: sym,
@@ -245,18 +278,27 @@ export default function DailyRecommendations({
           target1,
           target2,
           confidence,
-          riskReward: '1 : 2.5',
-          riskRewardRatio: 2.5,
+          riskReward,
+          riskRewardRatio: rrRatio,
           timeHorizon: sig === 'STRONG_BUY' ? '1 to 4 Weeks (Swing Momentum)' : '1 to 8 Weeks',
-          reasons: [
-            `RSI is holding at ${rsi.toFixed(1)} with key technical support at PKR ${stopLoss} (-${stopLossPct}%)`,
-            `Resistance target R1 at PKR ${target1} (+${gain1Pct}%) with secondary target R2 at PKR ${target2} (+${gain2Pct}%)`
+          reasons: sig === 'AVOID_SELL' ? [
+            `RSI is Overbought (${rsi.toFixed(1)}): High probability of profit-taking consolidation`,
+            `Pullback Support projected at PKR ${target1} with defensive cutoff at PKR ${stopLoss}`
+          ] : [
+            `RSI holding steady at ${rsi.toFixed(1)} with key technical support at PKR ${stopLoss}`,
+            `Upside target R1 at PKR ${target1} with secondary target R2 at PKR ${target2}`
           ],
           orderAdvice: {
-            actionNote: sig === 'STRONG_BUY' ? 'Enter Limit Buy in Entry Zone' : (sig === 'ACCUMULATE' ? 'Accumulate on dips' : 'Take profits / monitor'),
+            actionNote: sig === 'STRONG_BUY' 
+              ? 'Enter Limit Buy in Entry Zone' 
+              : (sig === 'ACCUMULATE' 
+                  ? 'Accumulate on dips' 
+                  : (sig === 'AVOID_SELL' 
+                      ? 'Take Profit / Capital Preservation (Avoid New Longs)' 
+                      : 'Monitor on Watchlist')),
             allocationPercent: sig === 'STRONG_BUY' ? 15 : (sig === 'ACCUMULATE' ? 10 : 0),
             riskPerSharePKR: Number(Math.max(0.1, price - stopLoss).toFixed(2)),
-            rewardPerSharePKR: Number(Math.max(0.1, target1 - price).toFixed(2))
+            rewardPerSharePKR: sig === 'AVOID_SELL' ? 0 : Number(Math.max(0.1, target1 - price).toFixed(2))
           }
         };
       }).sort((a, b) => b.confidence - a.confidence);
@@ -270,9 +312,10 @@ export default function DailyRecommendations({
         // Slightly vary historical price by -0.8% per offset day to represent historical morning setup
         const variation = 1 - (dayOffset * 0.008);
         const histPrice = Number((liveP * variation).toFixed(2));
-        const target1 = Number((histPrice * 1.095).toFixed(2));
-        const target2 = Number((histPrice * 1.18).toFixed(2));
-        const stopLoss = Number((histPrice * 0.95).toFixed(2));
+        const isAvoid = item.signal === 'AVOID_SELL';
+        const target1 = isAvoid ? Number((histPrice * 0.93).toFixed(2)) : Number((histPrice * 1.095).toFixed(2));
+        const target2 = isAvoid ? Number((histPrice * 0.88).toFixed(2)) : Number((histPrice * 1.18).toFixed(2));
+        const stopLoss = isAvoid ? Number((histPrice * 0.965).toFixed(2)) : Number((histPrice * 0.95).toFixed(2));
 
         return {
           ...item,
@@ -297,11 +340,18 @@ export default function DailyRecommendations({
     all.forEach(r => {
       const sym = (r.symbol || '').toUpperCase().trim();
       if (sym && !map.has(sym)) {
+        const official = officialQuotes ? officialQuotes[sym] : null;
+        const masterStock = (MASTER_STOCKS_LIST || []).find(m => m.symbol === sym);
+        const resolvedSector = (
+          (r.sector && r.sector !== 'General Market' && r.sector !== 'Miscellaneous') ? r.sector :
+          (official?.sector && official.sector !== 'General Market' && official.sector !== 'Miscellaneous') ? official.sector :
+          masterStock?.sector || 'Miscellaneous'
+        );
         map.set(sym, {
           symbol: sym,
           name: r.companyName || sym,
-          sector: (r.sector && r.sector !== 'General Market') ? r.sector : 'Miscellaneous',
-          category: mapSectorToCategory(r.sector)
+          sector: resolvedSector,
+          category: mapSectorToCategory(resolvedSector)
         });
       }
     });
@@ -324,11 +374,18 @@ export default function DailyRecommendations({
       stocks.forEach(s => {
         const sym = (s.symbol || '').toUpperCase().trim();
         if (sym && !map.has(sym)) {
+          const official = officialQuotes ? officialQuotes[sym] : null;
+          const masterStock = (MASTER_STOCKS_LIST || []).find(m => m.symbol === sym);
+          const resolvedSector = (
+            (s.sector && s.sector !== 'General Market' && s.sector !== 'Miscellaneous') ? s.sector :
+            (official?.sector && official.sector !== 'General Market' && official.sector !== 'Miscellaneous') ? official.sector :
+            masterStock?.sector || 'Miscellaneous'
+          );
           map.set(sym, {
             symbol: sym,
             name: s.name || sym,
-            sector: (s.sector && s.sector !== 'General Market') ? s.sector : 'Miscellaneous',
-            category: mapSectorToCategory(s.sector)
+            sector: resolvedSector,
+            category: mapSectorToCategory(resolvedSector)
           });
         }
       });
@@ -382,9 +439,10 @@ export default function DailyRecommendations({
 
     // For historical signals, currentPrice is the signal price on that day
     const signalPrice = Number(item?.currentPrice || liveMarketPrice);
-    const target1 = Number(item?.target1 || (signalPrice * 1.10).toFixed(2));
-    const target2 = Number(item?.target2 || (signalPrice * 1.18).toFixed(2));
-    const stopLoss = Number(item?.stopLoss || (signalPrice * 0.95).toFixed(2));
+    const isAvoid = item?.signal === 'AVOID_SELL';
+    const target1 = Number(item?.target1 || (isAvoid ? signalPrice * 0.93 : signalPrice * 1.10).toFixed(2));
+    const target2 = Number(item?.target2 || (isAvoid ? signalPrice * 0.88 : signalPrice * 1.18).toFixed(2));
+    const stopLoss = Number(item?.stopLoss || (isAvoid ? signalPrice * 0.965 : signalPrice * 0.95).toFixed(2));
 
     // Calculate Outcome Tracking
     const gainSinceSignalPct = Number((((liveMarketPrice - signalPrice) / signalPrice) * 100).toFixed(2));
@@ -393,27 +451,52 @@ export default function DailyRecommendations({
     let outcomeLabel = `In Progress (${gainSinceSignalPct >= 0 ? '+' : ''}${gainSinceSignalPct}%)`;
     let outcomeBadgeClass = 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
 
-    if (liveMarketPrice >= target1) {
-      outcomeStatus = 'TARGET_HIT';
-      outcomeLabel = `Target 1 Hit (${gainSinceSignalPct >= 0 ? '+' : ''}${gainSinceSignalPct}% Win 🎯)`;
-      outcomeBadgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
-    } else if (liveMarketPrice <= stopLoss) {
-      outcomeStatus = 'STOP_LOSS_HIT';
-      outcomeLabel = `Stop Loss Triggered (${gainSinceSignalPct}%)`;
-      outcomeBadgeClass = 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30';
-    } else if (gainSinceSignalPct > 1.5) {
-      outcomeStatus = 'IN_PROFIT';
-      outcomeLabel = `Running in Profit (+${gainSinceSignalPct}% 🚀)`;
-      outcomeBadgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
-    } else if (gainSinceSignalPct < -1.5) {
-      outcomeStatus = 'HOLDING_SUPPORT';
-      outcomeLabel = `Holding Support (${gainSinceSignalPct}%)`;
-      outcomeBadgeClass = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+    if (isAvoid) {
+      if (liveMarketPrice <= target1) {
+        outcomeStatus = 'TARGET_HIT';
+        outcomeLabel = `Support Reached (${gainSinceSignalPct}% Pullback ✅)`;
+        outcomeBadgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
+      } else if (liveMarketPrice > signalPrice * 1.03) {
+        outcomeStatus = 'STOP_LOSS_HIT';
+        outcomeLabel = `Defensive Cutoff (${gainSinceSignalPct}%)`;
+        outcomeBadgeClass = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30';
+      } else {
+        outcomeStatus = 'IN_PROGRESS';
+        outcomeLabel = `Capital Preserved (${gainSinceSignalPct >= 0 ? '+' : ''}${gainSinceSignalPct}%)`;
+        outcomeBadgeClass = 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+      }
+    } else {
+      if (liveMarketPrice >= target1) {
+        outcomeStatus = 'TARGET_HIT';
+        outcomeLabel = `Target 1 Hit (${gainSinceSignalPct >= 0 ? '+' : ''}${gainSinceSignalPct}% Win 🎯)`;
+        outcomeBadgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
+      } else if (liveMarketPrice <= stopLoss) {
+        outcomeStatus = 'STOP_LOSS_HIT';
+        outcomeLabel = `Stop Loss Triggered (${gainSinceSignalPct}%)`;
+        outcomeBadgeClass = 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30';
+      } else if (gainSinceSignalPct > 1.5) {
+        outcomeStatus = 'IN_PROFIT';
+        outcomeLabel = `Running in Profit (+${gainSinceSignalPct}% 🚀)`;
+        outcomeBadgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+      } else if (gainSinceSignalPct < -1.5) {
+        outcomeStatus = 'HOLDING_SUPPORT';
+        outcomeLabel = `Holding Support (${gainSinceSignalPct}%)`;
+        outcomeBadgeClass = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+      }
     }
+
+    const resolvedSector = (
+      (item?.sector && item.sector !== 'General Market' && item.sector !== 'Miscellaneous') ? item.sector :
+      (foundOfficial?.sector && foundOfficial.sector !== 'General Market' && foundOfficial.sector !== 'Miscellaneous') ? foundOfficial.sector :
+      (foundInStocks?.sector && foundInStocks.sector !== 'General Market' && foundInStocks.sector !== 'Miscellaneous') ? foundInStocks.sector :
+      (MASTER_STOCKS_LIST.find(m => m.symbol === sym)?.sector) ||
+      'Miscellaneous'
+    );
 
     return {
       ...item,
       companyName: foundInStocks?.name || foundOfficial?.name || item?.companyName || sym,
+      sector: resolvedSector,
       currentPrice: isHistoricalView ? signalPrice : liveMarketPrice,
       signalPrice,
       liveMarketPrice,
@@ -1151,7 +1234,7 @@ export default function DailyRecommendations({
                         <h3 className="text-xl font-bold text-[#0F172A] dark:text-[#F8FAFC] tracking-tight mono">
                           {item.symbol}
                         </h3>
-                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] font-bold border border-[#E2E8F0] dark:border-[#243044] truncate max-w-[120px]">
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] font-bold border border-[#E2E8F0] dark:border-[#243044] truncate max-w-[180px]" title={item.sector}>
                           {item.sector}
                         </span>
                         <span className={`text-[9px] px-2 py-0.5 rounded-md font-mono font-black border shrink-0 ${
@@ -1219,24 +1302,35 @@ export default function DailyRecommendations({
                     {/* Trade Setup Matrix (Entry, Stop Loss, Target) */}
                     <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#E2E8F0] dark:border-[#243044] text-center">
                       <div className="bg-[#FFFFFF] dark:bg-[#151E2E] rounded-lg p-1.5 border border-[#E2E8F0] dark:border-[#243044]">
-                        <span className="text-[9px] uppercase text-[#64748B] dark:text-[#94A3B8] block font-bold">Entry Zone</span>
+                        <span className="text-[9px] uppercase text-[#64748B] dark:text-[#94A3B8] block font-bold">
+                          {item.signal === 'AVOID_SELL' ? 'Defensive Range' : 'Entry Zone'}
+                        </span>
                         <span className="text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] mono">
                           {item.entryZone?.min ? `${item.entryZone.min}-${item.entryZone.max}` : item.currentPrice}
                         </span>
                       </div>
                       <div className="bg-[#DC2626]/10 dark:bg-[#EF4444]/10 border border-[#DC2626]/20 dark:border-[#EF4444]/20 rounded-lg p-1.5">
                         <span className="text-[9px] uppercase text-[#DC2626] dark:text-[#EF4444] block font-bold flex items-center justify-center">
-                          <StopCircle className="w-2.5 h-2.5 mr-0.5" /> Stop Loss
+                          <StopCircle className="w-2.5 h-2.5 mr-0.5" /> 
+                          {item.signal === 'AVOID_SELL' ? 'Exit Trigger' : 'Stop Loss'}
                         </span>
                         <span className="text-xs font-bold text-[#DC2626] dark:text-[#EF4444] mono">
                           PKR {item.stopLoss}
                         </span>
                       </div>
-                      <div className="bg-[#16A34A]/10 dark:bg-[#22C55E]/10 border border-[#16A34A]/20 dark:border-[#22C55E]/20 rounded-lg p-1.5">
-                        <span className="text-[9px] uppercase text-[#16A34A] dark:text-[#22C55E] block font-bold flex items-center justify-center">
-                          <Target className="w-2.5 h-2.5 mr-0.5" /> Target 1
+                      <div className={item.signal === 'AVOID_SELL'
+                        ? "bg-amber-500/10 dark:bg-amber-500/10 border border-amber-500/20 dark:border-amber-500/20 rounded-lg p-1.5"
+                        : "bg-[#16A34A]/10 dark:bg-[#22C55E]/10 border border-[#16A34A]/20 dark:border-[#22C55E]/20 rounded-lg p-1.5"
+                      }>
+                        <span className={`text-[9px] uppercase block font-bold flex items-center justify-center ${
+                          item.signal === 'AVOID_SELL' ? 'text-amber-600 dark:text-amber-400' : 'text-[#16A34A] dark:text-[#22C55E]'
+                        }`}>
+                          <Target className="w-2.5 h-2.5 mr-0.5" /> 
+                          {item.signal === 'AVOID_SELL' ? 'Pullback Support' : 'Target 1'}
                         </span>
-                        <span className="text-xs font-bold text-[#16A34A] dark:text-[#22C55E] mono">
+                        <span className={`text-xs font-bold mono ${
+                          item.signal === 'AVOID_SELL' ? 'text-amber-600 dark:text-amber-400' : 'text-[#16A34A] dark:text-[#22C55E]'
+                        }`}>
                           PKR {item.target1}
                         </span>
                       </div>
@@ -1246,8 +1340,12 @@ export default function DailyRecommendations({
                   {/* Risk-to-Reward & Catalysts */}
                   <div className="space-y-2 mb-4 text-xs">
                     <div className="flex justify-between items-center bg-[#F8FAFC] dark:bg-[#0B0F19] px-2.5 py-1.5 rounded-lg border border-[#E2E8F0] dark:border-[#243044]">
-                      <span className="text-[#64748B] dark:text-[#94A3B8]">Risk : Reward Ratio:</span>
-                      <span className="font-bold text-[#D97706] dark:text-[#F59E0B] mono">{item.riskReward || '1 : 2.5'}</span>
+                      <span className="text-[#64748B] dark:text-[#94A3B8]">
+                        {item.signal === 'AVOID_SELL' ? 'Trade Strategy:' : 'Risk : Reward Ratio:'}
+                      </span>
+                      <span className="font-bold text-[#D97706] dark:text-[#F59E0B] mono">
+                        {item.signal === 'AVOID_SELL' ? 'Capital Preservation (Exit Setup)' : (item.riskReward || '1 : 2.5')}
+                      </span>
                     </div>
 
                     <div className="space-y-1">
@@ -1260,7 +1358,9 @@ export default function DailyRecommendations({
                       ))}
                     </div>
 
-                    {item.newsSentimentImpact && item.newsSentimentImpact.sentiment !== 'NEUTRAL' && (
+                    {item.newsSentimentImpact && 
+                     item.newsSentimentImpact.sentiment !== 'NEUTRAL' && 
+                     !item.newsSentimentImpact.headline?.includes('No company-specific news catalyst') && (
                       <div className={`p-2 rounded-lg text-[11px] flex items-start space-x-1.5 border ${
                         item.newsSentimentImpact.sentiment === 'POSITIVE' 
                           ? 'bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/20 dark:bg-[#22C55E]/10 dark:text-[#22C55E] dark:border-[#22C55E]/20' 
