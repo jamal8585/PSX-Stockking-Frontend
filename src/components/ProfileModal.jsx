@@ -110,11 +110,11 @@ export default function ProfileModal({
                     ? (isLight ? 'bg-[#D97706]/10 text-[#D97706] border-[#D97706]/30' : 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30') 
                     : (isLight ? 'bg-[#64748B]/10 text-[#64748B] border-[#64748B]/20' : 'bg-[#94A3B8]/10 text-[#94A3B8] border-[#94A3B8]/20')
                 }`}>
-                  {isPro ? '⭐ PRO VIP MEMBER' : 'FREE TIER'}
+                  {isPro ? 'PRO VIP MEMBER' : 'FREE TIER'}
                 </span>
                 {isAdmin && (
                   <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 text-[#2563EB] dark:text-[#3B82F6] border border-[#2563EB]/20 dark:border-[#3B82F6]/20">
-                    👑 LEAD ADMIN
+                    LEAD ADMIN
                   </span>
                 )}
               </div>
@@ -169,7 +169,7 @@ export default function ProfileModal({
                     <span>Subscription Plan:</span>
                   </span>
                   <span className="font-bold text-[#D97706] dark:text-[#F59E0B]">
-                    {currentUser.subscriptionDuration === 'LIFETIME' ? '👑 Lifetime Access' : (currentUser.plan === 'PRO' ? '⭐ Active PRO' : 'Free Basic')}
+                    {currentUser.subscriptionDuration === 'LIFETIME' ? 'Lifetime Access' : (currentUser.plan === 'PRO' ? 'Active PRO' : 'Free Basic')}
                   </span>
                 </div>
               </div>

@@ -1,16 +1,16 @@
 export const SECTOR_CATEGORIES = [
-  { id: 'OIL_GAS', label: 'Oil, Gas & Refineries', icon: '🛢️' },
-  { id: 'COMMERCIAL_BANKS', label: 'Commercial Banks', icon: '🏦' },
-  { id: 'TECHNOLOGY', label: 'Technology & Telecom', icon: '💻' },
-  { id: 'CEMENT', label: 'Cement & Construction', icon: '🏗️' },
-  { id: 'FERTILIZER', label: 'Fertilizer & Agri', icon: '🌱' },
-  { id: 'AUTOMOBILE', label: 'Automobile & Tractors', icon: '🚗' },
-  { id: 'POWER_ENERGY', label: 'Power Generation & Energy', icon: '⚡' },
-  { id: 'PHARMACEUTICALS', label: 'Pharmaceuticals & Health', icon: '💊' },
-  { id: 'STEEL_ENGINEERING', label: 'Steel & Engineering', icon: '⚙️' },
-  { id: 'TEXTILE', label: 'Textile & Apparel', icon: '🧵' },
-  { id: 'SUGAR_FOOD', label: 'Food, Dairy & Sugar', icon: '🌾' },
-  { id: 'MACRO_ECONOMY', label: 'Macro Economy & IMF', icon: '📊' }
+  { id: 'OIL_GAS', label: 'Oil, Gas & Refineries' },
+  { id: 'COMMERCIAL_BANKS', label: 'Commercial Banks' },
+  { id: 'TECHNOLOGY', label: 'Technology & Telecom' },
+  { id: 'CEMENT', label: 'Cement & Construction' },
+  { id: 'FERTILIZER', label: 'Fertilizer & Agri' },
+  { id: 'AUTOMOBILE', label: 'Automobile & Tractors' },
+  { id: 'POWER_ENERGY', label: 'Power Generation & Energy' },
+  { id: 'PHARMACEUTICALS', label: 'Pharmaceuticals & Health' },
+  { id: 'STEEL_ENGINEERING', label: 'Steel & Engineering' },
+  { id: 'TEXTILE', label: 'Textile & Apparel' },
+  { id: 'SUGAR_FOOD', label: 'Food, Dairy & Sugar' },
+  { id: 'MACRO_ECONOMY', label: 'Macro Economy & IMF' }
 ];
 
 export const MASTER_STOCKS_LIST = [
@@ -104,26 +104,26 @@ export function getPSXMarketSessionInfo() {
   if (day === 6) {
     isWeekend = true;
     targetDate.setDate(pktDate.getDate() + 2);
-    statusBadge = '🛑 Weekend Closed (Sat & Sun Off)';
+    statusBadge = 'Weekend Closed (Sat & Sun Off)';
     subText = 'Signals Active for Upcoming Monday Open (' + targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) + ')';
   } else if (day === 0) {
     isWeekend = true;
     targetDate.setDate(pktDate.getDate() + 1);
-    statusBadge = '🛑 Weekend Closed (Sunday Off)';
+    statusBadge = 'Weekend Closed (Sunday Off)';
     subText = 'Signals Active for Tomorrow\'s Monday Open (' + targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) + ')';
   } else if (day === 5 && timeNum >= 1600) {
     isFridayEod = true;
     targetDate.setDate(pktDate.getDate() + 3);
-    statusBadge = '📅 Friday Session Closed • Weekend Off';
+    statusBadge = 'Friday Session Closed • Weekend Off';
     subText = 'Friday EOD Signals Active for Upcoming Monday Session (' + targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) + ')';
   } else if (timeNum >= 1600) {
     targetDate.setDate(pktDate.getDate() + 1);
-    statusBadge = '📅 Post-Market Analysis';
+    statusBadge = 'Post-Market Analysis';
     subText = 'Actionable for Tomorrow\'s PSX Market Open (' + targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) + ')';
   } else {
     targetDate = pktDate;
-    statusBadge = '🟢 Active Trading Session: Today, ' + pktDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-    subText = 'Effective & Actionable for Today\'s PSX Market (09:30 AM PKT)';
+    statusBadge = 'Active Trading Session: Today, ' + pktDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    subText = 'Effective & Actionable for Today\'s PSX Market (09:30 AM PKT);';
   }
 
   const sessionDateFormatted = targetDate.toLocaleDateString('en-US', {

@@ -1426,7 +1426,7 @@ export default function NewsCatalystTradeHub({
                 key={sym}
                 className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
               >
-                <span>📈 {sym}</span>
+                <span>{sym}</span>
                 <button
                   onClick={() => toggleStock(sym)}
                   className="hover:text-emerald-800 p-0.5 rounded-full cursor-pointer ml-1"
@@ -1672,7 +1672,7 @@ export default function NewsCatalystTradeHub({
 
                       {/* SECP / PSX Algorithmic Risk Disclaimer */}
                       <p className="text-[9.5px] text-[#64748B] dark:text-[#94A3B8] italic text-center mt-2 px-1">
-                        ⚠️ Signals are for informational/algorithmic research purposes only and do not constitute financial advice.
+                        Signals are for informational/algorithmic research purposes only and do not constitute financial advice.
                       </p>
                     </div>
                   </div>
@@ -1837,7 +1837,7 @@ function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculato
             <div className="space-y-1">
               <div className="flex items-center space-x-2">
                 <span className="px-2.5 py-0.5 rounded-md bg-white/20 backdrop-blur-sm text-xs font-black tracking-wider uppercase">
-                  {isBullish ? '🚀 BULLISH CATALYST FORECAST' : '⚠️ DOWNSIDE RISK ALERT'}
+                  {isBullish ? 'BULLISH CATALYST FORECAST' : 'DOWNSIDE RISK ALERT'}
                 </span>
                 <span className="text-xs text-white/90 font-mono font-bold">
                   {marketSession?.sessionDateFormatted ? `Session: ${marketSession.sessionDateFormatted}` : 'Next Trading Session'}
@@ -2000,7 +2000,7 @@ function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculato
           </div>
           
           <p className="text-[10px] text-[#64748B] dark:text-[#94A3B8] italic text-center pt-2 border-t border-[#E2E8F0] dark:border-[#243044]">
-            ⚠️ Signals are for informational/algorithmic research purposes only and do not constitute financial advice.
+            Signals and market intelligence are for technical research purposes only and do not constitute financial advice.
           </p>
         </div>
 

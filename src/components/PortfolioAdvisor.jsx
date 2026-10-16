@@ -404,7 +404,7 @@ export default function PortfolioAdvisor({
           </div>
 
           <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-3.5 border border-[#D97706]/40 dark:border-[#F59E0B]/40">
-            <span className="text-[10px] uppercase text-[#D97706] dark:text-[#F59E0B] font-bold block">All-Time Booked Profit 💰</span>
+            <span className="text-[10px] uppercase text-[#D97706] dark:text-[#F59E0B] font-bold block">All-Time Booked Profit</span>
             <div className={`text-lg font-extrabold mono mt-1 flex items-center ${totalRealizedPnl >= 0 ? 'text-[#16A34A] dark:text-[#22C55E]' : 'text-[#DC2626] dark:text-[#EF4444]'}`}>
               <span>{totalRealizedPnl >= 0 ? '+' : ''}PKR {totalRealizedPnl.toLocaleString()} ({totalRealizedPnl >= 0 ? '+' : ''}{totalRealizedPct.toFixed(2)}%)</span>
             </div>
@@ -423,7 +423,7 @@ export default function PortfolioAdvisor({
           }`}
         >
           <Briefcase className="w-4 h-4" />
-          <span>📊 Active Holdings ({positions.length})</span>
+          <span>Active Holdings ({positions.length})</span>
         </button>
 
         <button

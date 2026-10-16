@@ -269,7 +269,7 @@ export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }
               <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Platform Accounts</span>
             </div>
             <div className="bg-[#FFFFFF] dark:bg-[#151E2E] p-4 rounded-xl border border-[#D97706]/40 dark:border-[#F59E0B]/40 shadow-sm">
-              <span className="text-[10px] uppercase font-bold text-[#D97706] dark:text-[#F59E0B] block">Active Pro VIPs ⭐</span>
+              <span className="text-[10px] uppercase font-bold text-[#D97706] dark:text-[#F59E0B] block">Active Pro VIPs</span>
               <span className="text-2xl font-black text-[#D97706] dark:text-[#F59E0B] mono mt-1 block">{analytics.proUsers}</span>
               <span className="text-[10px] text-[#D97706]/80 dark:text-[#F59E0B]/80">Paid Subscribers</span>
             </div>
@@ -350,7 +350,7 @@ export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }
                       disabled={actionLoading === u.id}
                       className="px-3 py-1.5 rounded-lg bg-[#D97706] hover:bg-[#B45309] text-white font-bold text-[10px] cursor-pointer"
                     >
-                      👑 Grant Lifetime
+                      Grant Lifetime
                     </button>
                     <button
                       onClick={() => handleUpdateSubscription(u.id, 'FREE', 'FREE', 'EXPIRED')}
@@ -469,7 +469,7 @@ export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }
                         <td className="py-3 px-3">
                           {isPro ? (
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#D97706]/10 text-[#D97706] dark:bg-[#F59E0B]/10 dark:text-[#F59E0B] border border-[#D97706]/20">
-                              PRO VIP ⭐
+                              PRO VIP
                             </span>
                           ) : (
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8]">
@@ -552,7 +552,7 @@ export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }
                                   className="px-2 py-1 rounded bg-[#D97706] hover:bg-[#B45309] text-white font-bold text-[10px] cursor-pointer"
                                   title="Grant Lifetime VIP"
                                 >
-                                  👑 Lifetime
+                                  Lifetime
                                 </button>
                               </>
                             ) : (
@@ -717,7 +717,7 @@ export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }
                       onChange={e => setNewUserForm(prev => ({ ...prev, plan: e.target.value }))}
                       className="w-full bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg p-2.5 text-xs font-bold"
                     >
-                      <option value="PRO">Pro VIP ⭐</option>
+                      <option value="PRO">Pro VIP</option>
                       <option value="FREE">Free Tier</option>
                     </select>
                   </div>

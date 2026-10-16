@@ -1072,7 +1072,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
                 <span className={`text-xs font-bold uppercase tracking-wider block pb-2 border-b ${
                   isDark ? 'text-cyan-400 border-gray-800' : 'text-cyan-700 border-slate-100'
                 }`}>
-                  📈 Moving Averages (Trend Filter)
+                  Moving Averages (Trend Filter)
                 </span>
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between">
@@ -1089,7 +1089,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
                   </div>
                   <div className="flex justify-between">
                     <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>Golden Cross Status:</span>
-                    <span className={`font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>ACTIVE 🚀</span>
+                    <span className={`font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>ACTIVE</span>
                   </div>
                 </div>
               </div>
@@ -1101,7 +1101,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
                 <span className={`text-xs font-bold uppercase tracking-wider block pb-2 border-b ${
                   isDark ? 'text-emerald-400 border-gray-800' : 'text-emerald-700 border-slate-100'
                 }`}>
-                  ⚡ Momentum & Oscillators
+                  Momentum & Oscillators
                 </span>
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between">
@@ -1130,7 +1130,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
                 <span className={`text-xs font-bold uppercase tracking-wider block pb-2 border-b ${
                   isDark ? 'text-purple-400 border-gray-800' : 'text-purple-700 border-slate-100'
                 }`}>
-                  🎯 Bollinger Bands & Squeeze
+                  Bollinger Bands & Squeeze
                 </span>
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between">
@@ -1268,7 +1268,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
           <p className={`text-[10px] italic text-center pt-2 border-t ${
             isDark ? 'text-gray-400 border-gray-800' : 'text-slate-500 border-slate-100'
           }`}>
-            ⚠️ Signals are for informational/algorithmic research purposes only and do not constitute financial advice.
+            Signals and quantitative projections are strictly for technical research purposes and do not constitute financial advice.
           </p>
         </div>
 

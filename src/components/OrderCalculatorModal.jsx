@@ -268,7 +268,7 @@ Risk-to-Reward: 1 : ${riskRewardRatio}`;
                             : 'bg-[#E2E8F0] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] hover:bg-[#CBD5E1]'
                         }`}
                       >
-                        {val.toFixed(1)}% {val <= 2 ? '🛡️' : '⚡'}
+                        {val.toFixed(1)}%
                       </button>
                     ))}
                   </div>

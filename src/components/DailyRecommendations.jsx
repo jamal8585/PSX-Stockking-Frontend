@@ -26,7 +26,12 @@ import {
   CheckCircle,
   AlertCircle,
   ArrowRight,
-  Flame
+  Flame,
+  LayoutGrid,
+  List,
+  Newspaper,
+  ShieldAlert,
+  Activity
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 import { 
@@ -138,6 +143,39 @@ export default function DailyRecommendations({
   const [selectedSectors, setSelectedSectors] = useState([]); // array of category IDs (e.g. ['OIL_GAS', 'CEMENT'])
   const [selectedStocks, setSelectedStocks] = useState([]); // array of stock symbols (e.g. ['PRL', 'HUBC'])
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Institutional View Mode: 'cards' (Compact Quant Cards) vs 'table' (Dense Spreadsheet Grid)
+  const [viewMode, setViewMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('psx_signals_view') || 'cards';
+    }
+    return 'cards';
+  });
+
+  const handleSetViewMode = (mode) => {
+    setViewMode(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('psx_signals_view', mode);
+    }
+  };
+
+  const searchInputRef = useRef(null);
+
+  // Global Pro Keybinds: Ctrl + K or / to focus search
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(e.target?.tagName)) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      } else if (e.key === '/') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // 5-Trading Session History Selector
   const recentSessions = useMemo(() => getPSXRecentTradingSessions(5), []);
@@ -587,7 +625,7 @@ export default function DailyRecommendations({
     } else {
       if (liveMarketPrice >= target1) {
         outcomeStatus = 'TARGET_HIT';
-        outcomeLabel = `Target 1 Hit (${gainSinceSignalPct >= 0 ? '+' : ''}${gainSinceSignalPct}% Win 🎯)`;
+        outcomeLabel = `Target 1 Hit (${gainSinceSignalPct >= 0 ? '+' : ''}${gainSinceSignalPct}% Win)`;
         outcomeBadgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
       } else if (liveMarketPrice <= stopLoss) {
         outcomeStatus = 'STOP_LOSS_HIT';
@@ -595,7 +633,7 @@ export default function DailyRecommendations({
         outcomeBadgeClass = 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30';
       } else if (gainSinceSignalPct > 1.5) {
         outcomeStatus = 'IN_PROFIT';
-        outcomeLabel = `Running in Profit (+${gainSinceSignalPct}% 🚀)`;
+        outcomeLabel = `Running in Profit (+${gainSinceSignalPct}%)`;
         outcomeBadgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
       } else if (gainSinceSignalPct < -1.5) {
         outcomeStatus = 'HOLDING_SUPPORT';
@@ -792,32 +830,33 @@ export default function DailyRecommendations({
               </span>
             </div>
             {isHistoricalView && (
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 inline-flex items-center self-start sm:self-auto">
-                <span>⏮️ Viewing Historical Archive: {activeSessionObj.label}</span>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 inline-flex items-center self-start sm:self-auto space-x-1">
+                <History className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                <span>Historical Archive: {activeSessionObj.label}</span>
               </span>
             )}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 bg-[#F8FAFC] dark:bg-[#0B0F19] p-1.5 rounded-xl border border-[#E2E8F0] dark:border-[#243044]">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 bg-[#F8FAFC] dark:bg-[#0B0F19] p-1.5 rounded-md border border-[#E2E8F0] dark:border-[#243044]">
             {recentSessions.map(session => {
               const isSelected = selectedSessionDate === session.dateStr;
               return (
                 <button
                   key={session.dateStr}
                   onClick={() => setSelectedSessionDate(session.dateStr)}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center text-center ${
+                  className={`px-3 py-1.5 rounded text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center text-center ${
                     isSelected 
-                      ? 'bg-[#2563EB] dark:bg-[#3B82F6] text-white shadow-md ring-2 ring-[#2563EB]/20' 
+                      ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs ring-1 ring-zinc-900/10' 
                       : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] hover:bg-[#FFFFFF] dark:hover:bg-[#151E2E]'
                   }`}
                 >
                   <span className="font-extrabold flex items-center space-x-1">
-                    {session.isLive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-1" />}
+                    {session.isLive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mr-1" />}
                     <span>{session.label}</span>
                   </span>
                   <span className={`text-[9px] mt-0.5 font-mono px-1.5 py-0.2 rounded ${
                     isSelected 
-                      ? 'bg-black/20 text-white font-bold' 
+                      ? 'bg-black/20 text-white dark:text-zinc-900 font-bold' 
                       : (session.isLive ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-[#94A3B8]')
                   }`}>
                     {session.badge}
@@ -832,89 +871,130 @@ export default function DailyRecommendations({
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <h2 className="text-base sm:text-xl font-bold text-[#0F172A] dark:text-[#F8FAFC] tracking-tight">
-                Daily Algorithmic Market Signals & Technical Trade Setups
+              <h2 className="text-base sm:text-lg font-bold text-[#0F172A] dark:text-[#F8FAFC] tracking-tight">
+                Daily Algorithmic Market Signals & Technical Setups
               </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 text-[#2563EB] dark:text-[#3B82F6] border border-[#2563EB]/20 dark:border-[#3B82F6]/20">
-                PRO TRADE RADAR
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                PRO QUANT RADAR
               </span>
             </div>
-            <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
-              AI technical analysis, volume surge detection, 5-day historical performance tracking, and multi-select filtering.
+            <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
+              Multi-factor quantitative setups, volume absorption detection, and 5-day performance tracking.
             </p>
           </div>
 
-          {/* Quick Signal Filter Tabs */}
-          <div className="flex items-center overflow-x-auto scrollbar-none gap-1 sm:gap-1.5 bg-[#F8FAFC] dark:bg-[#0B0F19] p-1 rounded-lg border border-[#E2E8F0] dark:border-[#243044] text-xs w-full sm:w-auto touch-pan-x shrink-0">
-            <button
-              onClick={() => setFilterSignal('ALL')}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                filterSignal === 'ALL' 
-                  ? 'bg-[#2563EB] dark:bg-[#3B82F6] text-white shadow-sm' 
-                  : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC]'
-              }`}
-            >
-              All ({summary.total || all.length})
-            </button>
-            <button
-              onClick={() => setFilterSignal('STRONG_BUY')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
-                filterSignal === 'STRONG_BUY' 
-                  ? 'bg-[#16A34A] dark:bg-[#22C55E] text-white shadow-sm' 
-                  : 'text-[#16A34A] dark:text-[#22C55E] hover:bg-[#16A34A]/10'
-              }`}
-            >
-              <span>🚀 Strong Buy</span>
-              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-black/20 font-bold">{summary.strongBuyCount || 0}</span>
-            </button>
-            <button
-              onClick={() => setFilterSignal('ACCUMULATE')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
-                filterSignal === 'ACCUMULATE' 
-                  ? 'bg-[#2563EB] dark:bg-[#3B82F6] text-white shadow-sm' 
-                  : 'text-[#2563EB] dark:text-[#3B82F6] hover:bg-[#2563EB]/10'
-              }`}
-            >
-              <span>📈 Accumulate</span>
-              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-black/20 font-bold">{summary.accumulateCount || 0}</span>
-            </button>
-            <button
-              onClick={() => setFilterSignal('AVOID_SELL')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
-                filterSignal === 'AVOID_SELL' 
-                  ? 'bg-[#DC2626] dark:bg-[#EF4444] text-white shadow-sm' 
-                  : 'text-[#DC2626] dark:text-[#EF4444] hover:bg-[#DC2626]/10'
-              }`}
-            >
-              <span>🛑 Avoid / Exit</span>
-              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-black/20 font-bold">{summary.avoidSellCount || 0}</span>
-            </button>
+          {/* View Mode Switcher & Quick Signal Filter Tabs */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* View Mode Segmented Switch: Cards vs Dense Table */}
+            <div className="flex items-center p-0.5 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded">
+              <button
+                onClick={() => handleSetViewMode('cards')}
+                className={`flex items-center space-x-1 px-2.5 py-1 rounded text-xs font-semibold cursor-pointer transition-colors ${
+                  viewMode === 'cards'
+                    ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs'
+                    : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
+                }`}
+                title="Compact Quant Cards"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Cards</span>
+              </button>
+              <button
+                onClick={() => handleSetViewMode('table')}
+                className={`flex items-center space-x-1 px-2.5 py-1 rounded text-xs font-semibold cursor-pointer transition-colors ${
+                  viewMode === 'table'
+                    ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs'
+                    : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
+                }`}
+                title="Dense Institutional Table"
+              >
+                <List className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Dense Table</span>
+              </button>
+            </div>
+
+            {/* Signal Tabs */}
+            <div className="flex items-center overflow-x-auto scrollbar-none gap-1 bg-zinc-100 dark:bg-zinc-900 p-0.5 rounded border border-zinc-200 dark:border-zinc-800 text-xs w-full sm:w-auto touch-pan-x shrink-0">
+              <button
+                onClick={() => setFilterSignal('ALL')}
+                className={`px-2.5 py-1 rounded font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                  filterSignal === 'ALL' 
+                    ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs' 
+                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+                }`}
+              >
+                All ({summary.total || all.length})
+              </button>
+              <button
+                onClick={() => setFilterSignal('STRONG_BUY')}
+                className={`px-2.5 py-1 rounded font-bold transition-all flex items-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
+                  filterSignal === 'STRONG_BUY' 
+                    ? 'bg-emerald-600 text-white shadow-xs' 
+                    : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
+                }`}
+              >
+                <TrendingUp className="w-3.5 h-3.5 mr-1" />
+                <span>Strong Buy</span>
+                <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] bg-black/20 font-bold font-mono">{summary.strongBuyCount || 0}</span>
+              </button>
+              <button
+                onClick={() => setFilterSignal('ACCUMULATE')}
+                className={`px-2.5 py-1 rounded font-bold transition-all flex items-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
+                  filterSignal === 'ACCUMULATE' 
+                    ? 'bg-blue-600 text-white shadow-xs' 
+                    : 'text-blue-600 dark:text-blue-400 hover:bg-blue-500/10'
+                }`}
+              >
+                <ArrowUpRight className="w-3.5 h-3.5 mr-1" />
+                <span>Accumulate</span>
+                <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] bg-black/20 font-bold font-mono">{summary.accumulateCount || 0}</span>
+              </button>
+              <button
+                onClick={() => setFilterSignal('AVOID_SELL')}
+                className={`px-2.5 py-1 rounded font-bold transition-all flex items-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
+                  filterSignal === 'AVOID_SELL' 
+                    ? 'bg-rose-600 text-white shadow-xs' 
+                    : 'text-rose-600 dark:text-rose-400 hover:bg-rose-500/10'
+                }`}
+              >
+                <TrendingDown className="w-3.5 h-3.5 mr-1" />
+                <span>Avoid / Exit</span>
+                <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] bg-black/20 font-bold font-mono">{summary.avoidSellCount || 0}</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* ========================================================================= */}
         {/* MULTI-SELECT SEARCH & DROPDOWNS BAR                                       */}
         {/* ========================================================================= */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 mt-4 pt-4 border-t border-[#E2E8F0] dark:border-[#243044]">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800">
           
-          {/* 1. Free-Text Search Input */}
+          {/* 1. Free-Text Search Input with Ctrl+K Indicator */}
           <div className="md:col-span-4 relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#64748B] dark:text-[#94A3B8]" />
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
             <input
+              ref={searchInputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search symbol, company name, or sector..."
-              className="w-full pl-9 pr-8 py-2.5 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] dark:focus:border-[#3B82F6] transition-colors"
+              placeholder="Search ticker, company name, sector..."
+              className="w-full pl-9 pr-14 py-2 rounded bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-500 transition-colors"
             />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#64748B] hover:text-[#0F172A] dark:text-[#94A3B8] dark:hover:text-[#F8FAFC] p-0.5 rounded cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+              {searchQuery ? (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-0.5 rounded cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <kbd className="hidden sm:inline-block text-[10px] bg-zinc-200/80 dark:bg-zinc-800 text-zinc-500 font-mono px-1.5 py-0.5 rounded border border-zinc-300 dark:border-zinc-700 select-none">
+                  Ctrl K
+                </kbd>
+              )}
+            </div>
           </div>
 
           {/* 2. Multi-Select Sector Dropdown */}
@@ -1176,8 +1256,8 @@ export default function DailyRecommendations({
         {/* ACTIVE FILTER BADGES ROW                                                  */}
         {/* ========================================================================= */}
         {hasActiveFilters && (
-          <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-[#E2E8F0] dark:border-[#243044]">
-            <span className="text-[10px] uppercase tracking-wider font-extrabold text-[#64748B] dark:text-[#94A3B8] mr-1">
+          <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500 mr-1">
               Active Filters:
             </span>
 
@@ -1187,12 +1267,12 @@ export default function DailyRecommendations({
               return (
                 <span
                   key={secId}
-                  className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#2563EB]/10 text-[#2563EB] dark:bg-[#3B82F6]/10 dark:text-[#3B82F6] border border-[#2563EB]/30"
+                  className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700"
                 >
-                  <span>{catObj?.icon || '🏢'} {catObj?.label || secId}</span>
+                  <span>{catObj?.label || secId}</span>
                   <button
                     onClick={() => toggleSector(secId)}
-                    className="hover:text-[#1D4ED8] p-0.5 rounded-full cursor-pointer ml-1"
+                    className="hover:text-rose-500 p-0.5 rounded cursor-pointer ml-1"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -1204,12 +1284,12 @@ export default function DailyRecommendations({
             {selectedStocks.map(sym => (
               <span
                 key={sym}
-                className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-[#16A34A]/10 text-[#16A34A] dark:bg-[#22C55E]/10 dark:text-[#22C55E] border border-[#16A34A]/30"
+                className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700"
               >
-                <span>📈 {sym}</span>
+                <span>{sym}</span>
                 <button
                   onClick={() => toggleStock(sym)}
-                  className="hover:text-[#15803D] p-0.5 rounded-full cursor-pointer ml-1"
+                  className="hover:text-rose-500 p-0.5 rounded cursor-pointer ml-1"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -1218,11 +1298,11 @@ export default function DailyRecommendations({
 
             {/* Signal Filter Badge */}
             {filterSignal !== 'ALL' && (
-              <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#8B5CF6]/10 text-[#8B5CF6] dark:bg-[#A78BFA]/10 dark:text-[#A78BFA] border border-[#8B5CF6]/30">
-                <span>🎯 Signal: {filterSignal}</span>
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
+                <span>Signal: {filterSignal === 'STRONG_BUY' ? 'Strong Buy' : (filterSignal === 'ACCUMULATE' ? 'Accumulate' : 'Avoid / Exit')}</span>
                 <button
                   onClick={() => setFilterSignal('ALL')}
-                  className="hover:text-[#7C3AED] p-0.5 rounded-full cursor-pointer ml-1"
+                  className="hover:text-rose-500 p-0.5 rounded cursor-pointer ml-1"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -1231,11 +1311,11 @@ export default function DailyRecommendations({
 
             {/* Search Query Badge */}
             {searchQuery.trim() && (
-              <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#F1F5F9] dark:bg-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] border border-[#CBD5E1] dark:border-[#475569]">
-                <span>🔍 "{searchQuery}"</span>
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
+                <span>"{searchQuery}"</span>
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="hover:text-[#DC2626] p-0.5 rounded-full cursor-pointer ml-1"
+                  className="hover:text-rose-500 p-0.5 rounded cursor-pointer ml-1"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -1247,52 +1327,186 @@ export default function DailyRecommendations({
 
       {/* Pro Tier Banner if Free */}
       {!isPro && (
-        <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#D97706]/40 dark:border-[#F59E0B]/40 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+        <div className="bg-white dark:bg-zinc-900 border border-amber-500/30 rounded-md p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center space-x-3 text-left">
-            <div className="p-2 rounded-lg bg-[#D97706]/10 dark:bg-[#F59E0B]/10 border border-[#D97706]/20 dark:border-[#F59E0B]/20 text-[#D97706] dark:text-[#F59E0B] shrink-0">
-              <Crown className="w-5 h-5" />
+            <div className="p-2 rounded bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
+              <Crown className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-xs font-bold text-[#D97706] dark:text-[#F59E0B] block">
-                Free Tier Mode: Previewing 2 Top AI Signals
+              <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 block">
+                Free Preview: 2 Algorithmic Setups
               </span>
-              <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">
-                Upgrade to PSX Stockking Pro to unlock all 20+ algorithmic setups with exact entry zones and target calculations.
+              <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                Upgrade to PSX StockKing Pro to unlock complete algorithmic models with exact entry ranges and calculated target levels across all setups.
               </span>
             </div>
           </div>
           <button
             onClick={onOpenUpgrade}
-            className="px-4 py-2 rounded-lg bg-[#D97706] hover:bg-[#B45309] dark:bg-[#F59E0B] dark:hover:bg-[#D97706] text-white dark:text-black font-bold text-xs cursor-pointer shadow-sm shrink-0"
+            className="px-3.5 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs cursor-pointer shrink-0 transition-colors"
           >
-            Upgrade to Pro (PKR 1,499)
+            Upgrade to Pro
           </button>
         </div>
       )}
 
       {/* Empty State when filters yield 0 results */}
       {filtered.length === 0 ? (
-        <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-8 text-center space-y-3">
-          <div className="w-12 h-12 rounded-full bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 text-[#2563EB] dark:text-[#3B82F6] flex items-center justify-center mx-auto">
-            <Search className="w-6 h-6" />
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-8 text-center space-y-3">
+          <div className="w-10 h-10 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500 flex items-center justify-center mx-auto">
+            <Search className="w-5 h-5" />
           </div>
-          <h3 className="text-base font-bold text-[#0F172A] dark:text-[#F8FAFC]">
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
             No Signals Found Matching Active Filters
           </h3>
-          <p className="text-xs text-[#64748B] dark:text-[#94A3B8] max-w-md mx-auto">
-            No stock signals match your selected sector, company, signal status, or keyword. Try resetting your filters to view all market setups.
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
+            No stock signals match your selected parameters. Try resetting your filters to view all market setups.
           </p>
           <button
             onClick={clearAllFilters}
-            className="px-4 py-2 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs cursor-pointer inline-flex items-center space-x-1.5"
+            className="px-3.5 py-1.5 rounded bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-semibold text-xs cursor-pointer inline-flex items-center space-x-1.5 hover:bg-zinc-800 transition-colors"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-3.5 h-3.5 mr-1" />
             <span>Reset All Filters</span>
           </button>
         </div>
+      ) : viewMode === 'table' ? (
+        /* ========================================================================= */
+        /* DENSE INSTITUTIONAL SPREADSHEET TABLE VIEW                                */
+        /* ========================================================================= */
+        <div className="border border-zinc-200 dark:border-zinc-800 rounded-md overflow-x-auto bg-white dark:bg-zinc-900 shadow-xs">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/80 text-[10px] uppercase font-semibold text-zinc-500 tracking-wider">
+                <th className="py-2.5 px-3">Symbol / Company</th>
+                <th className="py-2.5 px-3">Sector</th>
+                <th className="py-2.5 px-3 text-right">Price (PKR)</th>
+                <th className="py-2.5 px-3 text-right">24h Chg</th>
+                <th className="py-2.5 px-3">Signal</th>
+                <th className="py-2.5 px-3 text-center">Conf</th>
+                <th className="py-2.5 px-3">Entry / Defensive</th>
+                <th className="py-2.5 px-3">Stop / Trigger</th>
+                <th className="py-2.5 px-3">Target / Pullback</th>
+                <th className="py-2.5 px-3">R : R</th>
+                <th className="py-2.5 px-3 min-w-[200px]">Primary Catalyst</th>
+                <th className="py-2.5 px-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60 font-mono">
+              {filtered.map((rawItem, idx) => {
+                const item = getLiveStock(rawItem);
+                const badge = getSignalBadge(item.signal, item.isMomentumBreakout);
+                const isUp = (item.change || 0) >= 0;
+                const isLocked = !isPro && idx >= 2;
+
+                if (isLocked) {
+                  return (
+                    <tr key={item.symbol || idx} className="bg-zinc-50/50 dark:bg-zinc-900/40 opacity-70">
+                      <td className="py-2 px-3 font-bold text-zinc-900 dark:text-zinc-100">
+                        <div className="flex items-center space-x-1.5">
+                          <Lock className="w-3 h-3 text-amber-500 shrink-0" />
+                          <span>{item.symbol}</span>
+                        </div>
+                      </td>
+                      <td className="py-2 px-3 font-sans text-zinc-400 text-[11px] truncate max-w-[120px]">{item.sector}</td>
+                      <td className="py-2 px-3 text-right tabular-nums text-zinc-900 dark:text-zinc-100">
+                        {item.currentPrice.toFixed(2)}
+                      </td>
+                      <td className={`py-2 px-3 text-right tabular-nums ${isUp ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {isUp ? '+' : ''}{item.changePercent}%
+                      </td>
+                      <td colSpan={7} className="py-2 px-3 text-center font-sans text-amber-600 dark:text-amber-400 text-[11px]">
+                        <span>Pro Setup Locked</span>
+                      </td>
+                      <td className="py-2 px-3 text-right font-sans">
+                        <button
+                          onClick={onOpenUpgrade}
+                          className="h-6 px-2 text-[10px] font-sans font-medium rounded bg-amber-500 text-black hover:bg-amber-600 transition-colors cursor-pointer"
+                        >
+                          Unlock
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                }
+
+                return (
+                  <tr
+                    key={item.symbol || idx}
+                    className="hover:bg-zinc-50/80 dark:hover:bg-zinc-800/50 transition-colors"
+                  >
+                    <td className="py-2 px-3">
+                      <div className="font-bold text-zinc-900 dark:text-zinc-100">
+                        {item.symbol}
+                      </div>
+                      <div className="text-[10px] font-sans text-zinc-400 truncate max-w-[130px]">
+                        {item.companyName}
+                      </div>
+                    </td>
+                    <td className="py-2 px-3 font-sans text-[11px] text-zinc-500 dark:text-zinc-400">
+                      <span className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700/60 truncate inline-block max-w-[120px]">
+                        {item.sector}
+                      </span>
+                    </td>
+                    <td className="py-2 px-3 text-right tabular-nums font-bold text-zinc-900 dark:text-zinc-100">
+                      {item.currentPrice.toFixed(2)}
+                    </td>
+                    <td className={`py-2 px-3 text-right tabular-nums font-semibold ${isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                      {isUp ? '+' : ''}{item.changePercent}%
+                    </td>
+                    <td className="py-2 px-3">
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-sans font-bold ${badge.className}`}>
+                        {badge.icon}
+                        <span className="ml-1">{badge.label}</span>
+                      </span>
+                    </td>
+                    <td className="py-2 px-3 text-center tabular-nums text-zinc-600 dark:text-zinc-400 font-semibold">
+                      {item.confidence}%
+                    </td>
+                    <td className="py-2 px-3 tabular-nums text-zinc-800 dark:text-zinc-200">
+                      {item.entryZone?.min ? `${item.entryZone.min}-${item.entryZone.max}` : item.currentPrice.toFixed(2)}
+                    </td>
+                    <td className="py-2 px-3 tabular-nums font-semibold text-rose-600 dark:text-rose-400">
+                      {item.stopLoss}
+                    </td>
+                    <td className="py-2 px-3 tabular-nums font-semibold text-emerald-600 dark:text-emerald-400">
+                      {item.target1}
+                    </td>
+                    <td className="py-2 px-3 tabular-nums text-zinc-600 dark:text-zinc-400">
+                      {item.riskReward || '1:2.5'}
+                    </td>
+                    <td className="py-2 px-3 font-sans text-[11px] text-zinc-600 dark:text-zinc-400 truncate max-w-[220px]" title={item.reasons?.[0]}>
+                      {item.reasons?.[0] || 'Technical setup confirmed on EOD volume.'}
+                    </td>
+                    <td className="py-2 px-3 text-right font-sans">
+                      <div className="flex items-center justify-end space-x-1">
+                        <button
+                          onClick={() => onOpenCalculator(item)}
+                          className="p-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
+                          title="Order Calculator"
+                        >
+                          <Calculator className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => onSelectStock(item.symbol)}
+                          className="p-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
+                          title="Chart & Intel"
+                        >
+                          <LineChart className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
-        /* Recommendations Cards Grid */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        /* ========================================================================= */
+        /* COMPACT QUANT CARDS GRID                                                  */
+        /* ========================================================================= */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map((rawItem, idx) => {
             const item = getLiveStock(rawItem);
             const badge = getSignalBadge(item.signal, item.isMomentumBreakout);
@@ -1303,45 +1517,39 @@ export default function DailyRecommendations({
               return (
                 <div
                   key={item.symbol || idx}
-                  className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#D97706]/30 dark:border-[#F59E0B]/30 rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between"
+                  className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-4 relative overflow-hidden flex flex-col justify-between"
                 >
                   <div className="filter blur-sm select-none pointer-events-none opacity-40">
-                    <div className="flex justify-between mb-3">
+                    <div className="flex justify-between mb-2">
                       <div>
-                        <div className="flex items-center space-x-2">
-                          <h3 className="text-xl font-bold text-[#0F172A] dark:text-[#F8FAFC] mono">{item.symbol}</h3>
-                          <span className={`text-[9px] px-2 py-0.5 rounded-md font-mono font-bold border shrink-0 ${
-                            marketSession.isWeekend || marketSession.isFridayEod
-                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
-                              : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                          }`}>
-                            {marketSession.cardDateFormatted}
-                          </span>
+                        <div className="flex items-center space-x-1.5">
+                          <span className="text-base font-bold text-zinc-900 dark:text-zinc-100 font-mono">{item.symbol}</span>
+                          <span className="text-[10px] text-zinc-400 font-mono">{marketSession.cardDateFormatted}</span>
                         </div>
-                        <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">{item.sector}</p>
+                        <p className="text-[11px] text-zinc-500">{item.sector}</p>
                       </div>
-                      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-[#16A34A]/10 text-[#16A34A]">
+                      <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/10 text-emerald-600">
                         Strong Buy
                       </span>
                     </div>
-                    <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] p-3 rounded-lg mb-3">
-                      <p className="text-lg font-bold text-[#0F172A] dark:text-[#F8FAFC]">PKR {item.currentPrice.toFixed(2)}</p>
+                    <div className="py-2 border-y border-zinc-100 dark:border-zinc-800 mb-2">
+                      <p className="text-base font-bold font-mono text-zinc-900 dark:text-zinc-100">PKR {item.currentPrice.toFixed(2)}</p>
                     </div>
                   </div>
 
-                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-5 bg-[#FFFFFF]/90 dark:bg-[#0B0F19]/90 backdrop-blur-xs text-center space-y-2.5">
-                    <div className="p-2.5 rounded-lg bg-[#D97706]/10 dark:bg-[#F59E0B]/10 border border-[#D97706]/20 dark:border-[#F59E0B]/20 text-[#D97706] dark:text-[#F59E0B]">
-                      <Lock className="w-5 h-5" />
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-4 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xs text-center space-y-2">
+                    <div className="p-2 rounded bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400">
+                      <Lock className="w-4 h-4" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-[#0F172A] dark:text-[#F8FAFC]">Pro VIP Signal Locked</h4>
-                      <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] max-w-[220px]">
-                        {item.symbol} algorithmic setup & target plan is reserved for Pro subscribers.
+                      <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Pro Setup Locked</h4>
+                      <p className="text-[10.5px] text-zinc-500 dark:text-zinc-400 max-w-[200px]">
+                        {item.symbol} algorithmic setup & target plan is reserved for Pro members.
                       </p>
                     </div>
                     <button
                       onClick={onOpenUpgrade}
-                      className="px-4 py-1.5 rounded-lg bg-[#D97706] hover:bg-[#B45309] dark:bg-[#F59E0B] dark:hover:bg-[#D97706] text-white dark:text-black font-bold text-xs cursor-pointer shadow-sm"
+                      className="px-3 py-1 rounded bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs cursor-pointer shadow-xs transition-colors"
                     >
                       Unlock with Pro
                     </button>
@@ -1353,35 +1561,29 @@ export default function DailyRecommendations({
             return (
               <div
                 key={item.symbol || idx}
-                className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] hover:border-[#2563EB] dark:hover:border-[#3B82F6] rounded-xl p-5 shadow-sm dark:shadow-md transition-all flex flex-col justify-between"
+                className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 rounded-md p-3.5 transition-colors flex flex-col justify-between text-left"
               >
                 <div>
                   {/* Card Header: Symbol, Name, Badge */}
-                  <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                        <h3 className="text-xl font-bold text-[#0F172A] dark:text-[#F8FAFC] tracking-tight mono">
+                      <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+                        <span className="text-base font-bold font-mono tracking-tight text-zinc-900 dark:text-zinc-100">
                           {item.symbol}
-                        </h3>
-                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] font-bold border border-[#E2E8F0] dark:border-[#243044] truncate max-w-[180px]" title={item.sector}>
+                        </span>
+                        <span className="text-[10px] text-zinc-500 font-medium px-1.5 py-0.2 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700/60 truncate max-w-[130px]" title={item.sector}>
                           {item.sector}
                         </span>
-                        <span className={`text-[9px] px-2 py-0.5 rounded-md font-mono font-black border shrink-0 ${
-                          isHistoricalView 
-                            ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20'
-                            : (marketSession.isWeekend || marketSession.isFridayEod
-                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
-                                : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20')
-                        }`}>
-                          {isHistoricalView ? `Signal: ${activeSessionObj.label}` : marketSession.cardDateFormatted}
+                        <span className="text-[9px] font-mono text-zinc-400 dark:text-zinc-500 shrink-0">
+                          {isHistoricalView ? activeSessionObj.label : marketSession.cardDateFormatted}
                         </span>
                       </div>
-                      <p className="text-xs text-[#64748B] dark:text-[#94A3B8] truncate max-w-[200px]" title={item.companyName}>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate" title={item.companyName}>
                         {item.companyName}
                       </p>
                     </div>
                     
-                    <div className={`px-2 py-1 rounded-lg text-xs font-bold flex items-center shrink-0 ${badge.className}`}>
+                    <div className={`px-2 py-0.5 rounded text-[11px] font-bold flex items-center shrink-0 ${badge.className}`}>
                       {badge.icon}
                       <span>{badge.label}</span>
                     </div>
@@ -1389,147 +1591,99 @@ export default function DailyRecommendations({
 
                   {/* Historical Outcome Performance Banner (If viewing historical session) */}
                   {isHistoricalView && (
-                    <div className={`p-2.5 rounded-lg border mb-3 flex items-center justify-between text-xs font-bold ${item.outcomeBadgeClass}`}>
+                    <div className={`p-2 rounded border mb-2 flex items-center justify-between text-xs font-semibold ${item.outcomeBadgeClass}`}>
                       <div className="flex items-center space-x-1.5">
-                        <CheckCircle className="w-4 h-4 shrink-0" />
+                        <CheckCircle className="w-3.5 h-3.5 shrink-0" />
                         <span>Outcome: {item.outcomeLabel}</span>
                       </div>
-                      <span className="mono text-[11px] font-extrabold">
+                      <span className="font-mono text-[11px] font-bold">
                         {item.gainSinceSignalPct >= 0 ? '+' : ''}{item.gainSinceSignalPct}%
                       </span>
                     </div>
                   )}
 
                   {/* Price & Confidence Bar */}
-                  <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-3 border border-[#E2E8F0] dark:border-[#243044] mb-3">
-                    <div className="flex items-baseline justify-between mb-2">
-                      <div>
-                        <span className="text-[10px] uppercase text-[#64748B] dark:text-[#94A3B8] font-bold">
-                          {isHistoricalView 
-                            ? 'Signal Entry Price' 
-                            : (isMarketOpen ? 'Current Live Price' : 'Closing Price (EOD)')}
-                        </span>
-                        <p className="text-lg font-bold text-[#0F172A] dark:text-[#F8FAFC] mono flex items-center">
+                  <div className="flex items-baseline justify-between mb-2">
+                    <div>
+                      <span className="text-[9px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold block">
+                        {isHistoricalView 
+                          ? 'Signal Price' 
+                          : (isMarketOpen ? 'Live Price' : 'Closing Price')}
+                      </span>
+                      <div className="flex items-baseline space-x-1.5">
+                        <span className="text-base font-bold font-mono tabular-nums text-zinc-900 dark:text-zinc-100">
                           PKR {item.currentPrice.toFixed(2)}
-                          {isHistoricalView ? (
-                            <span className="text-[11px] ml-1.5 text-[#64748B] font-normal">
-                              ({isMarketOpen ? 'Live' : 'Close'}: PKR {item.liveMarketPrice.toFixed(2)})
-                            </span>
-                          ) : (
-                            <span className={`text-[11px] ml-1.5 font-bold ${isUp ? 'text-[#16A34A] dark:text-[#22C55E]' : 'text-[#DC2626] dark:text-[#EF4444]'}`}>
-                              ({isUp ? '+' : ''}{item.changePercent}%)
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[10px] uppercase text-[#64748B] dark:text-[#94A3B8] font-bold">AI Confidence</span>
-                        <p className="text-sm font-bold text-[#16A34A] dark:text-[#22C55E] mono">{item.confidence}%</p>
+                        </span>
+                        {isHistoricalView ? (
+                          <span className="text-[10.5px] font-mono text-zinc-400">
+                            (Now: {item.liveMarketPrice.toFixed(2)})
+                          </span>
+                        ) : (
+                          <span className={`text-[11px] font-mono font-semibold ${isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                            {isUp ? '+' : ''}{item.changePercent}%
+                          </span>
+                        )}
                       </div>
                     </div>
-
-                    {/* Trade Setup Matrix (Entry, Stop Loss, Target) */}
-                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#E2E8F0] dark:border-[#243044] text-center">
-                      <div className="bg-[#FFFFFF] dark:bg-[#151E2E] rounded-lg p-1.5 border border-[#E2E8F0] dark:border-[#243044]">
-                        <span className="text-[9px] uppercase text-[#64748B] dark:text-[#94A3B8] block font-bold truncate">
-                          {item.isMomentumBreakout ? 'Trail Band' : (item.signal === 'AVOID_SELL' ? 'Defensive Range' : 'Entry Zone')}
-                        </span>
-                        <span className="text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] mono">
-                          {item.entryZone?.min ? `${item.entryZone.min}-${item.entryZone.max}` : item.currentPrice}
-                        </span>
-                      </div>
-                      <div className={item.isMomentumBreakout
-                        ? "bg-amber-500/10 dark:bg-amber-500/10 border border-amber-500/20 dark:border-amber-500/20 rounded-lg p-1.5"
-                        : "bg-[#DC2626]/10 dark:bg-[#EF4444]/10 border border-[#DC2626]/20 dark:border-[#EF4444]/20 rounded-lg p-1.5"
-                      }>
-                        <span className={`text-[9px] uppercase block font-bold flex items-center justify-center truncate ${
-                          item.isMomentumBreakout ? 'text-amber-600 dark:text-amber-400' : 'text-[#DC2626] dark:text-[#EF4444]'
-                        }`}>
-                          <StopCircle className="w-2.5 h-2.5 mr-0.5 shrink-0" /> 
-                          {item.isMomentumBreakout ? 'Trailing Stop' : (item.signal === 'AVOID_SELL' ? 'Exit Trigger' : 'Stop Loss')}
-                        </span>
-                        <span className={`text-xs font-bold mono ${
-                          item.isMomentumBreakout ? 'text-amber-600 dark:text-amber-400' : 'text-[#DC2626] dark:text-[#EF4444]'
-                        }`}>
-                          PKR {item.stopLoss}
-                        </span>
-                      </div>
-                      <div className={item.signal === 'AVOID_SELL'
-                        ? "bg-amber-500/10 dark:bg-amber-500/10 border border-amber-500/20 dark:border-amber-500/20 rounded-lg p-1.5"
-                        : "bg-[#16A34A]/10 dark:bg-[#22C55E]/10 border border-[#16A34A]/20 dark:border-[#22C55E]/20 rounded-lg p-1.5"
-                      }>
-                        <span className={`text-[9px] uppercase block font-bold flex items-center justify-center truncate ${
-                          item.signal === 'AVOID_SELL' ? 'text-amber-600 dark:text-amber-400' : 'text-[#16A34A] dark:text-[#22C55E]'
-                        }`}>
-                          <Target className="w-2.5 h-2.5 mr-0.5 shrink-0" /> 
-                          {item.signal === 'AVOID_SELL' ? 'Pullback Support' : 'Target 1'}
-                        </span>
-                        <span className={`text-xs font-bold mono ${
-                          item.signal === 'AVOID_SELL' ? 'text-amber-600 dark:text-amber-400' : 'text-[#16A34A] dark:text-[#22C55E]'
-                        }`}>
-                          PKR {item.target1}
-                        </span>
-                      </div>
+                    <div className="text-right">
+                      <span className="text-[9px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold block">
+                        AI Conf
+                      </span>
+                      <span className="text-xs font-mono font-bold text-zinc-700 dark:text-zinc-300">
+                        {item.confidence}%
+                      </span>
                     </div>
                   </div>
 
-                  {/* Risk-to-Reward & Catalysts */}
-                  <div className="space-y-2 mb-4 text-xs">
-                    <div className="flex justify-between items-center bg-[#F8FAFC] dark:bg-[#0B0F19] px-2.5 py-1.5 rounded-lg border border-[#E2E8F0] dark:border-[#243044]">
-                      <span className="text-[#64748B] dark:text-[#94A3B8]">
-                        {item.signal === 'AVOID_SELL' ? 'Trade Strategy:' : 'Risk : Reward Ratio:'}
+                  {/* Quant Metric Block: No soft pink/orange bubble pill borders! */}
+                  <div className="grid grid-cols-3 gap-2 py-2 border-y border-zinc-100 dark:border-zinc-800/80 mb-2">
+                    <div>
+                      <span className="text-[9px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold block truncate">
+                        {item.isMomentumBreakout ? 'TRAIL BAND' : (item.signal === 'AVOID_SELL' ? 'DEFENSIVE ZONE' : 'ENTRY ZONE')}
                       </span>
-                      <span className={`font-bold mono ${
-                        item.isMomentumBreakout ? 'text-amber-600 dark:text-amber-400' : 'text-[#D97706] dark:text-[#F59E0B]'
-                      }`}>
-                        {item.tradeStrategy || (item.signal === 'AVOID_SELL' ? 'Capital Preservation (Exit Setup)' : (item.riskReward || '1 : 2.5'))}
+                      <span className="text-xs font-mono font-bold tabular-nums text-zinc-800 dark:text-zinc-200 block truncate">
+                        {item.entryZone?.min ? `${item.entryZone.min}-${item.entryZone.max}` : item.currentPrice.toFixed(2)}
                       </span>
                     </div>
-
-                    <div className="space-y-1">
-                      <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] uppercase font-bold">Key Technical Catalysts:</span>
-                      {item.reasons && item.reasons.slice(0, 2).map((r, rIdx) => (
-                        <div key={rIdx} className="flex items-start text-[11px] text-[#0F172A] dark:text-[#F8FAFC] space-x-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A] dark:text-[#22C55E] shrink-0 mt-0.5" />
-                          <span>{r}</span>
-                        </div>
-                      ))}
+                    <div>
+                      <span className="text-[9px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold block truncate">
+                        {item.isMomentumBreakout ? 'TRAIL STOP' : (item.signal === 'AVOID_SELL' ? 'EXIT TRIGGER' : 'STOP LOSS')}
+                      </span>
+                      <span className="text-xs font-mono font-bold tabular-nums text-rose-600 dark:text-rose-400 block truncate">
+                        PKR {item.stopLoss}
+                      </span>
                     </div>
+                    <div>
+                      <span className="text-[9px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold block truncate">
+                        {item.signal === 'AVOID_SELL' ? 'PULLBACK SUPP' : 'TARGET 1'}
+                      </span>
+                      <span className="text-xs font-mono font-bold tabular-nums text-emerald-600 dark:text-emerald-400 block truncate">
+                        PKR {item.target1}
+                      </span>
+                    </div>
+                  </div>
 
-                    {item.newsSentimentImpact && 
-                     item.newsSentimentImpact.sentiment !== 'NEUTRAL' && 
-                     !item.newsSentimentImpact.headline?.includes('No company-specific news catalyst') && (
-                      <div className={`p-2 rounded-lg text-[11px] flex items-start space-x-1.5 border ${
-                        item.newsSentimentImpact.sentiment === 'POSITIVE' 
-                          ? 'bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/20 dark:bg-[#22C55E]/10 dark:text-[#22C55E] dark:border-[#22C55E]/20' 
-                          : 'bg-[#DC2626]/10 text-[#DC2626] border-[#DC2626]/20 dark:bg-[#EF4444]/10 dark:text-[#EF4444] dark:border-[#EF4444]/20'
-                      }`}>
-                        <span className="font-bold shrink-0">📰 News Catalyst:</span>
-                        <span className="truncate">{item.newsSentimentImpact.headline}</span>
-                      </div>
-                    )}
+                  {/* Key Catalyst (Single clean line) */}
+                  <div className="text-[11px] text-zinc-600 dark:text-zinc-400 truncate flex items-center space-x-1.5 mb-2.5">
+                    <Activity className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                    <span className="truncate">{item.reasons?.[0] || 'Technical setup confirmed on EOD volume.'}</span>
                   </div>
                 </div>
 
-                {/* SECP / PSX Algorithmic Risk Disclaimer */}
-                <p className="text-[9.5px] text-[#64748B] dark:text-[#94A3B8] italic text-center mb-2 px-1">
-                  ⚠️ Signals are for informational/algorithmic research purposes only and do not constitute financial advice.
-                </p>
-
-                {/* Card Actions */}
-                <div className="grid grid-cols-2 gap-2 pt-3 border-t border-[#E2E8F0] dark:border-[#243044]">
+                {/* Card Actions (Compact h-8 institutional buttons) */}
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800/80">
                   <button
                     onClick={() => onOpenCalculator(item)}
-                    className="flex items-center justify-center space-x-1.5 px-3 h-[50px] rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#60A5FA] text-white font-bold text-sm shadow-sm transition-all cursor-pointer"
+                    className="flex items-center justify-center space-x-1 h-8 px-2.5 rounded text-xs font-medium bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-white text-white dark:text-zinc-900 transition-colors cursor-pointer"
                   >
-                    <Calculator className="w-4 h-4" />
+                    <Calculator className="w-3.5 h-3.5 mr-1" />
                     <span>Order Calc</span>
                   </button>
                   <button
                     onClick={() => onSelectStock(item.symbol)}
-                    className="flex items-center justify-center space-x-1.5 px-3 h-[50px] rounded-xl bg-[#F1F5F9] dark:bg-[#1E293B] hover:bg-[#E2E8F0] dark:hover:bg-[#243044] text-[#0F172A] dark:text-[#F8FAFC] font-bold text-sm border border-[#E2E8F0] dark:border-[#243044] transition-all cursor-pointer"
+                    className="flex items-center justify-center space-x-1 h-8 px-2.5 rounded text-xs font-medium border border-zinc-200 dark:border-zinc-700 bg-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-200 transition-colors cursor-pointer"
                   >
-                    <LineChart className="w-4 h-4" />
+                    <LineChart className="w-3.5 h-3.5 mr-1" />
                     <span>Chart & Intel</span>
                   </button>
                 </div>
@@ -1540,9 +1694,9 @@ export default function DailyRecommendations({
       )}
 
       {/* Section-Level Regulatory Compliance Notice */}
-      <div className="p-3 rounded-xl bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] text-center">
-        <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] italic">
-          ⚠️ <b>SECP Compliance Notice:</b> PSX STOCKKING algorithmic signals and price projection models are strictly for educational and technical market research. They do not constitute investment advice or a recommendation to buy or sell securities.
+      <div className="p-3 rounded-md bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 text-center">
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+          <span className="font-semibold text-zinc-700 dark:text-zinc-300">SECP Compliance Notice:</span> PSX STOCKKING algorithmic signals and price projection models are strictly for educational and technical market research. They do not constitute investment advice or a recommendation to buy or sell securities.
         </p>
       </div>
     </div>

@@ -838,7 +838,7 @@ export default function App() {
           addedAt: new Date().toISOString()
         };
         updated = [newEntry, ...watchlist];
-        showToast(`⭐ Added ${sym} to Watchlist Radar!`);
+        showToast(`Added ${sym} to Watchlist Radar`);
       }
 
       setWatchlist(updated);
@@ -1091,7 +1091,7 @@ export default function App() {
         <div className="max-w-[1680px] mx-auto px-4 space-y-1.5">
           <p className="font-bold">© 2026 PSX STOCKKING TERMINAL • Real-Time Financial Intelligence, Portfolio Tracker & Algorithmic Stock Screening Engine.</p>
           <p className="text-[11px] opacity-80 max-w-4xl mx-auto leading-relaxed">
-            ⚠️ <b>Regulatory & Risk Disclaimer:</b> All AI signals, target sell prices, entry zones, and catalyst trade setups on PSX STOCKKING are strictly for informational and algorithmic research purposes only and do not constitute financial advice or investment recommendations under SECP / PSX guidelines. Always conduct independent due diligence before executing trades.
+            <b>Regulatory & Risk Disclaimer:</b> All quantitative signals, projected target prices, defensive entry zones, and catalyst trade setups on PSX STOCKKING are strictly for informational and algorithmic research purposes only and do not constitute financial advice or investment recommendations under SECP / PSX guidelines. Always conduct independent due diligence before executing trades.
           </p>
         </div>
       </footer>

@@ -300,13 +300,13 @@ export default function StockScreenerTable({
               }}
               className="bg-transparent text-[#0F172A] dark:text-[#F8FAFC] font-bold text-xs focus:outline-none cursor-pointer pr-1"
             >
-              <option value="ALL" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">🏛️ All PSX Indices</option>
-              <option value="KSE100" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">📈 KSE-100 Benchmark</option>
-              <option value="KMI30" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">🕌 KMI-30 Islamic Shariah</option>
-              <option value="KSE30" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">💎 KSE-30 Top 30 Bluechips</option>
-              <option value="KMIALL" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">🌙 PSX KMI All-Shares</option>
-              <option value="OGTI" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">🛢️ OGTI Oil & Gas Index</option>
-              <option value="BKTI" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">🏦 BKTI Banking Sector Index</option>
+              <option value="ALL" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">All PSX Indices</option>
+              <option value="KSE100" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">KSE-100 Benchmark</option>
+              <option value="KMI30" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">KMI-30 Islamic Shariah</option>
+              <option value="KSE30" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">KSE-30 Top 30 Bluechips</option>
+              <option value="KMIALL" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">PSX KMI All-Shares</option>
+              <option value="OGTI" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">OGTI Oil & Gas Index</option>
+              <option value="BKTI" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">BKTI Banking Sector Index</option>
             </select>
           </div>
 
@@ -320,12 +320,12 @@ export default function StockScreenerTable({
               }}
               className="bg-transparent text-[#0F172A] dark:text-[#F8FAFC] font-bold text-xs focus:outline-none cursor-pointer pr-1"
             >
-              <option value="ALL" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">📊 All Market Movers</option>
-              <option value="HIGH_VOLUME" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">🔥 High Volume Leaders</option>
-              <option value="TOP_GAINERS" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">🚀 Top Gainers</option>
-              <option value="TOP_LOSERS" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">🔻 Top Losers</option>
-              <option value="UPPER_LOCK" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#16A34A] dark:text-[#22C55E] font-bold">🟢 Upper Lock (+7.5% to +10%)</option>
-              <option value="LOWER_LOCK" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#DC2626] dark:text-[#EF4444] font-bold">🔴 Lower Lock (-7.5% to -10%)</option>
+              <option value="ALL" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">All Market Movers</option>
+              <option value="HIGH_VOLUME" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">High Volume Leaders</option>
+              <option value="TOP_GAINERS" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">Top Gainers</option>
+              <option value="TOP_LOSERS" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#0F172A] dark:text-[#F8FAFC]">Top Losers</option>
+              <option value="UPPER_LOCK" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#16A34A] dark:text-[#22C55E] font-bold">Upper Lock (+7.5% to +10%)</option>
+              <option value="LOWER_LOCK" className="bg-[#FFFFFF] dark:bg-[#151E2E] text-[#DC2626] dark:text-[#EF4444] font-bold">Lower Lock (-7.5% to -10%)</option>
             </select>
           </div>
 

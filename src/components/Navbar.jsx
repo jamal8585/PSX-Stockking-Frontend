@@ -289,7 +289,7 @@ export default function Navbar({
                     : 'bg-[#1E293B] border-[#243044] text-[#F8FAFC] hover:bg-[#243044]'
                 }`}
               >
-                <span>👑</span>
+                <Crown className="w-3.5 h-3.5 text-amber-500" />
                 <span className="hidden xs:inline">Admin</span>
               </button>
             )}
@@ -338,7 +338,7 @@ export default function Navbar({
                   <span className={`text-[9px] font-bold uppercase tracking-wider truncate ${
                     isPro ? (isLight ? 'text-[#D97706]' : 'text-[#F59E0B]') : (isLight ? 'text-[#64748B]' : 'text-[#94A3B8]')
                   }`}>
-                    {isPro ? '⭐ PRO' : 'FREE'}
+                    {isPro ? 'PRO' : 'FREE'}
                   </span>
                 </div>
 
@@ -420,7 +420,7 @@ export default function Navbar({
             }`}
           >
             <Coins className="w-3.5 h-3.5" />
-            <span>Upcoming Dividends 💰</span>
+            <span>Upcoming Dividends</span>
           </button>
 
           <button
@@ -456,7 +456,7 @@ export default function Navbar({
             }`}
           >
             <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
-            <span>TradingView Pro 📊</span>
+            <span>TradingView Pro</span>
           </button>
         </div>
       </div>

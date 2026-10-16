@@ -816,7 +816,7 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
                 onChange={e => setOnlyShariah(e.target.checked)}
                 className="rounded accent-[#16A34A] dark:accent-[#22C55E] cursor-pointer"
               />
-              <span className="text-[#16A34A] dark:text-[#22C55E]">🕌 KMI-30</span>
+              <span className="text-[#16A34A] dark:text-[#22C55E]">KMI-30 Shariah</span>
             </label>
           </div>
         </div>
@@ -889,7 +889,7 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
                           {/* Shariah Badge */}
                           {item.shariahCompliant && (
                             <span className="px-2 py-0.5 rounded-md bg-[#16A34A]/10 text-[#16A34A] dark:bg-[#22C55E]/10 dark:text-[#22C55E] text-[10px] font-bold border border-[#16A34A]/20 dark:border-[#22C55E]/20">
-                              🕌 KMI-30
+                              KMI-30 Shariah
                             </span>
                           )}
 
@@ -1128,7 +1128,7 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
 
               <div className="pt-3 border-t border-[#E2E8F0] dark:border-[#243044] flex justify-between items-center">
                 <div>
-                  <span className="text-xs uppercase font-bold text-[#16A34A] dark:text-[#22C55E] block">Net Bank Account Credit 💰</span>
+                  <span className="text-xs uppercase font-bold text-[#16A34A] dark:text-[#22C55E] block">Net Bank Account Credit</span>
                   <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Directly transferred through CDC E-Dividend</span>
                 </div>
                 <span className="text-2xl font-bold text-[#16A34A] dark:text-[#22C55E] mono">
