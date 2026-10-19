@@ -90,13 +90,22 @@ export default function OrderCalculatorModal({ stock, stocks = [], onClose }) {
   let totalRiskPKR = 0;
   let allowedRiskPKR = 0;
 
+  // Standard PSX Lot Rules: Price < 50 => 500 shares; Price >= 50 => 100 shares
+  const psxLot = effectivePrice < 50 ? 500 : 100;
+  const roundToLot = (raw) => {
+    const rounded = Math.floor(raw / psxLot) * psxLot;
+    return rounded >= psxLot ? rounded : psxLot;
+  };
+
   if (sizingMode === 'RISK_PERCENT') {
     allowedRiskPKR = Math.max(500, Math.round(portfolioSize * (riskPercent / 100)));
-    shares = Math.max(1, Math.floor(allowedRiskPKR / riskPerShare));
+    const rawShares = Math.floor(allowedRiskPKR / riskPerShare);
+    shares = roundToLot(rawShares);
     totalInvestment = Number((shares * effectivePrice).toFixed(2));
     totalRiskPKR = Math.round(shares * riskPerShare);
   } else {
-    shares = Math.max(1, Math.floor(capital / effectivePrice));
+    const rawShares = Math.floor(capital / effectivePrice);
+    shares = roundToLot(rawShares);
     totalInvestment = Number((shares * effectivePrice).toFixed(2));
     totalRiskPKR = Math.round(shares * riskPerShare);
   }

@@ -161,14 +161,14 @@ export function getPSXMarketSessionInfo() {
     isPostMarket = true;
     targetDate.setDate(pktDate.getDate() + 1);
     const nextFmt = targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Karachi' });
-    statusBadge = `Post-Market Analysis • Actionable for Tomorrow's PSX Market Open (${nextFmt})`;
-    subText = `Actionable for Tomorrow's PSX Market Open (${nextFmt})`;
+    statusBadge = `Post-Market Analysis • Actionable for Tomorrow (${nextFmt})`;
+    subText = `Actionable for Tomorrow (${nextFmt})`;
   } else if (timeNum < 915) { // Midnight to 09:14 AM PKT (Pre-Market Phase)
     isPreMarket = true;
     targetDate = pktDate;
     const todayFmt = pktDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Karachi' });
-    statusBadge = `Pre-Market Intelligence • Actionable for Today's PSX Market Open (${todayFmt})`;
-    subText = `Actionable for Today's PSX Market Open (${todayFmt})`;
+    statusBadge = `Pre-Market Intelligence • Actionable for Today's PSX Open (${todayFmt})`;
+    subText = `Actionable for Today's PSX Open (${todayFmt})`;
   } else { // 09:15 AM to 04:00 PM PKT (Live Market Session)
     isLive = true;
     targetDate = pktDate;

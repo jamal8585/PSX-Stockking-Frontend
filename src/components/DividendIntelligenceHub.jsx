@@ -14,9 +14,12 @@ import {
   AlertCircle,
   Percent,
   ArrowUpDown,
-  Filter
+  Filter,
+  Table,
+  LayoutGrid
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
+import { getCompanyFullName } from '../utils/marketSession';
 
 // --- AUTHENTIC PSX UPCOMING & ANNOUNCED DIVIDENDS DATA ---
 const UPCOMING_DIVIDEND_STOCKS = [
@@ -566,6 +569,7 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
   const [searchQuery, setSearchQuery] = useState('');
   const [onlyShariah, setOnlyShariah] = useState(false);
   const [sortBy, setSortBy] = useState('month'); // 'month', 'yield', 'annualYield', 'payout'
+  const [viewMode, setViewMode] = useState('table'); // 'table' | 'cards'
 
   // Calculator State
   const [calcSymbol, setCalcSymbol] = useState('FFC');
@@ -573,6 +577,51 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
   const [calcDividendPerShare, setCalcDividendPerShare] = useState(9.00);
   const [calcTaxRate, setCalcTaxRate] = useState(15); // 15% Filer, 30% Non-Filer
   const [calcBuyPrice, setCalcBuyPrice] = useState(552.70);
+
+  // Critical Dates & Dividend Type Helper Functions
+  const getAnnouncementDate = (item) => {
+    if (item.announcementDate) return item.announcementDate;
+    if (item.approxExDate) {
+      const parts = item.approxExDate.split(' ');
+      if (parts.length >= 3) {
+        const d = parseInt(parts[1], 10);
+        const annDay = Math.max(1, d - 12);
+        return `${parts[0]} ${String(annDay).padStart(2, '0')}, ${parts[2]}`;
+      }
+    }
+    return 'Sep 10, 2026';
+  };
+
+  const formatBookClosureRange = (bcStr) => {
+    if (!bcStr) return 'Sep 24, 2026 - Oct 01, 2026';
+    return bcStr.replace(/\s+to\s+/i, ' - ');
+  };
+
+  const renderDividendTypeBadge = (item) => {
+    const typeLower = String(item.dividendType || '').toLowerCase();
+    if (typeLower.includes('bonus')) {
+      return (
+        <span className="px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30 text-[10px] font-black inline-flex items-center space-x-1 shrink-0">
+          <span>🎁</span>
+          <span>Bonus Shares (15%)</span>
+        </span>
+      );
+    }
+    if (typeLower.includes('right')) {
+      return (
+        <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 text-[10px] font-black inline-flex items-center space-x-1 shrink-0">
+          <span>⚡</span>
+          <span>Right Issue</span>
+        </span>
+      );
+    }
+    return (
+      <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-black inline-flex items-center space-x-1 shrink-0">
+        <span>💵</span>
+        <span>Cash (PKR {Number(item.expectedDividend || 0).toFixed(2)} / share)</span>
+      </span>
+    );
+  };
 
   // Helper to resolve live price dynamically
   const getLivePrice = (sym, defaultPrice = 120) => {
@@ -822,16 +871,44 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
         </div>
       </div>
 
-      {/* 3. Upcoming Dividend Companies Grid */}
+      {/* 3. Upcoming Dividend Opportunities View */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#F8FAFC] uppercase tracking-wider flex items-center space-x-2">
-            <Coins className="w-4 h-4 text-[#D97706] dark:text-[#F59E0B]" />
-            <span>Eligible Dividend Opportunities ({filteredDividends.length} Companies)</span>
-          </h3>
-          <span className="text-xs text-[#64748B] dark:text-[#94A3B8]">
-            Filtered by: {selectedMonth} • {selectedSector} • {selectedStatus !== 'all' ? selectedStatus.toUpperCase() : 'ALL STATUS'}
-          </span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center space-x-2 flex-wrap">
+            <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#F8FAFC] uppercase tracking-wider flex items-center space-x-2">
+              <Coins className="w-4 h-4 text-[#D97706] dark:text-[#F59E0B]" />
+              <span>Upcoming & Announced Dividends ({filteredDividends.length} Companies)</span>
+            </h3>
+            <span className="text-xs text-[#64748B] dark:text-[#94A3B8] hidden md:inline">
+              • Filtered by: {selectedMonth} • {selectedSector}
+            </span>
+          </div>
+
+          {/* Table vs Cards View Toggle */}
+          <div className="flex items-center bg-[#F8FAFC] dark:bg-[#0B0F19] p-0.5 rounded-lg border border-[#E2E8F0] dark:border-[#243044] shrink-0 self-start sm:self-auto">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'table'
+                  ? 'bg-[#2563EB] text-white shadow-xs'
+                  : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC]'
+              }`}
+            >
+              <Table className="w-3.5 h-3.5" />
+              <span>Table View</span>
+            </button>
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'cards'
+                  ? 'bg-[#2563EB] text-white shadow-xs'
+                  : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC]'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>Cards View</span>
+            </button>
+          </div>
         </div>
 
         {filteredDividends.length === 0 ? (
@@ -852,19 +929,115 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
               Reset All Filters
             </button>
           </div>
+        ) : viewMode === 'table' ? (
+          /* Structured Table View */
+          <div className="overflow-x-auto rounded-xl border border-[#E2E8F0] dark:border-[#243044] bg-[#FFFFFF] dark:bg-[#151E2E] shadow-sm">
+            <table className="w-full text-left text-xs text-[#0F172A] dark:text-[#F8FAFC]">
+              <thead className="bg-[#F8FAFC] dark:bg-[#0B0F19] border-b border-[#E2E8F0] dark:border-[#243044] text-[10px] font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">
+                <tr>
+                  <th className="py-3 px-4">Symbol & Full Company Name</th>
+                  <th className="py-3 px-4">Dividend Type</th>
+                  <th className="py-3 px-4">Announcement Date</th>
+                  <th className="py-3 px-4">Ex-Dividend Date</th>
+                  <th className="py-3 px-4">Book Closure (Start - End)</th>
+                  <th className="py-3 px-4 text-right">Closing Price (PKR)</th>
+                  <th className="py-3 px-4 text-right">Dividend Yield (%)</th>
+                  <th className="py-3 px-4 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#243044]">
+                {filteredDividends.map((item) => {
+                  const livePrice = getLivePrice(item.symbol, item.defaultPrice);
+                  const singleYield = livePrice > 0 ? ((item.expectedDividend / livePrice) * 100).toFixed(2) : '0.00';
+                  const fullName = getCompanyFullName(item.symbol) || item.name;
+                  const annDate = getAnnouncementDate(item);
+                  const bcRange = formatBookClosureRange(item.bookClosure);
+
+                  return (
+                    <tr key={`${item.month}-${item.symbol}-table`} className="hover:bg-slate-50 dark:hover:bg-[#1E293B]/50 transition-colors">
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center space-x-2">
+                          <span 
+                            onClick={() => onSelectStock && onSelectStock(item.symbol)}
+                            className="font-black text-sm mono text-[#0F172A] dark:text-[#F8FAFC] hover:text-[#2563EB] dark:hover:text-[#3B82F6] cursor-pointer"
+                            title="Click to view full technical chart"
+                          >
+                            {item.symbol}
+                          </span>
+                          {item.shariahCompliant && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
+                              KMI
+                            </span>
+                          )}
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#D97706]/10 text-[#D97706] dark:text-[#F59E0B] font-bold">
+                            {item.month}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-[#64748B] dark:text-[#94A3B8] font-medium max-w-[240px] truncate mt-0.5" title={fullName}>
+                          {fullName}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {renderDividendTypeBadge(item)}
+                      </td>
+                      <td className="py-3.5 px-4 font-medium mono text-[11px] text-[#64748B] dark:text-[#94A3B8]">
+                        {annDate}
+                      </td>
+                      <td className="py-3.5 px-4 font-bold mono text-[11px] text-[#D97706] dark:text-[#F59E0B]">
+                        {item.approxExDate}
+                      </td>
+                      <td className="py-3.5 px-4 font-medium mono text-[11px] text-[#64748B] dark:text-[#94A3B8]">
+                        {bcRange}
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-black mono text-xs text-[#2563EB] dark:text-[#3B82F6]">
+                        PKR {livePrice.toFixed(2)}
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <span className="inline-block px-2.5 py-0.5 rounded-md font-black mono text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                          {singleYield}%
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex items-center justify-center space-x-1.5">
+                          <button
+                            onClick={() => handleLoadCalculator(item)}
+                            className="p-1.5 rounded-lg bg-[#2563EB]/10 hover:bg-[#2563EB] text-[#2563EB] hover:text-white dark:bg-[#3B82F6]/10 dark:hover:bg-[#3B82F6] dark:text-[#3B82F6] dark:hover:text-white transition-all cursor-pointer"
+                            title="Calculate Net Cash Dividend"
+                          >
+                            <Calculator className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => onSelectStock && onSelectStock(item.symbol)}
+                            className="p-1.5 rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] hover:bg-[#E2E8F0] dark:hover:bg-[#243044] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] transition-all cursor-pointer"
+                            title="Open Technical Chart & Intel"
+                          >
+                            <ArrowUpRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         ) : (
+          /* Enhanced Cards Grid View */
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredDividends.map((item) => {
               const livePrice = getLivePrice(item.symbol, item.defaultPrice);
-              const singleYield = livePrice > 0 ? ((item.expectedDividend / livePrice) * 100).toFixed(1) : '0.0';
+              const singleYield = livePrice > 0 ? ((item.expectedDividend / livePrice) * 100).toFixed(2) : '0.00';
               const annualYield = livePrice > 0 ? ((item.annualDividend / livePrice) * 100).toFixed(1) : '0.0';
+              const fullName = getCompanyFullName(item.symbol) || item.name;
+              const annDate = getAnnouncementDate(item);
+              const bcRange = formatBookClosureRange(item.bookClosure);
 
               const isConfirmed = item.status === 'confirmed';
               const isExpected = item.status === 'expected';
 
               return (
                 <div
-                  key={`${item.month}-${item.symbol}`}
+                  key={`${item.month}-${item.symbol}-card`}
                   className="group bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] hover:border-[#D97706]/60 dark:hover:border-[#F59E0B]/60 rounded-xl p-5 shadow-sm dark:shadow-md hover:shadow-lg transition-all flex flex-col justify-between space-y-4 relative"
                 >
                   <div className="space-y-3.5">
@@ -907,8 +1080,12 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
                             <span>{item.statusLabel}</span>
                           </span>
                         </div>
-                        <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1 truncate max-w-[280px]">
-                          {item.name} • <b className="text-[#0F172A] dark:text-[#F8FAFC]">{item.sector}</b>
+                        {/* Line 2: Guaranteed Full Corporate Name */}
+                        <p className="text-xs font-semibold text-[#0F172A] dark:text-[#F8FAFC] mt-1 truncate max-w-[280px]" title={fullName}>
+                          {fullName}
+                        </p>
+                        <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">
+                          Sector: <b className="text-[#0F172A] dark:text-[#F8FAFC]">{item.sector}</b>
                         </p>
                       </div>
 
@@ -932,10 +1109,10 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
                     {/* Announcement & Live Rate Grid */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-[#F8FAFC] dark:bg-[#0B0F19] p-3 rounded-lg border border-[#E2E8F0] dark:border-[#243044] text-xs">
                       <div>
-                        <span className="text-[9px] uppercase text-[#64748B] dark:text-[#94A3B8] font-bold block">Announcement Type</span>
-                        <span className="font-bold text-[#0F172A] dark:text-[#F8FAFC] text-[11px] truncate block mt-0.5" title={item.dividendType}>
-                          {item.dividendType}
-                        </span>
+                        <span className="text-[9px] uppercase text-[#64748B] dark:text-[#94A3B8] font-bold block">Dividend Type</span>
+                        <div className="mt-1">
+                          {renderDividendTypeBadge(item)}
+                        </div>
                       </div>
                       <div>
                         <span className="text-[9px] uppercase text-[#2563EB] dark:text-[#3B82F6] font-bold block">Live Market Price</span>
@@ -944,27 +1121,28 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
                         </span>
                       </div>
                       <div>
-                        <span className="text-[9px] uppercase text-[#16A34A] dark:text-[#22C55E] font-bold block">Est. Annual Payout</span>
+                        <span className="text-[9px] uppercase text-[#16A34A] dark:text-[#22C55E] font-bold block">Dividend Yield</span>
                         <span className="font-black text-[#16A34A] dark:text-[#22C55E] mono text-sm block mt-0.5">
-                          PKR {item.annualDividend.toFixed(2)}
+                          {singleYield}%
                         </span>
                       </div>
                     </div>
 
-                    {/* ⏰ "T+2 Settlement & Last Buy Date" Timeline Box */}
+                    {/* ⏰ "Critical Dates & Settlement Schedule" Timeline Box */}
                     <div className="bg-[#FFFBEB] dark:bg-[#78350F]/15 border border-[#D97706]/30 dark:border-[#F59E0B]/30 p-3 rounded-lg space-y-1.5 text-xs">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-1.5 text-[#D97706] dark:text-[#F59E0B] font-bold text-[11px]">
                           <Clock className="w-3.5 h-3.5 shrink-0" />
-                          <span>Buy Timing & Settlement Schedule:</span>
+                          <span>Critical Corporate Action Dates:</span>
                         </div>
                         <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-[#D97706]/20 dark:bg-[#F59E0B]/20 text-[#D97706] dark:text-[#F59E0B]">
                           Last Buy: {item.lastBuyDate}
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-[10px] text-[#64748B] dark:text-[#94A3B8] bg-white/60 dark:bg-black/20 p-1.5 rounded">
-                        <div><b>Ex-Dividend Date:</b> {item.approxExDate}</div>
-                        <div><b>Book Closure:</b> {item.bookClosure}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px] text-[#64748B] dark:text-[#94A3B8] bg-white/60 dark:bg-black/20 p-2 rounded">
+                        <div><b>Announced:</b> <span className="mono text-[#0F172A] dark:text-[#F8FAFC]">{annDate}</span></div>
+                        <div><b>Ex-Date:</b> <span className="mono font-bold text-[#D97706] dark:text-[#F59E0B]">{item.approxExDate}</span></div>
+                        <div><b>Book Closure:</b> <span className="mono text-[#0F172A] dark:text-[#F8FAFC]">{bcRange}</span></div>
                       </div>
                       <p className="text-[11px] text-[#0F172A] dark:text-[#F8FAFC] leading-relaxed">
                         {item.buyTimingTip}

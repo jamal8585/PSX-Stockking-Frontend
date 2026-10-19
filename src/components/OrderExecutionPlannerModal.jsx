@@ -12,7 +12,10 @@ export default function OrderExecutionPlannerModal({ stock, onClose }) {
   const stopLoss = stock.stopLoss || (price * 0.95);
   const target1 = stock.target1 || (price * 1.08);
 
-  const shares = Math.floor(capital / price);
+  const psxLot = price < 50 ? 500 : 100;
+  const rawShares = Math.floor(capital / price);
+  const roundedLotShares = Math.floor(rawShares / psxLot) * psxLot;
+  const shares = roundedLotShares >= psxLot ? roundedLotShares : psxLot;
   const totalInvestment = shares * price;
   const riskPerShare = Math.max(0.01, price - stopLoss);
   const rewardPerShare = Math.max(0.01, target1 - price);

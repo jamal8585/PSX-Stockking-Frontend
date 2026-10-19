@@ -353,7 +353,7 @@ export default function StockScreenerTable({
         <table className="w-full text-left text-xs">
           <thead className="bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#64748B] dark:text-[#94A3B8] uppercase font-bold text-[10px] tracking-wider border-b border-[#E2E8F0] dark:border-[#243044]">
             <tr>
-              <th className="py-3 px-4">Symbol / Name</th>
+              {renderSortHeader('symbol', 'Symbol / Name')}
               <th className="py-3 px-3">Sector</th>
               {renderSortHeader('currentPrice', 'Price (PKR)')}
               {renderSortHeader('changePercent', '24h Change')}

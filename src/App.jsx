@@ -102,15 +102,23 @@ export const loadUserPositions = (user) => {
 // User-scoped Watchlist Loader with Universal Multi-Tier Fallback & Migration
 export const loadUserWatchlist = (user) => {
   try {
-    const primaryKey = getUserStorageKey('psx_watchlist', user);
+    const primaryKey = 'psx_stockking_watchlist';
     const saved = localStorage.getItem(primaryKey);
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
 
+    const scopedKey = getUserStorageKey('psx_watchlist', user);
+    const scopedSaved = localStorage.getItem(scopedKey);
+    if (scopedSaved) {
+      const parsed = JSON.parse(scopedSaved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+
     // Comprehensive fallback search across all legacy & user keys
     const candidateKeys = [
+      'psx_stockking_watchlist',
       'psx_watchlist_usr_jamal_ahmedrumi_gmail_com',
       'psx_user_watchlist_v1',
       'psx_user_watchlist',
@@ -432,10 +440,11 @@ export default function App() {
     } catch (e) {}
   }, [rawPositions, currentUser?.email]);
 
-  // Persist Watchlist to active user's dedicated key
+  // Persist Watchlist to psx_stockking_watchlist and user's dedicated key
   useEffect(() => {
     try {
       if (Array.isArray(watchlist)) {
+        localStorage.setItem('psx_stockking_watchlist', JSON.stringify(watchlist));
         const key = getUserStorageKey('psx_watchlist', currentUser);
         localStorage.setItem(key, JSON.stringify(watchlist));
       }
@@ -844,6 +853,7 @@ export default function App() {
       setWatchlist(updated);
       setWatchlistSet(new Set(updated.map(w => (typeof w === 'string' ? w : w.symbol).toUpperCase())));
       
+      localStorage.setItem('psx_stockking_watchlist', JSON.stringify(updated));
       const key = getUserStorageKey('psx_watchlist', currentUser);
       localStorage.setItem(key, JSON.stringify(updated));
 

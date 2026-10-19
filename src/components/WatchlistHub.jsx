@@ -170,14 +170,14 @@ export default function WatchlistHub({
       const sym = getSymKey(item);
       const live = stockMap.get(sym) || {};
       const officialQuote = (officialQuotes && officialQuotes[sym]) ? officialQuotes[sym] : null;
-      const currentPrice = Number(live.currentPrice || officialQuote?.currentPrice || item?.currentPrice || 100);
+      const currentPrice = Number(live.currentPrice || officialQuote?.currentPrice || 100);
       const prevClose = Number(live.prevClose || officialQuote?.prevClose || (currentPrice * 0.99));
       const change = live.change !== undefined ? Number(live.change) : (officialQuote?.change !== undefined ? Number(officialQuote.change) : Number((currentPrice - prevClose).toFixed(2)));
       const changePercent = live.changePercent !== undefined 
         ? Number(live.changePercent) 
         : (officialQuote?.changePercent !== undefined ? Number(officialQuote.changePercent) : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0));
       const isPos = change >= 0;
-      const volume = Math.max(Number(officialQuote?.volume || 0), Number(live.volume || 0), Number(item?.volume || 0));
+      const volume = Number(live.volume !== undefined && live.volume > 0 ? live.volume : (officialQuote?.volume || 0));
 
       // Smart AI Technical Calculations
       const rsi14 = live.technicals?.rsi14 || (isPos ? 56 : 44);

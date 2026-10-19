@@ -243,25 +243,39 @@ export default function DailyRecommendations({
   const recentSessions = useMemo(() => getPSXRecentTradingSessions(5), [sessionClock]);
   const [selectedSessionDate, setSelectedSessionDate] = useState(() => recentSessions[0]?.dateStr);
 
-  // Automated Midnight Rollover & Periodical Tick (Every 30 seconds)
+  // Automated Midnight Rollover & Periodical Tick (Calculates exact time to 00:00:00 PKT)
   useEffect(() => {
-    const timer = setInterval(() => {
-      setSessionClock(Date.now());
-    }, 30000);
-    return () => clearInterval(timer);
+    const updateClock = () => setSessionClock(Date.now());
+
+    // 1. Calculate milliseconds to next midnight PKT sharp
+    const now = new Date();
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const pktDate = new Date(utc + (3600000 * 5));
+    const hours = pktDate.getHours();
+    const minutes = pktDate.getMinutes();
+    const seconds = pktDate.getSeconds();
+    const ms = pktDate.getMilliseconds();
+    const msUntilMidnight = (((23 - hours) * 3600) + ((59 - minutes) * 60) + (59 - seconds)) * 1000 + (1000 - ms);
+
+    const midnightTimer = setTimeout(() => {
+      updateClock();
+    }, Math.max(500, msUntilMidnight));
+
+    // 2. Regular 10-second pulse to keep UI fresh
+    const intervalTimer = setInterval(updateClock, 10000);
+
+    return () => {
+      clearTimeout(midnightTimer);
+      clearInterval(intervalTimer);
+    };
   }, []);
 
-  // Sync selectedSessionDate if recentSessions list updates across midnight rollover
+  // Ensure the active selected tab in the 5-Day Radar automatically snaps to the current active session date
   useEffect(() => {
     if (recentSessions[0]?.dateStr) {
-      setSelectedSessionDate(prev => {
-        if (!prev || !recentSessions.some(s => s.dateStr === prev)) {
-          return recentSessions[0].dateStr;
-        }
-        return prev;
-      });
+      setSelectedSessionDate(recentSessions[0].dateStr);
     }
-  }, [recentSessions]);
+  }, [recentSessions[0]?.dateStr]);
 
   const activeSessionObj = useMemo(() => {
     return recentSessions.find(s => s.dateStr === selectedSessionDate) || recentSessions[0];

@@ -589,7 +589,7 @@ export default function NewsCatalystTradeHub({
   }, [news, newsList]);
 
   // Helper to dynamically calculate stock-specific trade setup & price targets
-  const getLiveQuote = (symbol, fallbackPrice = 100, fallbackName = '', positiveCount = 1, negativeCount = 0) => {
+  const getLiveQuote = (symbol, fallbackPrice = 100, fallbackName = '', positiveCount = 1, negativeCount = 0, forceDownsideRisk = false) => {
     const sym = (symbol || '').toUpperCase().trim();
     const foundStock = Array.isArray(stocks) ? stocks.find(s => s.symbol?.toUpperCase() === sym) : null;
     const foundOfficial = officialQuotes ? officialQuotes[sym] : null;
@@ -636,6 +636,13 @@ export default function NewsCatalystTradeHub({
     const s1 = 2 * pivot - high;
     const s2 = pivot - (high - low);
 
+    // Calculate or derive authoritative 20 EMA
+    const ema20 = Number(
+      foundStock?.technicals?.ema20 || 
+      foundStock?.technicals?.sma20 || 
+      (prevClose * (changePercent < 0 ? 1.012 : 0.988))
+    );
+
     // Derive deterministic ticker volatility modifier from symbol hash
     let symHash = 0;
     for (let c = 0; c < sym.length; c++) {
@@ -644,7 +651,7 @@ export default function NewsCatalystTradeHub({
     }
     const hashFactor = 1 + ((Math.abs(symHash) % 35) / 100); // 1.00 to 1.35 multiplier
 
-    const isDownsideRisk = negativeCount > positiveCount;
+    const isDownsideRisk = Boolean(forceDownsideRisk || (negativeCount > positiveCount));
 
     if (isDownsideRisk) {
       // DOWNSIDE RISK SETUP: Protective exit triggers, defensive range & pullback support
@@ -667,6 +674,7 @@ export default function NewsCatalystTradeHub({
         prevClose,
         change,
         changePercent,
+        ema20,
         isDownsideRisk: true,
         downsideTarget,
         s2Floor,
@@ -710,6 +718,7 @@ export default function NewsCatalystTradeHub({
       prevClose,
       change,
       changePercent,
+      ema20,
       isDownsideRisk: false,
       targetSellPrice,
       stopLoss,
@@ -853,6 +862,18 @@ export default function NewsCatalystTradeHub({
           return isValidCementCatalyst(newsItem.title, newsItem.impactSummary || newsItem.description);
         }
 
+        // Strict textile isolation: Textile news only matches TEXTILE sector stocks,
+        // and must NEVER match sugar, cane, crushing, or food news.
+        if (stCategory === 'TEXTILE') {
+          if (newsCategory !== 'TEXTILE') return false;
+          const text = (newsItem.title + ' ' + (newsItem.impactSummary || newsItem.description || '')).toLowerCase();
+          if (/\b(sugar|sugarcane|crushing|cane|ethanol|molasses)\b/i.test(text)) return false;
+          return true;
+        }
+        if (newsCategory === 'TEXTILE') {
+          return stCategory === 'TEXTILE';
+        }
+
         // Oil & Gas tickers (OIL_GAS) only accept Petroleum, Gas, or macro-energy catalysts
         if (stCategory === 'OIL_GAS') {
           return newsCategory === 'OIL_GAS' || newsCategory === 'POWER_ENERGY' || newsCategory === 'MACRO_ECONOMY';
@@ -886,6 +907,11 @@ export default function NewsCatalystTradeHub({
 
         // Extra safeguard: cement stocks never accept non-cement news
         if (st.category === 'CEMENT' && !isValidCementCatalyst(newsItem.title, newsItem.impactSummary || newsItem.description)) {
+          return;
+        }
+
+        // Extra safeguard: textile stocks never accept sugar or food news
+        if (st.category === 'TEXTILE' && /\b(sugar|sugarcane|crushing|cane|ethanol|molasses)\b/i.test(fullText)) {
           return;
         }
 
@@ -927,6 +953,9 @@ export default function NewsCatalystTradeHub({
           if (masterObj.category === 'CEMENT' && !isValidCementCatalyst(newsItem.title, newsItem.impactSummary || newsItem.description)) {
             return;
           }
+          if (masterObj.category === 'TEXTILE' && /\b(sugar|sugarcane|crushing|cane|ethanol|molasses)\b/i.test(fullText)) {
+            return;
+          }
           impactedStockSymbols.add(upper);
         }
       });
@@ -962,6 +991,10 @@ export default function NewsCatalystTradeHub({
           if (entry.category === 'CEMENT') {
             return isValidCementCatalyst(n.title, n.impactSummary || n.description);
           }
+          if (entry.category === 'TEXTILE') {
+            const t = (n.title + ' ' + (n.impactSummary || n.description || '')).toLowerCase();
+            if (/\b(sugar|sugarcane|crushing|cane|ethanol|molasses)\b/i.test(t)) return false;
+          }
           return true;
         });
         if (catNews) {
@@ -988,7 +1021,12 @@ export default function NewsCatalystTradeHub({
       const negativeCount = data.newsItems.filter(n => n.polarity === 'NEGATIVE').length;
       const totalCount = data.newsItems.length;
 
-      const quote = getLiveQuote(sym, 100, data.name, positiveCount, negativeCount);
+      let quote = getLiveQuote(sym, 100, data.name, positiveCount, negativeCount);
+
+      // Quantitative Technical & Price Momentum Integration
+      const isClosedInRed = Number(quote.changePercent) < -0.5;
+      const isBelowEma20 = Number(quote.currentPrice) < Number(quote.ema20);
+      const isWeakTechnicals = isClosedInRed && isBelowEma20;
 
       let netSentiment = 'BALANCED';
       let netVerdict = 'Balanced / Mixed Catalysts';
@@ -1001,7 +1039,28 @@ export default function NewsCatalystTradeHub({
       const leadPos = data.newsItems.find(n => n.polarity === 'POSITIVE');
       const leadNeg = data.newsItems.find(n => n.polarity === 'NEGATIVE');
 
-      if (positiveCount > negativeCount) {
+      // Strict Rule: If stock closed in the red (< -0.5%) AND trades below 20 EMA,
+      // it CANNOT be labeled "BULLISH SETUP" solely because of generic sector news items.
+      if (isWeakTechnicals) {
+        if (negativeCount > positiveCount || Number(quote.changePercent) <= -1.5) {
+          quote = getLiveQuote(sym, 100, data.name, positiveCount, negativeCount, true);
+          netSentiment = 'NEGATIVE';
+          netVerdict = `🔴 Downside Risk • Defensive Pullback (${quote.changePercent}% below 20 EMA)`;
+          action = 'DEFENSIVE_PULLBACK';
+          direction = 'DOWN';
+          badgeClass = 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20';
+          confidence = Math.min(95, 78 + Math.round(Math.abs(quote.changePercent) * 3));
+          primaryReason = `Price closed in red (${quote.changePercent}%) below 20 EMA (PKR ${quote.ema20.toFixed(2)}). Downside pullback target projected at PKR ${quote.downsideTarget} with protective stop at PKR ${quote.exitTrigger}.`;
+        } else {
+          netSentiment = 'BALANCED';
+          netVerdict = `⚖️ Neutral / Rangebound (Price Drag Below 20 EMA)`;
+          action = 'HOLD_MONITOR';
+          direction = 'NEUTRAL';
+          badgeClass = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+          confidence = 72;
+          primaryReason = `Price closed in red (${quote.changePercent}%) below 20 EMA (PKR ${quote.ema20.toFixed(2)}), offsetting sector news. Consolidation expected between PKR ${quote.entryPriceMin} - ${quote.targetSellPrice}.`;
+        }
+      } else if (positiveCount > negativeCount) {
         netSentiment = 'POSITIVE';
         netVerdict = `🟢 Net Bullish Setup (${positiveCount} Positive vs ${negativeCount} Negative News)`;
         action = 'BUY_ON_DIP';
@@ -2098,7 +2157,7 @@ function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculato
               </div>
               <h2 className="text-2xl sm:text-3xl font-black mono tracking-tight text-white flex flex-wrap items-baseline gap-x-2">
                 <span>{trade.symbol}</span>
-                <span className="text-sm sm:text-base font-normal text-white/90">({companyFullName})</span>
+                <span className="text-sm sm:text-base font-normal text-white/90">- {companyFullName}</span>
               </h2>
             </div>
             <button

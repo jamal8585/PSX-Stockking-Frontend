@@ -42,7 +42,7 @@ import {
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 import { getStockHistory } from '../services/api';
-import { getPSXMarketStatus, MASTER_STOCKS_LIST } from '../utils/marketSession';
+import { getPSXMarketStatus, MASTER_STOCKS_LIST, getCompanyFullName } from '../utils/marketSession';
 
 // 12 Available Chart Graph Types matching TradingView
 export const CHART_TYPES = [
@@ -85,7 +85,8 @@ export const BOTTOM_RANGES = ['1d', '5d', '1m', '6m', '1y', '3y', 'All'];
 // Technical Indicator Catalog
 export const AVAILABLE_INDICATORS = [
   { id: 'sma20', name: 'SMA 20 (Simple Moving Average)', category: 'Moving Averages', overlay: true, color: '#38BDF8', defaultOn: true },
-  { id: 'sma50', name: 'SMA 50 (Intermediate Trend)', category: 'Moving Averages', overlay: true, color: '#F59E0B', defaultOn: false },
+  { id: 'ema50', name: 'EMA 50 (Exponential Moving Average)', category: 'Moving Averages', overlay: true, color: '#F59E0B', defaultOn: true },
+  { id: 'sma50', name: 'SMA 50 (Intermediate Trend)', category: 'Moving Averages', overlay: true, color: '#EAB308', defaultOn: false },
   { id: 'sma200', name: 'SMA 200 (Major Institutional Trend)', category: 'Moving Averages', overlay: true, color: '#EC4899', defaultOn: false },
   { id: 'ema9', name: 'EMA 9 (Fast Scalp EMA)', category: 'Moving Averages', overlay: true, color: '#A855F7', defaultOn: false },
   { id: 'ema21', name: 'EMA 21 (Short Trend)', category: 'Moving Averages', overlay: true, color: '#10B981', defaultOn: false },
@@ -205,6 +206,7 @@ export default function TradingViewPSXChart({
   const [activeIndicators, setActiveIndicators] = useState({
     volume: true,
     sma20: true,
+    ema50: true,
     sma50: false,
     sma200: false,
     ema9: false,
@@ -883,6 +885,7 @@ export default function TradingViewPSXChart({
 
     return {
       sma20,
+      ema50: calcEMA(50),
       sma50: calcSMA(50),
       sma200: calcSMA(200),
       ema9: calcEMA(9),
@@ -1311,8 +1314,8 @@ export default function TradingViewPSXChart({
             >
               <Search className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-sky-600' : 'text-cyan-400'}`} />
               <span className="font-mono text-xs font-black">{currentSymbol}</span>
-              <span className={`text-[10px] font-normal hidden lg:inline truncate max-w-[150px] ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
-                {effectiveCompanyName}
+              <span className={`text-[10px] font-normal hidden lg:inline truncate max-w-[220px] ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+                - {getCompanyFullName(currentSymbol) || effectiveCompanyName}
               </span>
             </button>
 
@@ -2381,8 +2384,11 @@ export default function TradingViewPSXChart({
               {activeIndicators.sma20 && indicatorSeries.sma20 && (
                 <path d={buildSvgPath(indicatorSeries.sma20)} fill="none" stroke="#38BDF8" strokeWidth="1.8" />
               )}
+              {activeIndicators.ema50 && indicatorSeries.ema50 && (
+                <path d={buildSvgPath(indicatorSeries.ema50)} fill="none" stroke="#F59E0B" strokeWidth="1.8" />
+              )}
               {activeIndicators.sma50 && indicatorSeries.sma50 && (
-                <path d={buildSvgPath(indicatorSeries.sma50)} fill="none" stroke="#F59E0B" strokeWidth="1.8" />
+                <path d={buildSvgPath(indicatorSeries.sma50)} fill="none" stroke="#EAB308" strokeWidth="1.8" />
               )}
               {activeIndicators.sma200 && indicatorSeries.sma200 && (
                 <path d={buildSvgPath(indicatorSeries.sma200)} fill="none" stroke="#EC4899" strokeWidth="2" />

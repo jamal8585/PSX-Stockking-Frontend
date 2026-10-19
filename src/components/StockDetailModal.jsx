@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 import { getStockHistory } from '../services/api';
-import { MASTER_STOCKS_LIST } from '../utils/marketSession';
+import { MASTER_STOCKS_LIST, getCompanyFullName } from '../utils/marketSession';
 import TradingViewPSXChart from './TradingViewPSXChart';
 import CompanyFinancialsView from './CompanyFinancialsView';
 import CompanyPayoutsView from './CompanyPayoutsView';
@@ -609,10 +609,9 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <h2 className={`text-xl sm:text-2xl font-black tracking-tight ${
                 isDark ? 'text-white' : 'text-slate-900'
-              }`}>{name}</h2>
-              <span className="px-2.5 sm:px-3 py-1 rounded-lg bg-cyan-500 text-black font-black mono text-xs shadow-xs">
-                {sym}
-              </span>
+              }`}>
+                <span className="mono">{sym}</span> - {getCompanyFullName(sym) || name}
+              </h2>
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5 mt-2">
