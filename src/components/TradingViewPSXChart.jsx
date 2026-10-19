@@ -494,12 +494,45 @@ export default function TradingViewPSXChart({
   }, [compareSymbol, timeframe, selectedRange]);
 
   // Extract Metadata & Pricing
+  const chartLatestBar = rawLiveBars && rawLiveBars.length > 0 ? rawLiveBars[rawLiveBars.length - 1] : null;
+  const chartPrevBar = rawLiveBars && rawLiveBars.length > 1 ? rawLiveBars[rawLiveBars.length - 2] : null;
+
   const officialQuote = officialQuotes ? officialQuotes[currentSymbol] : null;
   const quote = historyData?.quote || officialQuote || {};
-  const currentPrice = Number(quote.currentPrice || initialPrice || officialQuote?.currentPrice || 100);
-  const prevClose = Number(quote.prevClose || initialPrevClose || officialQuote?.prevClose || (currentPrice * 0.99));
-  const change = Number(quote.change !== undefined ? quote.change : (officialQuote?.change !== undefined ? officialQuote.change : (currentPrice - prevClose)));
-  const changePercent = Number(quote.changePercent !== undefined ? quote.changePercent : (officialQuote?.changePercent !== undefined ? officialQuote.changePercent : (prevClose > 0 ? ((change / prevClose) * 100) : 0)));
+  const currentPrice = Number(
+    chartLatestBar?.close ??
+    quote.currentPrice ??
+    initialPrice ??
+    officialQuote?.currentPrice ??
+    100
+  );
+  const prevClose = Number(
+    chartPrevBar?.close ??
+    quote.prevClose ??
+    initialPrevClose ??
+    officialQuote?.prevClose ??
+    (currentPrice * 0.99)
+  );
+  const change = Number(
+    (chartLatestBar && chartPrevBar)
+      ? Number((chartLatestBar.close - chartPrevBar.close).toFixed(2))
+      : (quote.change !== undefined
+          ? Number(quote.change)
+          : (initialChange !== undefined
+              ? Number(initialChange)
+              : (officialQuote?.change !== undefined
+                  ? Number(officialQuote.change)
+                  : Number((currentPrice - prevClose).toFixed(2)))))
+  );
+  const changePercent = Number(
+    prevClose > 0
+      ? Number(((change / prevClose) * 100).toFixed(2))
+      : (quote.changePercent !== undefined
+          ? Number(quote.changePercent)
+          : (initialChangePercent !== undefined
+              ? Number(initialChangePercent)
+              : 0))
+  );
   const volume = Number(quote.volume || initialVolume || officialQuote?.volume || 1000000);
   const high = Number(quote.high || initialHigh || officialQuote?.high || (currentPrice * 1.02));
   const low = Number(quote.low || initialLow || officialQuote?.low || (currentPrice * 0.98));
@@ -1075,6 +1108,11 @@ export default function TradingViewPSXChart({
       const volH = (d.volume / maxVol) * (volumePanelHeight - 12);
       const volY = paddingTop + mainChartHeight + (volumePanelHeight - volH);
 
+      // Previous close for change calculation:
+      const prevBarClose = i > 0 ? displayBars[i - 1].close : d.open;
+      const ptChange = Number((d.close - prevBarClose).toFixed(2));
+      const ptChangePercent = prevBarClose > 0 ? Number(((ptChange / prevBarClose) * 100).toFixed(2)) : 0;
+
       return {
         x,
         y: yClose,
@@ -1091,7 +1129,9 @@ export default function TradingViewPSXChart({
         volH,
         volY,
         date: d.date,
-        data: d
+        data: d,
+        ptChange,
+        ptChangePercent
       };
     });
 
@@ -1340,7 +1380,7 @@ export default function TradingViewPSXChart({
               <span className={isLight ? 'text-gray-500' : 'text-gray-400'}>PKR</span>
               <span className={`font-black ${isLight ? 'text-gray-900' : 'text-white'}`}>{Number(currentPrice).toFixed(2)}</span>
               <span className={`text-[10px] font-bold ${isBullish ? (isLight ? 'text-emerald-600' : 'text-emerald-400') : (isLight ? 'text-rose-600' : 'text-rose-400')}`}>
-                {isBullish ? '+' : ''}{Number(changePercent).toFixed(1)}%
+                {isBullish ? '+' : ''}{Number(changePercent).toFixed(2)}%
               </span>
             </div>
           </div>
@@ -1702,7 +1742,7 @@ export default function TradingViewPSXChart({
             <div className="flex items-center space-x-1">
               <span className={`text-[10px] font-black ${isLight ? 'text-sky-700' : 'text-cyan-400'}`}>📅 DAY</span>
               <span className={`text-[9px] font-black ${isBullish ? 'text-emerald-500' : 'text-rose-500'}`}>
-                {isBullish ? '▲' : '▼'} {changePercent.toFixed(1)}%
+                {isBullish ? '▲' : '▼'} {changePercent >= 0 ? '+' : ''}{changePercent.toFixed(2)}%
               </span>
             </div>
             <div className="flex items-center space-x-1.5 sm:space-x-2">
@@ -1718,7 +1758,7 @@ export default function TradingViewPSXChart({
             <div className="flex items-center space-x-1">
               <span className={`text-[10px] font-black ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`}>📊 WEEK</span>
               <span className={`text-[9px] font-black ${weekChangePercent >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                {weekChangePercent >= 0 ? '+' : ''}{weekChangePercent.toFixed(1)}%
+                {weekChangePercent >= 0 ? '+' : ''}{weekChangePercent.toFixed(2)}%
               </span>
             </div>
             <div className="flex items-center space-x-1.5 sm:space-x-2">
@@ -1734,7 +1774,7 @@ export default function TradingViewPSXChart({
             <div className="flex items-center space-x-1">
               <span className={`text-[10px] font-black ${isLight ? 'text-purple-600' : 'text-purple-400'}`}>📈 MONTH</span>
               <span className={`text-[9px] font-black ${monthChangePercent >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                {monthChangePercent >= 0 ? '+' : ''}{monthChangePercent.toFixed(1)}%
+                {monthChangePercent >= 0 ? '+' : ''}{monthChangePercent.toFixed(2)}%
               </span>
             </div>
             <div className="flex items-center space-x-1.5 sm:space-x-2">
@@ -2013,10 +2053,16 @@ export default function TradingViewPSXChart({
                     </span>
                   </div>
                   <div className="flex items-center space-x-0.5">
-                    <span className={`font-bold text-[10px] ${activePt.isBull ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
-                      {activePt.open > 0 ? (
-                        `${activePt.close >= activePt.open ? '+' : ''}${(((activePt.close - activePt.open) / activePt.open) * 100).toFixed(2)}%`
-                      ) : ''}
+                    <span className={`font-bold text-[10px] ${
+                      (hoverIndex === null || hoverIndex === chartDims.points.length - 1)
+                        ? (isBullish ? 'text-[#0ECB81]' : 'text-[#F6465D]')
+                        : ((activePt.ptChange ?? (activePt.close - activePt.open)) >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]')
+                    }`}>
+                      {hoverIndex === null || hoverIndex === chartDims.points.length - 1 ? (
+                        `${change >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`
+                      ) : (
+                        `${(activePt.ptChange ?? (activePt.close - activePt.open)) >= 0 ? '+' : ''}${(activePt.ptChangePercent !== undefined ? activePt.ptChangePercent : (activePt.open > 0 ? (((activePt.close - activePt.open) / activePt.open) * 100) : 0)).toFixed(2)}%`
+                      )}
                     </span>
                   </div>
                   <div className={`flex items-center space-x-1 px-1 py-0.2 rounded border ${

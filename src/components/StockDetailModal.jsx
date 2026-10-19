@@ -405,10 +405,44 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
     return () => clearTimeout(t);
   }, []);
 
-  const currentPrice = Number(liveHistoryData?.quote?.currentPrice || stockObj.currentPrice || official?.currentPrice || 100);
-  const prevClose = Number(liveHistoryData?.quote?.prevClose || stockObj.prevClose || official?.prevClose || (currentPrice * 0.99));
-  const change = stockObj.change !== undefined ? Number(stockObj.change) : (official?.change !== undefined ? Number(official.change) : Number((currentPrice - prevClose).toFixed(2)));
-  const changePercent = stockObj.changePercent !== undefined ? Number(stockObj.changePercent) : (official?.changePercent !== undefined ? Number(official.changePercent) : (prevClose > 0 ? Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0));
+  // Canonical pricing: prioritize liveHistoryData (bars / quote) then official quote then stockObj
+  const liveBars = liveHistoryData?.bars;
+  const latestBar = liveBars && liveBars.length > 0 ? liveBars[liveBars.length - 1] : null;
+  const prevBar = liveBars && liveBars.length > 1 ? liveBars[liveBars.length - 2] : null;
+
+  const currentPrice = Number(
+    latestBar?.close || 
+    liveHistoryData?.quote?.currentPrice || 
+    official?.currentPrice || 
+    stockObj.currentPrice || 
+    100
+  );
+
+  const prevClose = Number(
+    prevBar?.close || 
+    liveHistoryData?.quote?.prevClose || 
+    official?.prevClose || 
+    stockObj.prevClose || 
+    (currentPrice * 0.99)
+  );
+
+  const change = Number(
+    (latestBar && prevBar) 
+      ? Number((latestBar.close - prevBar.close).toFixed(2))
+      : (liveHistoryData?.quote?.change !== undefined 
+          ? Number(liveHistoryData.quote.change) 
+          : (official?.change !== undefined 
+              ? Number(official.change) 
+              : (stockObj.change !== undefined 
+                  ? Number(stockObj.change) 
+                  : Number((currentPrice - prevClose).toFixed(2)))))
+  );
+
+  const changePercent = Number(
+    (prevClose > 0)
+      ? Number((((change) / prevClose) * 100).toFixed(2))
+      : 0
+  );
   const volume = Number(liveHistoryData?.quote?.volume || stockObj.volume || official?.volume || 0);
   const name = stockObj.name || official?.name || masterEntry?.name || sym;
   const sector = (stockObj.sector && stockObj.sector !== 'General Market')
