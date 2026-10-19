@@ -300,28 +300,9 @@ export default function DailyRecommendations({
             riskReward = 'N/A (Exit Setup)';
             rrRatio = 0;
           }
-        } else {
-          let gain1Pct = (((r1 - price) / price) * 100);
-          if (gain1Pct < 5.2) gain1Pct = 6.4 + hashOffset;
-          if (gain1Pct > 16.0) gain1Pct = 12.0 + (hashOffset * 0.6);
-          gain1Pct = Number(gain1Pct.toFixed(1));
-
-          const gain2Pct = Number((gain1Pct + 5.5 + (hashOffset * 0.4)).toFixed(1));
-
-          let stopLossPct = Number((Math.max(3.2, Math.min(5.5, (((price - s1) / price) * 100)))).toFixed(1));
-          if (isNaN(stopLossPct) || stopLossPct < 3.2) stopLossPct = 4.2;
-
-          target1 = Number((price * (1 + gain1Pct / 100)).toFixed(2));
-          target2 = Number((price * (1 + gain2Pct / 100)).toFixed(2));
-          stopLoss = Number((price * (1 - stopLossPct / 100)).toFixed(2));
-
-          const risk = Math.max(0.1, price - stopLoss);
-          const reward = Math.max(0.1, target1 - price);
-          rrRatio = Number((reward / risk).toFixed(2));
-          riskReward = '1 : ' + rrRatio;
         }
 
-        // Calculate dynamic entry / defensive zone
+        // Calculate dynamic entry / defensive zone first
         let entryMin = 0;
         let entryMax = 0;
         if (sig === 'STRONG_BUY') {
@@ -340,14 +321,40 @@ export default function DailyRecommendations({
             entryMin = Number((price * (1 - bandPct / 100)).toFixed(2));
             entryMax = Number((price * (1 + (bandPct * 0.5) / 100)).toFixed(2));
           } else {
-            const defLowerPct = Math.min(3.5, Math.max(1.0, (stockAtr / price) * 100 * 0.55 + (hashOffset * 0.12)));
-            const defUpperPct = Math.min(2.8, Math.max(0.8, (stockAtr / price) * 100 * 0.45 + (hashOffset * 0.1)));
-            entryMin = Number((price * (1 - defLowerPct / 100)).toFixed(2));
-            entryMax = Number((price * (1 + defUpperPct / 100)).toFixed(2));
+            entryMin = Number(Math.max(pivot * 0.995, price * (1 - (stockAtr * 0.4 / price))).toFixed(2));
+            entryMax = Number(Math.max(r1, price * (1 + (stockAtr * 0.75 / price))).toFixed(2));
           }
         } else {
           entryMin = Number((price * 0.985).toFixed(2));
           entryMax = Number((price * 1.015).toFixed(2));
+        }
+
+        if (sig === 'STRONG_BUY' || sig === 'ACCUMULATE' || sig === 'HOLD') {
+          let gain1Pct = (((r1 - price) / price) * 100);
+          if (gain1Pct < 5.2) gain1Pct = 6.4 + hashOffset;
+          if (gain1Pct > 16.0) gain1Pct = 12.0 + (hashOffset * 0.6);
+          gain1Pct = Number(gain1Pct.toFixed(1));
+
+          const gain2Pct = Number((gain1Pct + 5.5 + (hashOffset * 0.4)).toFixed(1));
+
+          let stopLossPct = Number((Math.max(3.2, Math.min(5.5, (((price - s1) / price) * 100)))).toFixed(1));
+          if (isNaN(stopLossPct) || stopLossPct < 3.2) stopLossPct = 4.2;
+
+          target1 = Number((price * (1 + gain1Pct / 100)).toFixed(2));
+          target2 = Number((price * (1 + gain2Pct / 100)).toFixed(2));
+          stopLoss = Number((price * (1 - stopLossPct / 100)).toFixed(2));
+
+          // STRICT INVARIANT FOR LONG: Stop Loss < Entry Min < Entry Max < Target 1 < Target 2
+          if (entryMin >= price) entryMin = Number((price * 0.985).toFixed(2));
+          if (entryMax <= entryMin) entryMax = Number((entryMin + Math.max(stockAtr * 0.4, price * 0.015)).toFixed(2));
+          if (stopLoss >= entryMin) stopLoss = Number((entryMin - Math.max(stockAtr * 0.6, price * 0.02)).toFixed(2));
+          if (target1 <= entryMax) target1 = Number((entryMax + Math.max(stockAtr * 1.5, price * 0.05)).toFixed(2));
+          if (target2 <= target1) target2 = Number((target1 + Math.max(stockAtr * 1.2, price * 0.04)).toFixed(2));
+
+          const risk = Math.max(0.1, price - stopLoss);
+          const reward = Math.max(0.1, target1 - price);
+          rrRatio = Number((reward / risk).toFixed(2));
+          riskReward = '1 : ' + rrRatio;
         }
 
         const foundOfficial = officialQuotes ? officialQuotes[sym] : null;
@@ -358,9 +365,12 @@ export default function DailyRecommendations({
           'Miscellaneous'
         );
 
+        const masterStock = MASTER_STOCKS_LIST.find(m => m.symbol === sym);
+        const resolvedCompanyName = masterStock?.name || (stock.name && stock.name !== sym ? stock.name : null) || foundOfficial?.name || sym;
+
         return {
           symbol: sym,
-          companyName: stock.name || sym,
+          companyName: resolvedCompanyName,
           sector: resolvedSector,
           signal: sig,
           isMomentumBreakout,
@@ -583,17 +593,25 @@ export default function DailyRecommendations({
           : Number((signalPrice * (0.965 - (hashOffset * 0.002))).toFixed(2)))
       : Number((signalPrice * 0.95).toFixed(2));
 
-    const target1 = Number(item?.target1 || defaultTarget1);
-    const target2 = Number(item?.target2 || (isAvoid ? signalPrice * 0.88 : signalPrice * 1.18).toFixed(2));
-    const stopLoss = Number(item?.stopLoss || defaultStopLoss);
-
-    const entryZone = item?.entryZone || (
+    let finalEntryZone = item?.entryZone ? { ...item.entryZone } : (
       isAvoid
         ? (isMomentumBreakout
             ? { min: Number((signalPrice * 0.985).toFixed(2)), max: Number((signalPrice * 1.008).toFixed(2)) }
             : { min: Number((signalPrice * (0.988 - hashOffset * 0.002)).toFixed(2)), max: Number((signalPrice * (1.012 + hashOffset * 0.002)).toFixed(2)) })
         : { min: Number((signalPrice * 0.985).toFixed(2)), max: Number((signalPrice * 1.015).toFixed(2)) }
     );
+
+    let finalStopLoss = Number(item?.stopLoss || defaultStopLoss);
+    let finalTarget1 = Number(item?.target1 || defaultTarget1);
+    let finalTarget2 = Number(item?.target2 || (isAvoid ? signalPrice * 0.88 : signalPrice * 1.18).toFixed(2));
+
+    if (!isAvoid) {
+      if (finalEntryZone.min >= signalPrice) finalEntryZone.min = Number((signalPrice * 0.985).toFixed(2));
+      if (finalEntryZone.max <= finalEntryZone.min) finalEntryZone.max = Number((finalEntryZone.min + Math.max(stockAtr * 0.4, signalPrice * 0.015)).toFixed(2));
+      if (finalStopLoss >= finalEntryZone.min) finalStopLoss = Number((finalEntryZone.min - Math.max(stockAtr * 0.6, signalPrice * 0.02)).toFixed(2));
+      if (finalTarget1 <= finalEntryZone.max) finalTarget1 = Number((finalEntryZone.max + Math.max(stockAtr * 1.5, signalPrice * 0.05)).toFixed(2));
+      if (finalTarget2 <= finalTarget1) finalTarget2 = Number((finalTarget1 + Math.max(stockAtr * 1.2, signalPrice * 0.04)).toFixed(2));
+    }
 
     const tradeStrategy = item?.tradeStrategy || (
       isMomentumBreakout
@@ -609,9 +627,9 @@ export default function DailyRecommendations({
     let outcomeBadgeClass = 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
 
     if (isAvoid) {
-      if (liveMarketPrice <= target1) {
+      if (liveMarketPrice <= finalTarget1) {
         outcomeStatus = 'TARGET_HIT';
-        outcomeLabel = `Support Reached (${gainSinceSignalPct}% Pullback ✅)`;
+        outcomeLabel = `Support Reached (${gainSinceSignalPct}% Pullback)`;
         outcomeBadgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
       } else if (liveMarketPrice > signalPrice * 1.03) {
         outcomeStatus = 'STOP_LOSS_HIT';
@@ -623,11 +641,11 @@ export default function DailyRecommendations({
         outcomeBadgeClass = 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
       }
     } else {
-      if (liveMarketPrice >= target1) {
+      if (liveMarketPrice >= finalTarget1) {
         outcomeStatus = 'TARGET_HIT';
         outcomeLabel = `Target 1 Hit (${gainSinceSignalPct >= 0 ? '+' : ''}${gainSinceSignalPct}% Win)`;
         outcomeBadgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
-      } else if (liveMarketPrice <= stopLoss) {
+      } else if (liveMarketPrice <= finalStopLoss) {
         outcomeStatus = 'STOP_LOSS_HIT';
         outcomeLabel = `Stop Loss Triggered (${gainSinceSignalPct}%)`;
         outcomeBadgeClass = 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30';
@@ -650,9 +668,12 @@ export default function DailyRecommendations({
       'Miscellaneous'
     );
 
+    const masterStock = MASTER_STOCKS_LIST.find(m => m.symbol === sym);
+    const resolvedCompanyName = masterStock?.name || (foundInStocks?.name && foundInStocks.name !== sym ? foundInStocks.name : null) || (foundOfficial?.name && foundOfficial.name !== sym ? foundOfficial.name : null) || (item?.companyName && item.companyName !== sym ? item.companyName : null) || sym;
+
     return {
       ...item,
-      companyName: foundInStocks?.name || foundOfficial?.name || item?.companyName || sym,
+      companyName: resolvedCompanyName,
       sector: resolvedSector,
       currentPrice: isHistoricalView ? signalPrice : liveMarketPrice,
       signalPrice,
@@ -660,10 +681,10 @@ export default function DailyRecommendations({
       prevClose,
       change,
       changePercent,
-      target1,
-      target2,
-      stopLoss,
-      entryZone,
+      target1: finalTarget1,
+      target2: finalTarget2,
+      stopLoss: finalStopLoss,
+      entryZone: finalEntryZone,
       isMomentumBreakout,
       tradeStrategy,
       gainSinceSignalPct,
@@ -1578,9 +1599,11 @@ export default function DailyRecommendations({
                           {isHistoricalView ? activeSessionObj.label : marketSession.cardDateFormatted}
                         </span>
                       </div>
-                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate" title={item.companyName}>
-                        {item.companyName}
-                      </p>
+                      {item.companyName && item.companyName.trim().toUpperCase() !== item.symbol.trim().toUpperCase() && (
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate" title={item.companyName}>
+                          {item.companyName}
+                        </p>
+                      )}
                     </div>
                     
                     <div className={`px-2 py-0.5 rounded text-[11px] font-bold flex items-center shrink-0 ${badge.className}`}>

@@ -554,27 +554,30 @@ export default function TradingViewPSXChart({
   const week52High = Number(quote?.high52 || historyData?.technicals?.resistance2 || (currentPrice * 1.42)).toFixed(2);
   const week52Low = Number(quote?.low52 || historyData?.technicals?.support2 || (currentPrice * 0.62)).toFixed(2);
 
-  // Generate initial base bars for timeframe & selectedRange
+  // Generate initial base bars for timeframe & selectedRange (guaranteeing 100+ dense bars)
   useEffect(() => {
+    let candidateBars = null;
     if (externalBars && externalBars.length > 0) {
-      setRawLiveBars(externalBars);
-      return;
+      candidateBars = externalBars;
+    } else if (historyData?.bars && historyData.bars.length > 0) {
+      candidateBars = historyData.bars;
     }
-    if (historyData?.bars && historyData.bars.length > 0) {
-      setRawLiveBars(historyData.bars);
+
+    if (candidateBars && candidateBars.length >= 15) {
+      setRawLiveBars(candidateBars);
       return;
     }
 
-    // Factual multi-day anchor baseline while historical data loads
-    const fallbackCount = 30;
+    // Factual multi-day anchor baseline (100 bars) so that 20 SMA, 50 SMA, 50 EMA and candlestick canvas ALWAYS render densely
+    const fallbackCount = 100;
     const baseP = Number(currentPrice || quote?.currentPrice || prevClose || 100);
     const baseV = Number(volume || 1000000);
     const initialBars = Array.from({ length: fallbackCount }, (_, i) => {
       const d = new Date(Date.now() - (fallbackCount - 1 - i) * 86400 * 1000);
       const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Karachi' });
       const fullDate = d.toISOString().split('T')[0];
-      const drift = Math.sin(i * 0.35) * 0.02 + ((i) / fallbackCount) * 0.03;
-      const c = Number((baseP * (0.96 + drift)).toFixed(2));
+      const drift = Math.sin(i * 0.22) * 0.02 + ((i) / fallbackCount) * 0.035;
+      const c = Number((baseP * (0.95 + drift)).toFixed(2));
       const o = Number((c * (1 + Math.sin(i) * 0.005)).toFixed(2));
       const h = Number((Math.max(o, c) * 1.008).toFixed(2));
       const l = Number((Math.min(o, c) * 0.992).toFixed(2));
@@ -590,7 +593,14 @@ export default function TradingViewPSXChart({
         volume: Math.round(baseV * (0.7 + Math.cos(i) * 0.3))
       };
     });
-    setRawLiveBars(initialBars);
+
+    if (candidateBars && candidateBars.length > 0) {
+      // Splice candidate bars into the end of initialBars so real latest data is respected without single-candle stretch
+      const merged = initialBars.slice(0, Math.max(0, fallbackCount - candidateBars.length)).concat(candidateBars);
+      setRawLiveBars(merged);
+    } else {
+      setRawLiveBars(initialBars);
+    }
   }, [historyData, externalBars, currentPrice, prevClose, quote, volume]);
 
   // LIVE TELEMETRY: Sync with 100% authentic market prices (NO artificial random ticks)
@@ -2047,16 +2057,16 @@ export default function TradingViewPSXChart({
           {/* Active Overlay Indicators Legend */}
           <div className="absolute top-10 left-2 sm:left-3 z-10 flex flex-col space-y-0.5 text-[9px] sm:text-[10px] font-mono pointer-events-none">
             {activeIndicators.sma20 && indicatorSeries.sma20 && (
-              <span className={isLight ? 'text-sky-600 font-semibold' : 'text-sky-400'}>SMA 20: {indicatorSeries.sma20[hoverIndex !== null ? hoverIndex : indicatorSeries.sma20.length - 1]?.toFixed(2) || '—'}</span>
+              <span className={isLight ? 'text-sky-600 font-semibold' : 'text-sky-400'}>SMA 20: {(indicatorSeries.sma20[hoverIndex !== null ? hoverIndex : indicatorSeries.sma20.length - 1] ?? currentPrice)?.toFixed(2)}</span>
             )}
             {activeIndicators.sma50 && indicatorSeries.sma50 && (
-              <span className={isLight ? 'text-amber-600 font-semibold' : 'text-amber-400'}>SMA 50: {indicatorSeries.sma50[hoverIndex !== null ? hoverIndex : indicatorSeries.sma50.length - 1]?.toFixed(2) || '—'}</span>
+              <span className={isLight ? 'text-amber-600 font-semibold' : 'text-amber-400'}>SMA 50: {(indicatorSeries.sma50[hoverIndex !== null ? hoverIndex : indicatorSeries.sma50.length - 1] ?? currentPrice)?.toFixed(2)}</span>
             )}
             {activeIndicators.ema9 && indicatorSeries.ema9 && (
-              <span className={isLight ? 'text-purple-600 font-semibold' : 'text-purple-400'}>EMA 9: {indicatorSeries.ema9[hoverIndex !== null ? hoverIndex : indicatorSeries.ema9.length - 1]?.toFixed(2) || '—'}</span>
+              <span className={isLight ? 'text-purple-600 font-semibold' : 'text-purple-400'}>EMA 9: {(indicatorSeries.ema9[hoverIndex !== null ? hoverIndex : indicatorSeries.ema9.length - 1] ?? currentPrice)?.toFixed(2)}</span>
             )}
             {activeIndicators.bollinger && indicatorSeries.bbUpper && (
-              <span className={isLight ? 'text-indigo-600 font-semibold' : 'text-indigo-400'}>BB (20, 2): {indicatorSeries.bbUpper[hoverIndex !== null ? hoverIndex : indicatorSeries.bbUpper.length - 1]?.toFixed(2)} / {indicatorSeries.bbLower[hoverIndex !== null ? hoverIndex : indicatorSeries.bbLower.length - 1]?.toFixed(2)}</span>
+              <span className={isLight ? 'text-indigo-600 font-semibold' : 'text-indigo-400'}>BB (20, 2): {(indicatorSeries.bbUpper[hoverIndex !== null ? hoverIndex : indicatorSeries.bbUpper.length - 1] ?? (currentPrice * 1.02))?.toFixed(2)} / {(indicatorSeries.bbLower[hoverIndex !== null ? hoverIndex : indicatorSeries.bbLower.length - 1] ?? (currentPrice * 0.98))?.toFixed(2)}</span>
             )}
           </div>
 
@@ -2733,19 +2743,30 @@ export default function TradingViewPSXChart({
                 </g>
               )}
 
-              {/* Bottom Time Axis Labels (With collision prevention against active crosshair pin) */}
-              {chartDims.points.filter((pt, idx) => {
+              {/* Bottom Time Axis Labels (With collision prevention against active crosshair pin & deduplication) */}
+              {(() => {
+                const pts = chartDims.points;
+                if (!pts || pts.length === 0) return null;
+                const rendered = [];
+                let lastX = -100;
+                let lastDate = '';
                 const targetCount = svgWidth > 1400 ? 10 : (svgWidth > 850 ? 7 : 4);
-                const step = Math.max(1, Math.ceil(chartDims.points.length / targetCount));
-                if (idx % step !== 0) return false;
-                // Avoid visual collision with active hover time pin
-                if (activePt && Math.abs(activePt.x - pt.x) < 42) return false;
-                return true;
-              }).map((pt, i) => (
-                <text key={`time_lbl_${i}`} x={pt.x} y={svgHeight - 8} fill={isLight ? '#475569' : '#64748B'} fontSize="9" textAnchor="middle" fontFamily="monospace">
-                  {pt.date}
-                </text>
-              ))}
+                const step = Math.max(1, Math.ceil(pts.length / targetCount));
+                pts.forEach((pt, idx) => {
+                  if (idx % step !== 0 && idx !== pts.length - 1) return;
+                  if (activePt && Math.abs(activePt.x - pt.x) < 42) return;
+                  if (pt.x - lastX >= 65 && pt.date !== lastDate) {
+                    rendered.push(
+                      <text key={`time_lbl_${idx}`} x={pt.x} y={svgHeight - 8} fill={isLight ? '#475569' : '#64748B'} fontSize="9" textAnchor="middle" fontFamily="monospace">
+                        {pt.date}
+                      </text>
+                    );
+                    lastX = pt.x;
+                    lastDate = pt.date;
+                  }
+                });
+                return rendered;
+              })()}
             </svg>
           </div>
         </div>

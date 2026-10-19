@@ -86,6 +86,32 @@ export const MASTER_STOCKS_LIST = [
   { symbol: 'UNITY', name: 'Unity Foods Limited', sector: 'Food & Personal Care', category: 'SUGAR_FOOD' }
 ];
 
+export function getNextPSXTradingDate(pktDate = null) {
+  const d = pktDate ? new Date(pktDate) : (() => {
+    const now = new Date();
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    return new Date(utc + (3600000 * 5));
+  })();
+  const day = d.getDay();
+  const hours = d.getHours();
+  const minutes = d.getMinutes();
+  const timeNum = hours * 100 + minutes;
+
+  const next = new Date(d);
+  if (day === 5 && timeNum >= 1600) {
+    next.setDate(d.getDate() + 3);
+  } else if (day === 6) {
+    next.setDate(d.getDate() + 2);
+  } else if (day === 0) {
+    next.setDate(d.getDate() + 1);
+  } else if (timeNum >= 1600) {
+    next.setDate(d.getDate() + 1);
+  } else {
+    next.setDate(d.getDate() + 1);
+  }
+  return next.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Karachi' });
+}
+
 export function getPSXMarketSessionInfo() {
   const now = new Date();
   const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
@@ -104,26 +130,30 @@ export function getPSXMarketSessionInfo() {
   if (day === 6) {
     isWeekend = true;
     targetDate.setDate(pktDate.getDate() + 2);
-    statusBadge = 'Weekend Closed (Sat & Sun Off)';
-    subText = 'Signals Active for Upcoming Monday Open (' + targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) + ')';
+    const nextFmt = targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    statusBadge = 'Post-Market Analysis • Weekend Closed';
+    subText = `Actionable for Upcoming Monday PSX Market Open (${nextFmt})`;
   } else if (day === 0) {
     isWeekend = true;
     targetDate.setDate(pktDate.getDate() + 1);
-    statusBadge = 'Weekend Closed (Sunday Off)';
-    subText = 'Signals Active for Tomorrow\'s Monday Open (' + targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) + ')';
+    const nextFmt = targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    statusBadge = 'Post-Market Analysis • Weekend Closed';
+    subText = `Actionable for Tomorrow's Monday PSX Market Open (${nextFmt})`;
   } else if (day === 5 && timeNum >= 1600) {
     isFridayEod = true;
     targetDate.setDate(pktDate.getDate() + 3);
-    statusBadge = 'Friday Session Closed • Weekend Off';
-    subText = 'Friday EOD Signals Active for Upcoming Monday Session (' + targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) + ')';
+    const nextFmt = targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    statusBadge = 'Post-Market Analysis • Friday EOD';
+    subText = `Actionable for Upcoming Monday PSX Market Open (${nextFmt})`;
   } else if (timeNum >= 1600) {
     targetDate.setDate(pktDate.getDate() + 1);
+    const nextFmt = targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
     statusBadge = 'Post-Market Analysis';
-    subText = 'Actionable for Tomorrow\'s PSX Market Open (' + targetDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) + ')';
+    subText = `Actionable for Tomorrow's PSX Market Open (${nextFmt})`;
   } else {
     targetDate = pktDate;
     statusBadge = 'Active Trading Session: Today, ' + pktDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-    subText = 'Effective & Actionable for Today\'s PSX Market (09:30 AM PKT);';
+    subText = "Effective & Actionable for Today's PSX Market (09:30 AM PKT)";
   }
 
   const sessionDateFormatted = targetDate.toLocaleDateString('en-US', {
@@ -133,11 +163,17 @@ export function getPSXMarketSessionInfo() {
     year: 'numeric'
   });
 
+  const cardDateFormatted = targetDate.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric'
+  });
+
   return {
     isWeekend,
     isFridayEod,
     targetDate,
     sessionDateFormatted,
+    cardDateFormatted,
     statusBadge,
     subText,
     pktHours: hours,
