@@ -1021,9 +1021,6 @@ export default function DailyRecommendations({
               }`} />
               <span>{marketSession.statusBadge}</span>
             </span>
-            <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8] font-bold">
-              • {marketSession.subText}
-            </span>
           </div>
 
           <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] text-[11px] font-mono shrink-0">

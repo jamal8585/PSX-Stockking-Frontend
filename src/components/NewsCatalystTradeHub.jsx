@@ -121,6 +121,24 @@ const STOCK_VOLATILITY_PROFILES = {
 export const evaluateArticleSentiment = (title = '', desc = '') => {
   const text = (title + ' ' + (desc || '')).toLowerCase();
 
+  // High-Priority Macroeconomic & Prestige Overrides
+  // (e.g. Chairing World Bank / IMF boards, landmark diplomatic/macro achievements)
+  const isPrestigeMilestone = 
+    (text.includes('chair') && (text.includes('world bank') || text.includes('imf'))) ||
+    text.includes('chair world bank') ||
+    text.includes('chair imf') ||
+    text.includes('chairing world bank') ||
+    text.includes('chairing imf') ||
+    text.includes('world bank, imf boards') ||
+    text.includes('first time since 1953') ||
+    text.includes('first time since') ||
+    text.includes('prestige milestone') ||
+    text.includes('diplomatic milestone');
+
+  if (isPrestigeMilestone) {
+    return 'POSITIVE';
+  }
+
   // Explicit positive phrases (duty rationalization, smuggling curb, tax relief, etc.)
   const compoundPositivePhrases = [
     'duty rationalization', 'duties rationalization', 'tariff rationalization',
@@ -129,7 +147,8 @@ export const evaluateArticleSentiment = (title = '', desc = '') => {
     'inflation falls', 'reserves rise', 'exports rise', 'sales rise', 'demand accelerates',
     'imf approval', 'imf deal', 'agreement signed', 'capacity expansion',
     'margin expansion', 'profit jumps', 'earnings jump', 'steel scrap raw material supports',
-    'supports international industries', 'duties rationalization on steel scrap'
+    'supports international industries', 'duties rationalization on steel scrap',
+    'chair world bank', 'chair imf', 'first time since 1953', 'macroeconomic prestige'
   ];
 
   const positiveKeywords = [
@@ -195,9 +214,51 @@ export const isNonFinancialNews = (title = '', desc = '') => {
     'lebanon', 'yemen', 'sudan', 'haiti', 'prince harry', 'meghan markle', 'royal family',
     'celebrity', 'tennis', 'cricket match', 'world cup qualifier', 'premier league', 'la liga',
     'suicide', 'assassination', 'traffic jam', 'weather update', 'cold wave', 'fog', 'smog in lahore',
-    'banknote', 'rs10', 'rs 10', 'currency note', 'currency notes', 'clears air on', 'discontinuation claims'
+    'banknote', 'rs10', 'rs 10', 'currency note', 'currency notes', 'clears air on', 'discontinuation claims',
+    'peace efforts', 'peace talks', 'never gave up', 'naqvi says', 'us-iran', 'iran peace',
+    'ceasefire', 'hostage', 'border skirmish'
   ];
   return nonFinancialKeywords.some(kw => text.includes(kw));
+};
+
+// Check if an article is a generic geopolitical or diplomatic statement that should not attach to individual sector cards
+export const isGeopoliticalOrDiplomaticNews = (title = '', desc = '') => {
+  const text = (title + ' ' + (desc || '')).toLowerCase();
+  const geopoliticalKeywords = [
+    'peace efforts', 'peace talks', 'never gave up', 'naqvi says', 'us-iran', 'iran peace',
+    'ceasefire', 'hostage', 'border skirmish', 'bilateral ties', 'diplomatic ties',
+    'foreign policy', 'geopolitical tension'
+  ];
+  return geopoliticalKeywords.some(kw => text.includes(kw));
+};
+
+// Restrict Cement sector news filters strictly to: Infrastructure, dispatches, PSDP tenders, coal prices, and monetary easing
+export const isValidCementCatalyst = (title = '', desc = '') => {
+  const text = (title + ' ' + (desc || '')).toLowerCase();
+
+  // 1. Explicit Cement Tickers or Company Names
+  const cementCompanyPatterns = [
+    'lucky cement', 'maple leaf', 'cherat cement', 'pioneer cement',
+    'fauji cement', 'd.g. khan cement', 'dg khan cement', 'attock cement',
+    'flying cement', 'power cement', 'clinker',
+    '\\bluck\\b', '\\bmlcf\\b', '\\bchcc\\b', '\\bpioc\\b', '\\bfccl\\b', '\\bdgkc\\b', '\\bacpl\\b'
+  ];
+  const hasCementCompany = cementCompanyPatterns.some(p => {
+    if (p.startsWith('\\b')) return new RegExp(p, 'i').test(text);
+    return text.includes(p);
+  });
+  if (hasCementCompany) return true;
+
+  // 2. Strict Cement Sector Themes: Infrastructure, dispatches, PSDP tenders, coal prices, monetary easing
+  const cementThemes = [
+    'infrastructure', 'construction', 'housing', 'mega project', 'mega projects', 'highways', 'dams', 'cpec',
+    'dispatch', 'dispatches', 'cement sale', 'cement sales', 'cement export', 'cement demand', 'off-take', 'offtakes',
+    'psdp', 'psdp tender', 'psdp tenders', 'tenders', 'development spending', 'development budget',
+    'coal', 'coal price', 'coal prices', 'imported coal', 'clinker cost',
+    'monetary easing', 'rate cut', 'cut rate', 'policy rate', 'interest rate', 'borrowing cost', 'leverage cost'
+  ];
+
+  return cementThemes.some(th => text.includes(th));
 };
 
 // Comprehensive 12-Sector News Baseline with Active Session Timestamps
@@ -756,17 +817,27 @@ export default function NewsCatalystTradeHub({
 
     // 2. Ingest all clean news items into stock groupings with STRICT TICKER RELEVANCE
     cleanNewsList.forEach((newsItem, nIdx) => {
+      // Drop generic geopolitical/diplomatic statements from sector-specific stock cards
+      if (isGeopoliticalOrDiplomaticNews(newsItem.title, newsItem.impactSummary || newsItem.description)) return;
+
       // General Macroeconomic news stays in the main stream feed only, NOT on individual stock cards
       if (newsItem.category === 'MACRO_ECONOMY' && !newsItem.title.includes('(')) return;
 
-      const articlePolarity = evaluateArticleSentiment(newsItem.title, newsItem.impactSummary || newsItem.description);
-      const tagLabel = articlePolarity === 'POSITIVE' ? '(Positive)' : '(Negative)';
-
-      const impactedStockSymbols = new Set();
       const lowerTitle = (newsItem.title || '').toLowerCase();
       const lowerDesc = (newsItem.impactSummary || newsItem.description || '').toLowerCase();
       const fullText = lowerTitle + ' ' + lowerDesc;
 
+      const isPrestigeMilestone = 
+        (lowerTitle.includes('chair') && (lowerTitle.includes('world bank') || lowerTitle.includes('imf'))) ||
+        lowerTitle.includes('first time since 1953') ||
+        lowerTitle.includes('chair world bank') ||
+        lowerTitle.includes('chair imf');
+
+      const rawPolarity = evaluateArticleSentiment(newsItem.title, newsItem.impactSummary || newsItem.description);
+      const articlePolarity = isPrestigeMilestone ? 'POSITIVE' : rawPolarity;
+      const tagLabel = articlePolarity === 'POSITIVE' ? '(Positive)' : '(Negative)';
+
+      const impactedStockSymbols = new Set();
       const escapeRegex = (s) => String(s).replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
 
       // Sector compatibility validation matrix:
@@ -775,9 +846,11 @@ export default function NewsCatalystTradeHub({
       const isSectorCompatible = (stCategory, newsCategory) => {
         if (!newsCategory) return true;
         
-        // Strict cement isolation: Cement news only matches CEMENT sector stocks
+        // Strict cement isolation: Cement news only matches CEMENT sector stocks,
+        // and must strictly contain core cement industry themes (infrastructure, dispatches, PSDP tenders, coal prices, monetary easing).
         if (newsCategory === 'CEMENT' || stCategory === 'CEMENT') {
-          return stCategory === newsCategory;
+          if (stCategory !== newsCategory) return false;
+          return isValidCementCatalyst(newsItem.title, newsItem.impactSummary || newsItem.description);
         }
 
         // Oil & Gas tickers (OIL_GAS) only accept Petroleum, Gas, or macro-energy catalysts
@@ -808,6 +881,11 @@ export default function NewsCatalystTradeHub({
       MASTER_STOCKS_LIST.forEach(st => {
         // Enforce strict sector compatibility
         if (!isSectorCompatible(st.category, newsItem.category)) {
+          return;
+        }
+
+        // Extra safeguard: cement stocks never accept non-cement news
+        if (st.category === 'CEMENT' && !isValidCementCatalyst(newsItem.title, newsItem.impactSummary || newsItem.description)) {
           return;
         }
 
@@ -846,6 +924,9 @@ export default function NewsCatalystTradeHub({
         const upper = s.symbol.toUpperCase().trim();
         const masterObj = MASTER_STOCKS_LIST.find(st => st.symbol === upper);
         if (masterObj && isSectorCompatible(masterObj.category, newsItem.category)) {
+          if (masterObj.category === 'CEMENT' && !isValidCementCatalyst(newsItem.title, newsItem.impactSummary || newsItem.description)) {
+            return;
+          }
           impactedStockSymbols.add(upper);
         }
       });
@@ -863,7 +944,9 @@ export default function NewsCatalystTradeHub({
             polarity: articlePolarity,
             tagLabel: tagLabel,
             tradeReason: articlePolarity === 'POSITIVE' 
-              ? `Positive market driver: ${newsItem.title}` 
+              ? (isPrestigeMilestone 
+                  ? `Diplomatic and macroeconomic prestige milestone: ${newsItem.title}` 
+                  : `Positive market driver: ${newsItem.title}`)
               : `Adverse headwind: ${newsItem.title}`
           });
         }
@@ -873,7 +956,14 @@ export default function NewsCatalystTradeHub({
     // 3. For any stock that still has 0 news items, attach only direct sub-sector catalyst (never generic macro)
     stockNewsMap.forEach((entry, sym) => {
       if (entry.newsItems.length === 0) {
-        const catNews = cleanNewsList.find(n => n.category === entry.category && n.category !== 'MACRO_ECONOMY');
+        const catNews = cleanNewsList.find(n => {
+          if (n.category !== entry.category || n.category === 'MACRO_ECONOMY') return false;
+          if (isGeopoliticalOrDiplomaticNews(n.title, n.impactSummary || n.description)) return false;
+          if (entry.category === 'CEMENT') {
+            return isValidCementCatalyst(n.title, n.impactSummary || n.description);
+          }
+          return true;
+        });
         if (catNews) {
           const pol = evaluateArticleSentiment(catNews.title, catNews.impactSummary || catNews.description);
           entry.newsItems.push({
@@ -1121,9 +1211,6 @@ export default function NewsCatalystTradeHub({
                   : (marketSession.isFridayEod ? 'bg-blue-500' : 'bg-emerald-500 animate-pulse')
               }`} />
               <span>{marketSession.statusBadge}</span>
-            </span>
-            <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8] font-bold">
-              • {marketSession.subText}
             </span>
           </div>
 
