@@ -253,12 +253,12 @@ export default function MarketHero({ marketSummary }) {
                 return (
                   <div 
                     key={idx}
-                    className="bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] hover:border-[#2563EB] dark:hover:border-[#3B82F6] rounded-lg px-2.5 py-1.5 flex items-center justify-between transition-colors"
+                    className="bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] hover:border-[#2563EB] dark:hover:border-[#3B82F6] rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-1.5 transition-colors"
                   >
-                    <span className="text-[11px] text-[#0F172A] dark:text-[#F8FAFC] truncate max-w-[110px] font-semibold" title={sec.sector}>
+                    <span className="text-[11px] text-[#0F172A] dark:text-[#F8FAFC] truncate max-w-[130px] sm:max-w-[170px] font-semibold" title={sec.sector}>
                       {sec.sector}
                     </span>
-                    <span className={`text-[11px] font-bold mono shrink-0 ${
+                    <span className={`text-[11px] font-bold font-mono shrink-0 ${
                       isSecPos ? 'text-[#16A34A] dark:text-[#22C55E]' : 'text-[#DC2626] dark:text-[#EF4444]'
                     }`}>
                       {isSecPos ? '+' : ''}{sec.changePercent.toFixed(2)}%
@@ -335,8 +335,8 @@ export default function MarketHero({ marketSummary }) {
                         key={idx}
                         className="bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] hover:border-[#2563EB] dark:hover:border-[#3B82F6] rounded-xl p-3 flex items-center justify-between transition-colors shadow-xs"
                       >
-                        <div className="min-w-0 pr-2">
-                          <span className="text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] block truncate" title={sec.sector}>
+                        <div className="min-w-0 pr-2 flex-1">
+                          <span className="text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] block truncate max-w-[180px] sm:max-w-[240px]" title={sec.sector}>
                             {sec.sector}
                           </span>
                           {sec.volume > 0 && (
@@ -345,7 +345,7 @@ export default function MarketHero({ marketSummary }) {
                             </span>
                           )}
                         </div>
-                        <span className={`text-xs font-extrabold mono px-2.5 py-1 rounded-lg shrink-0 ${
+                        <span className={`text-xs font-extrabold font-mono px-2.5 py-1 rounded-lg shrink-0 ${
                           isSecPos 
                             ? 'bg-[#16A34A]/10 text-[#15803D] dark:text-[#22C55E] border border-[#16A34A]/20' 
                             : 'bg-[#DC2626]/10 text-[#DC2626] dark:text-[#EF4444] border border-[#DC2626]/20'
