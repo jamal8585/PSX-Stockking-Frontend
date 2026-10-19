@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { TrendingUp, TrendingDown, Activity, Layers, Radio, Lock, X, Search } from 'lucide-react';
-import { getPSXMarketStatus, DEFAULT_KSE100_SUMMARY } from '../utils/marketSession';
+import { getPSXMarketStatus, DEFAULT_KSE100_SUMMARY, DEFAULT_CURATED_BREADTH, DEFAULT_PRO_BREADTH } from '../utils/marketSession';
 import officialQuotes from '../data/official_quotes.json';
 
 const parseCleanNum = (val, fallback = 0) => {
@@ -22,9 +22,41 @@ const DEFAULT_SECTORS = [
   { sector: 'Textile Composite', changePercent: -0.22, volume: 11000000 }
 ];
 
-export default function MarketHero({ marketSummary }) {
+export default function MarketHero({ marketSummary, currentUser }) {
   const [viewAllSectors, setViewAllSectors] = useState(false);
   const [sectorSearch, setSectorSearch] = useState('');
+
+  const isPro = Boolean(currentUser?.plan === 'PRO' && currentUser?.subscriptionStatus === 'ACTIVE');
+
+  const activeBreadth = useMemo(() => {
+    if (isPro) {
+      if (marketSummary?.fullBreadth) {
+        return marketSummary.fullBreadth;
+      }
+      if (marketSummary?.advances !== undefined && (marketSummary.advances + marketSummary.declines + marketSummary.unchanged > 100)) {
+        return {
+          advances: parseCleanNum(marketSummary.advances, DEFAULT_PRO_BREADTH.advances),
+          declines: parseCleanNum(marketSummary.declines, DEFAULT_PRO_BREADTH.declines),
+          unchanged: parseCleanNum(marketSummary.unchanged, DEFAULT_PRO_BREADTH.unchanged),
+          total: parseCleanNum(marketSummary.advances + marketSummary.declines + marketSummary.unchanged, DEFAULT_PRO_BREADTH.total)
+        };
+      }
+      return DEFAULT_PRO_BREADTH;
+    } else {
+      if (marketSummary?.curatedBreadth) {
+        return marketSummary.curatedBreadth;
+      }
+      if (marketSummary?.advances !== undefined && (marketSummary.advances + marketSummary.declines + marketSummary.unchanged <= 100)) {
+        return {
+          advances: parseCleanNum(marketSummary.advances, DEFAULT_CURATED_BREADTH.advances),
+          declines: parseCleanNum(marketSummary.declines, DEFAULT_CURATED_BREADTH.declines),
+          unchanged: parseCleanNum(marketSummary.unchanged, DEFAULT_CURATED_BREADTH.unchanged),
+          total: parseCleanNum(marketSummary.advances + marketSummary.declines + marketSummary.unchanged, DEFAULT_CURATED_BREADTH.total)
+        };
+      }
+      return DEFAULT_CURATED_BREADTH;
+    }
+  }, [isPro, marketSummary]);
 
   const currentValue = parseCleanNum(marketSummary?.currentValue || marketSummary?.current, DEFAULT_KSE100_SUMMARY.current);
   const change = marketSummary?.change !== undefined ? parseCleanNum(marketSummary.change, DEFAULT_KSE100_SUMMARY.change) : DEFAULT_KSE100_SUMMARY.change;
@@ -32,9 +64,9 @@ export default function MarketHero({ marketSummary }) {
   const high = parseCleanNum(marketSummary?.high, DEFAULT_KSE100_SUMMARY.high);
   const low = parseCleanNum(marketSummary?.low, DEFAULT_KSE100_SUMMARY.low);
   const indexName = marketSummary?.indexName || DEFAULT_KSE100_SUMMARY.indexName;
-  const advances = parseCleanNum(marketSummary?.advances, DEFAULT_KSE100_SUMMARY.advances);
-  const declines = parseCleanNum(marketSummary?.declines, DEFAULT_KSE100_SUMMARY.declines);
-  const unchanged = parseCleanNum(marketSummary?.unchanged, DEFAULT_KSE100_SUMMARY.unchanged);
+  const advances = activeBreadth.advances;
+  const declines = activeBreadth.declines;
+  const unchanged = activeBreadth.unchanged;
   const sectorPerformance = marketSummary?.sectorPerformance || [];
   const marketSentiment = marketSummary?.marketSentiment || (change >= 0 ? 'BULLISH' : 'BEARISH');
   const marketStatus = marketSummary?.marketStatus || getPSXMarketStatus();
@@ -49,10 +81,14 @@ export default function MarketHero({ marketSummary }) {
   const rangeSpan = Math.max(1, high - low);
   const dayRangeProgressPct = Math.min(100, Math.max(0, ((currentValue - low) / rangeSpan) * 100));
 
-  // Compute dynamic sector performance across all 39 PSX sectors with circuit-breaker sanity filter
+  // Compute dynamic sector performance across PSX sectors with circuit-breaker sanity filter
   const displaySectors = useMemo(() => {
-    const validServerSectors = Array.isArray(sectorPerformance) 
-      ? sectorPerformance
+    if (!isPro && Array.isArray(marketSummary?.curatedSectorPerformance) && marketSummary.curatedSectorPerformance.length > 0) {
+      return marketSummary.curatedSectorPerformance;
+    }
+
+    const validServerSectors = Array.isArray(marketSummary?.fullSectorPerformance || sectorPerformance) 
+      ? (marketSummary?.fullSectorPerformance || sectorPerformance)
           .filter(s => s && s.sector && s.sector !== 'General Market')
           .map(s => ({
             ...s,
@@ -174,9 +210,13 @@ export default function MarketHero({ marketSummary }) {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2">
                 <Activity className="w-4 h-4 text-[#2563EB] dark:text-[#3B82F6]" />
-                <span className="text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] uppercase tracking-wider">Market Breadth</span>
+                <span className="text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] uppercase tracking-wider">
+                  {isPro 
+                    ? 'Market Breadth — Full 763 Listed Universe' 
+                    : 'Market Breadth — 64 Active Coverage Stocks (Upgrade to Pro for full 763 listed universe)'}
+                </span>
               </div>
-              <span className="text-xs text-[#64748B] dark:text-[#94A3B8] font-bold">{totalStocks} Listed Companies</span>
+              <span className="text-xs text-[#64748B] dark:text-[#94A3B8] font-bold">{totalStocks} Stocks</span>
             </div>
 
             <div className="grid grid-cols-3 gap-2 text-center my-3">
@@ -226,7 +266,9 @@ export default function MarketHero({ marketSummary }) {
             <div className="flex items-center justify-between mb-2.5">
               <div className="flex items-center space-x-2">
                 <Layers className="w-4 h-4 text-[#2563EB] dark:text-[#3B82F6]" />
-                <span className="text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] uppercase tracking-wider">Sector Performance</span>
+                <span className="text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] uppercase tracking-wider">
+                  {isPro ? 'Sector Performance — 37 Tracked Sectors' : 'Sector Performance — 15 Tracked Sectors'}
+                </span>
               </div>
               <div className="flex items-center space-x-2">
                 <button
@@ -255,7 +297,7 @@ export default function MarketHero({ marketSummary }) {
                     key={idx}
                     className="bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] hover:border-[#2563EB] dark:hover:border-[#3B82F6] rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-1.5 transition-colors"
                   >
-                    <span className="text-[11px] text-[#0F172A] dark:text-[#F8FAFC] truncate max-w-[105px] xs:max-w-[125px] sm:max-w-[155px] font-semibold" title={sec.sector}>
+                    <span className="text-[11px] text-[#0F172A] dark:text-[#F8FAFC] font-semibold line-clamp-2 leading-tight flex-1 pr-1" title={sec.sector}>
                       {sec.sector}
                     </span>
                     <span className={`text-[11px] font-bold font-mono shrink-0 ${
@@ -336,7 +378,7 @@ export default function MarketHero({ marketSummary }) {
                         className="bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] hover:border-[#2563EB] dark:hover:border-[#3B82F6] rounded-xl p-3 flex items-center justify-between transition-colors shadow-xs"
                       >
                         <div className="min-w-0 pr-2 flex-1">
-                          <span className="text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] block truncate max-w-[180px] sm:max-w-[240px]" title={sec.sector}>
+                          <span className="text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] block line-clamp-2 leading-tight" title={sec.sector}>
                             {sec.sector}
                           </span>
                           {sec.volume > 0 && (

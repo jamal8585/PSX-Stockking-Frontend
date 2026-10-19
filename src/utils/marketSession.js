@@ -370,3 +370,18 @@ export const DEFAULT_KSE100_SUMMARY = {
   marketSentiment: 'BULLISH'
 };
 
+export const DEFAULT_CURATED_BREADTH = {
+  advances: 18,
+  declines: 42,
+  unchanged: 4,
+  total: 64
+};
+
+export const DEFAULT_PRO_BREADTH = {
+  advances: 468,
+  declines: 267,
+  unchanged: 28,
+  total: 763
+};
+
+
