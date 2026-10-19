@@ -13,7 +13,7 @@ const parseCleanNum = (val, fallback = 0) => {
 
 const DEFAULT_SECTORS = [
   { sector: 'Commercial Banks', changePercent: 1.25, volume: 45000000 },
-  { sector: 'Oil & Gas Exploration', changePercent: 0.85, volume: 38000000 },
+  { sector: 'Oil & Gas Exploration Companies', changePercent: 0.85, volume: 38000000 },
   { sector: 'Cement', changePercent: 1.42, volume: 29000000 },
   { sector: 'Technology & Communication', changePercent: 3.18, volume: 62000000 },
   { sector: 'Fertilizer', changePercent: -0.45, volume: 22000000 },

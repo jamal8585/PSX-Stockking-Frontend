@@ -38,6 +38,7 @@ import {
 import { supabase, signOutSupabase } from './services/supabase';
 
 import officialQuotes from './data/official_quotes.json';
+import { canonicalizeSector } from './utils/marketSession';
 
 const AUTO_SYNC_SECONDS = 3;
 
@@ -318,7 +319,7 @@ const mergeWithOfficialQuotes = (serverStocks = []) => {
           ...q,
           symbol: symKey,
           name: q.name || symKey,
-          sector: q.sector || 'Miscellaneous',
+          sector: canonicalizeSector(q.sector, symKey),
           currentPrice: Number(q.currentPrice || 0),
           prevClose: Number(q.prevClose || q.currentPrice || 0),
           change: Number(q.change || 0),
@@ -340,9 +341,10 @@ const mergeWithOfficialQuotes = (serverStocks = []) => {
         const existing = stockMap.get(symKey);
         if (existing) {
           const serverPrice = Number(s.currentPrice || 0);
-          const resolvedSector = (existing.sector && existing.sector !== 'General Market') 
+          const rawSector = (existing.sector && existing.sector !== 'General Market') 
             ? existing.sector 
             : (s.sector && s.sector !== 'General Market' ? s.sector : 'Miscellaneous');
+          const resolvedSector = canonicalizeSector(rawSector, symKey);
           stockMap.set(symKey, {
             ...existing,
             ...s,
@@ -359,7 +361,11 @@ const mergeWithOfficialQuotes = (serverStocks = []) => {
             technicals: s.technicals || existing.technicals || { rsi14: 52, signal: 'NEUTRAL' }
           });
         } else {
-          stockMap.set(symKey, s);
+          stockMap.set(symKey, {
+            ...s,
+            symbol: symKey,
+            sector: canonicalizeSector(s.sector, symKey)
+          });
         }
       }
     });

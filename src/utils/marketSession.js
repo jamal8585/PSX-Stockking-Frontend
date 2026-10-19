@@ -18,12 +18,12 @@ export const MASTER_STOCKS_LIST = [
   { symbol: 'CNERGY', name: 'Cnergyico PK Limited', sector: 'Refinery', category: 'OIL_GAS' },
   { symbol: 'ATRL', name: 'Attock Refinery Limited', sector: 'Refinery', category: 'OIL_GAS' },
   { symbol: 'NRL', name: 'National Refinery Limited', sector: 'Refinery', category: 'OIL_GAS' },
-  { symbol: 'OGDC', name: 'Oil & Gas Development Company Ltd', sector: 'Oil & Gas Exploration', category: 'OIL_GAS' },
-  { symbol: 'PPL', name: 'Pakistan Petroleum Limited', sector: 'Oil & Gas Exploration', category: 'OIL_GAS' },
-  { symbol: 'MARI', name: 'Mari Petroleum Company Limited', sector: 'Oil & Gas Exploration', category: 'OIL_GAS' },
-  { symbol: 'PSO', name: 'Pakistan State Oil Company Limited', sector: 'Oil & Gas Marketing', category: 'OIL_GAS' },
-  { symbol: 'SNGP', name: 'Sui Northern Gas Pipelines Limited', sector: 'Oil & Gas Marketing', category: 'OIL_GAS' },
-  { symbol: 'SSGC', name: 'Sui Southern Gas Company Limited', sector: 'Oil & Gas Marketing', category: 'OIL_GAS' },
+  { symbol: 'OGDC', name: 'Oil & Gas Development Company Ltd', sector: 'Oil & Gas Exploration Companies', category: 'OIL_GAS' },
+  { symbol: 'PPL', name: 'Pakistan Petroleum Limited', sector: 'Oil & Gas Exploration Companies', category: 'OIL_GAS' },
+  { symbol: 'MARI', name: 'Mari Petroleum Company Limited', sector: 'Oil & Gas Exploration Companies', category: 'OIL_GAS' },
+  { symbol: 'PSO', name: 'Pakistan State Oil Company Limited', sector: 'Oil & Gas Marketing Companies', category: 'OIL_GAS' },
+  { symbol: 'SNGP', name: 'Sui Northern Gas Pipelines Limited', sector: 'Oil & Gas Marketing Companies', category: 'OIL_GAS' },
+  { symbol: 'SSGC', name: 'Sui Southern Gas Company Limited', sector: 'Oil & Gas Marketing Companies', category: 'OIL_GAS' },
   { symbol: 'MEBL', name: 'Meezan Bank Limited', sector: 'Commercial Banks', category: 'COMMERCIAL_BANKS' },
   { symbol: 'MCB', name: 'MCB Bank Limited', sector: 'Commercial Banks', category: 'COMMERCIAL_BANKS' },
   { symbol: 'UBL', name: 'United Bank Limited', sector: 'Commercial Banks', category: 'COMMERCIAL_BANKS' },
@@ -60,31 +60,51 @@ export const MASTER_STOCKS_LIST = [
   { symbol: 'HCAR', name: 'Honda Atlas Cars (Pakistan) Limited', sector: 'Automobile Assembler', category: 'AUTOMOBILE' },
   { symbol: 'AGTL', name: 'Al-Ghazi Tractors Limited', sector: 'Automobile Assembler', category: 'AUTOMOBILE' },
   { symbol: 'PSMC', name: 'Pak Suzuki Motor Company Limited', sector: 'Automobile Assembler', category: 'AUTOMOBILE' },
-  { symbol: 'HUBC', name: 'The Hub Power Company Limited', sector: 'Power Generation', category: 'POWER_ENERGY' },
-  { symbol: 'KAPCO', name: 'Kot Addu Power Company Limited', sector: 'Power Generation', category: 'POWER_ENERGY' },
-  { symbol: 'KEL', name: 'K-Electric Limited', sector: 'Power Generation', category: 'POWER_ENERGY' },
-  { symbol: 'NCPL', name: 'Nishat Chunian Power Limited', sector: 'Power Generation', category: 'POWER_ENERGY' },
-  { symbol: 'NPL', name: 'Nishat Power Limited', sector: 'Power Generation', category: 'POWER_ENERGY' },
+  { symbol: 'HUBC', name: 'The Hub Power Company Limited', sector: 'Power Generation & Distribution', category: 'POWER_ENERGY' },
+  { symbol: 'KAPCO', name: 'Kot Addu Power Company Limited', sector: 'Power Generation & Distribution', category: 'POWER_ENERGY' },
+  { symbol: 'KEL', name: 'K-Electric Limited', sector: 'Power Generation & Distribution', category: 'POWER_ENERGY' },
+  { symbol: 'NCPL', name: 'Nishat Chunian Power Limited', sector: 'Power Generation & Distribution', category: 'POWER_ENERGY' },
+  { symbol: 'NPL', name: 'Nishat Power Limited', sector: 'Power Generation & Distribution', category: 'POWER_ENERGY' },
   { symbol: 'SEARL', name: 'The Searle Company Limited', sector: 'Pharmaceuticals', category: 'PHARMACEUTICALS' },
   { symbol: 'AGP', name: 'AGP Limited', sector: 'Pharmaceuticals', category: 'PHARMACEUTICALS' },
   { symbol: 'ABOT', name: 'Abbott Laboratories (Pakistan) Limited', sector: 'Pharmaceuticals', category: 'PHARMACEUTICALS' },
   { symbol: 'HINOON', name: 'Highnoon Laboratories Limited', sector: 'Pharmaceuticals', category: 'PHARMACEUTICALS' },
   { symbol: 'GLAXO', name: 'GlaxoSmithKline Pakistan Limited', sector: 'Pharmaceuticals', category: 'PHARMACEUTICALS' },
   { symbol: 'FEROZ', name: 'Ferozsons Laboratories Limited', sector: 'Pharmaceuticals', category: 'PHARMACEUTICALS' },
-  { symbol: 'MUGHAL', name: 'Mughal Iron & Steel Industries Limited', sector: 'Engineering & Steel', category: 'STEEL_ENGINEERING' },
-  { symbol: 'INIL', name: 'International Industries Limited', sector: 'Engineering & Steel', category: 'STEEL_ENGINEERING' },
-  { symbol: 'ISL', name: 'International Steels Limited', sector: 'Engineering & Steel', category: 'STEEL_ENGINEERING' },
+  { symbol: 'MUGHAL', name: 'Mughal Iron & Steel Industries Limited', sector: 'Engineering', category: 'STEEL_ENGINEERING' },
+  { symbol: 'INIL', name: 'International Industries Limited', sector: 'Engineering', category: 'STEEL_ENGINEERING' },
+  { symbol: 'ISL', name: 'International Steels Limited', sector: 'Engineering', category: 'STEEL_ENGINEERING' },
   { symbol: 'PAEL', name: 'Pak Elektron Limited', sector: 'Cable & Electrical Goods', category: 'STEEL_ENGINEERING' },
-  { symbol: 'ASTL', name: 'Amreli Steels Limited', sector: 'Engineering & Steel', category: 'STEEL_ENGINEERING' },
+  { symbol: 'ASTL', name: 'Amreli Steels Limited', sector: 'Engineering', category: 'STEEL_ENGINEERING' },
   { symbol: 'ILP', name: 'Interloop Limited', sector: 'Textile Composite', category: 'TEXTILE' },
   { symbol: 'NML', name: 'Nishat Mills Limited', sector: 'Textile Composite', category: 'TEXTILE' },
   { symbol: 'KTML', name: 'Kohinoor Textile Mills Limited', sector: 'Textile Composite', category: 'TEXTILE' },
   { symbol: 'GATM', name: 'Gul Ahmed Textile Mills Limited', sector: 'Textile Composite', category: 'TEXTILE' },
-  { symbol: 'NATF', name: 'National Foods Limited', sector: 'Food & Personal Care', category: 'SUGAR_FOOD' },
-  { symbol: 'NESTLE', name: 'Nestle Pakistan Limited', sector: 'Food & Personal Care', category: 'SUGAR_FOOD' },
-  { symbol: 'TOMCL', name: 'The Organic Meat Company Limited', sector: 'Food & Personal Care', category: 'SUGAR_FOOD' },
-  { symbol: 'UNITY', name: 'Unity Foods Limited', sector: 'Food & Personal Care', category: 'SUGAR_FOOD' }
+  { symbol: 'NATF', name: 'National Foods Limited', sector: 'Food & Personal Care Products', category: 'SUGAR_FOOD' },
+  { symbol: 'NESTLE', name: 'Nestle Pakistan Limited', sector: 'Food & Personal Care Products', category: 'SUGAR_FOOD' },
+  { symbol: 'TOMCL', name: 'The Organic Meat Company Limited', sector: 'Food & Personal Care Products', category: 'SUGAR_FOOD' },
+  { symbol: 'UNITY', name: 'Unity Foods Limited', sector: 'Food & Personal Care Products', category: 'SUGAR_FOOD' }
 ];
+
+export function canonicalizeSector(rawSector, symbol = '') {
+  const sym = String(symbol || '').toUpperCase().trim();
+  if (sym === 'ENGRO') return 'Fertilizer';
+  if (!rawSector || rawSector === 'General Market' || rawSector === 'Miscellaneous') {
+    return 'Miscellaneous';
+  }
+  const s = rawSector.trim();
+  if (s === 'Chemicals') return 'Chemical';
+  if (s === 'Oil & Gas (E&P)' || s === 'Oil & Gas Exploration') return 'Oil & Gas Exploration Companies';
+  if (s === 'Oil & Gas (Marketing)' || s === 'Oil & Gas Marketing') return 'Oil & Gas Marketing Companies';
+  if (s === 'Power Generation' || s === 'Power Generation & Energy') return 'Power Generation & Distribution';
+  if (s === 'Automobile' || s === 'Automobile & Tractors') return 'Automobile Assembler';
+  if (s === 'Cement & Construction') return 'Cement';
+  if (s === 'Textile & Apparel' || s === 'Textile') return 'Textile Composite';
+  if (s === 'Technology' || s === 'Technology & Telecom') return 'Technology & Communication';
+  if (s === 'Food & Personal Care' || s === 'Consumer & Staples' || s === 'Food, Dairy & Sugar') return 'Food & Personal Care Products';
+  if (s === 'Engineering & Steel' || s === 'Steel & Engineering') return 'Engineering';
+  return s;
+}
 
 export function getCompanyFullName(symbol) {
   if (!symbol) return '';

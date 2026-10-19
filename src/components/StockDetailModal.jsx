@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 import { getStockHistory } from '../services/api';
-import { MASTER_STOCKS_LIST, getCompanyFullName } from '../utils/marketSession';
+import { MASTER_STOCKS_LIST, getCompanyFullName, canonicalizeSector } from '../utils/marketSession';
 import TradingViewPSXChart from './TradingViewPSXChart';
 import CompanyFinancialsView from './CompanyFinancialsView';
 import CompanyPayoutsView from './CompanyPayoutsView';
@@ -445,11 +445,10 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
   );
   const volume = Number(liveHistoryData?.quote?.volume || stockObj.volume || official?.volume || 0);
   const name = stockObj.name || official?.name || masterEntry?.name || sym;
-  const sector = (stockObj.sector && stockObj.sector !== 'General Market')
-    ? stockObj.sector
-    : ((official?.sector && official.sector !== 'General Market')
-        ? official.sector
-        : (masterEntry?.sector || 'Miscellaneous'));
+  const rawSector = (official?.sector && official.sector !== 'General Market')
+    ? official.sector
+    : (masterEntry?.sector || (stockObj.sector && stockObj.sector !== 'General Market' ? stockObj.sector : 'Miscellaneous'));
+  const sector = canonicalizeSector(rawSector, sym);
   const high = Number(stockObj.high || official?.high || (currentPrice * 1.02));
   const low = Number(stockObj.low || official?.low || (currentPrice * 0.98));
   const peRatio = Number(stockObj.peRatio || 5.35);
