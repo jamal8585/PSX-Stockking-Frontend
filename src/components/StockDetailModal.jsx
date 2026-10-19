@@ -36,6 +36,8 @@ import TradingViewPSXChart from './TradingViewPSXChart';
 import CompanyFinancialsView from './CompanyFinancialsView';
 import CompanyPayoutsView from './CompanyPayoutsView';
 import CompanyAnnouncementsView from './CompanyAnnouncementsView';
+import { calculateFloorPivots } from '../utils/pivotPoints';
+import { formatSignedNumber, formatSignedPercent } from '../utils/formatters';
 
 // High-Performance Interactive SVG Stock Chart (Supports both Area and Candlestick OHLC + Volume)
 function InteractiveStockChart({ 
@@ -432,14 +434,36 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
   const week52High = Number(technicals.resistance2 || (price * 1.45)).toFixed(2);
   const week52Low = Number(technicals.support2 || (price * 0.58)).toFixed(2);
 
-  // Pivot Points S3, S2, S1, PP, R1, R2, R3
-  const pp = Number((technicals.pivotPoints?.pp || ((Number(dayHigh) + Number(dayLow) + price) / 3)).toFixed(2));
-  const r1 = Number((technicals.pivotPoints?.r1 || (2 * pp - Number(dayLow))).toFixed(2));
-  const s1 = Number((technicals.pivotPoints?.s1 || (2 * pp - Number(dayHigh))).toFixed(2));
-  const r2 = Number((technicals.pivotPoints?.r2 || (pp + (Number(dayHigh) - Number(dayLow)))).toFixed(2));
-  const s2 = Number((technicals.pivotPoints?.s2 || (pp - (Number(dayHigh) - Number(dayLow)))).toFixed(2));
-  const r3 = Number((technicals.pivotPoints?.r3 || (Number(dayHigh) + 2 * (pp - Number(dayLow)))).toFixed(2));
-  const s3 = Number((technicals.pivotPoints?.s3 || (Number(dayLow) - 2 * (Number(dayHigh) - pp))).toFixed(2));
+  // Derive Previous Completed Daily Candle or Official Session Range for floor pivots
+  const historyBars = liveHistoryData?.bars || [];
+  let prevCandle = null;
+  if (historyBars.length >= 2) {
+    prevCandle = historyBars[historyBars.length - 2];
+    if (!prevCandle.high || prevCandle.high <= prevCandle.low) {
+      prevCandle = historyBars.slice(0, -1).reverse().find(b => b.high > b.low);
+    }
+  } else if (historyBars.length === 1 && historyBars[0].high > historyBars[0].low) {
+    prevCandle = historyBars[0];
+  }
+
+  const candleHigh = Number(prevCandle?.high || official?.high || stockObj.high || 0);
+  const candleLow = Number(prevCandle?.low || official?.low || stockObj.low || 0);
+  const candleClose = Number(prevCandle?.close || official?.prevClose || stockObj.prevClose || price);
+
+  // Compute standard floor pivots with flat-range guard (if H == L, shows '—')
+  const localPivots = calculateFloorPivots(candleHigh, candleLow, candleClose);
+  const backendPivots = technicals.pivotPoints;
+  const isBackendValid = backendPivots && backendPivots.hasRange !== false && backendPivots.r1 !== backendPivots.s1 && typeof backendPivots.pp === 'number';
+
+  const activePivots = isBackendValid ? backendPivots : localPivots;
+
+  const pp = activePivots.pp;
+  const r1 = activePivots.r1;
+  const s1 = activePivots.s1;
+  const r2 = activePivots.r2;
+  const s2 = activePivots.s2;
+  const r3 = activePivots.r3;
+  const s3 = activePivots.s3;
 
   // Technical Indicators
   const ema20 = Number((technicals.ema20 || price * 0.985).toFixed(2));
@@ -522,8 +546,10 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
   // AI Decision Summary & Mathematically Calibrated Trade Setup
   const isOverbought = Number(rsi) > 75;
   const trend = technicals.trend || technicals.signal || (change >= 0 ? 'BULLISH' : 'NEUTRAL');
-  const lowerEntry = Number((isOverbought ? Math.min(s2, s1 * 0.96) : Math.min(s1, price * 0.98)).toFixed(2));
-  const upperEntry = Number((isOverbought ? s1 : price).toFixed(2));
+  const numS1 = typeof s1 === 'number' ? s1 : (price * 0.98);
+  const numS2 = typeof s2 === 'number' ? s2 : (price * 0.96);
+  const lowerEntry = Number((isOverbought ? Math.min(numS2, numS1 * 0.96) : Math.min(numS1, price * 0.98)).toFixed(2));
+  const upperEntry = Number((isOverbought ? numS1 : price).toFixed(2));
   const stopLoss = Number((lowerEntry * 0.95).toFixed(2)); // Strictly 5% below lower entry bound
   const targetSell = Number((upperEntry * 1.115).toFixed(2)); // Strictly 11.5% above upper entry
 
@@ -538,13 +564,13 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
       return {
         verdict: `${trend.toUpperCase()} • ACCUMULATE / BUY`,
         color: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10',
-        summary: `${name} (${sym}) is demonstrating strong institutional accumulation in the ${sector} sector. Price is holding comfortably above pivot point (PKR ${pp}) and EMA 20 (PKR ${ema20}) with solid trading volume (${(volume).toLocaleString()} shares). Favorable P/E valuation (${peRatio}x vs Sector ${sectorPe}x, P/B ${pbRatio}x) provides attractive upside. Buy zone is PKR ${lowerEntry} - ${upperEntry}, targeting PKR ${targetSell} (+11.5%) with stop loss at PKR ${stopLoss} (5.0% below entry).`
+        summary: `${name} (${sym}) is demonstrating strong institutional accumulation in the ${sector} sector. Price is holding comfortably ${pp !== '—' ? `above pivot point (PKR ${pp}) and ` : ''}EMA 20 (PKR ${ema20}) with solid trading volume (${(volume).toLocaleString()} shares). Favorable P/E valuation (${peRatio}x vs Sector ${sectorPe}x, P/B ${pbRatio}x) provides attractive upside. Buy zone is PKR ${lowerEntry} - ${upperEntry}, targeting PKR ${targetSell} (+11.5%) with stop loss at PKR ${stopLoss} (5.0% below entry).`
       };
     } else {
       return {
         verdict: 'CONSOLIDATION • HOLD & MONITOR',
         color: 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10',
-        summary: `${name} (${sym}) is currently trading in a consolidation range near support S1 (PKR ${s1}). Downside risk is cushioned by historical support at PKR ${s2}. Maintain existing positions with stop loss at PKR ${stopLoss} (5.0% below lower boundary) and wait for volume expansion before adding aggressive new exposure.`
+        summary: `${name} (${sym}) is currently trading in a consolidation range${s1 !== '—' ? ` near support S1 (PKR ${s1})` : ''}. Downside risk is cushioned by historical support${s2 !== '—' ? ` at PKR ${s2}` : ' levels'}. Maintain existing positions with stop loss at PKR ${stopLoss} (5.0% below lower boundary) and wait for volume expansion before adding aggressive new exposure.`
       };
     }
   };
@@ -1109,7 +1135,13 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
                   </div>
                   <div className="flex justify-between">
                     <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>MACD (12,26,9):</span>
-                    <span className={`font-bold mono ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>+{macdHist} (Bullish Crossover)</span>
+                    <span className={`font-bold mono ${
+                      macdHist >= 0 
+                        ? (isDark ? 'text-emerald-400' : 'text-emerald-600') 
+                        : (isDark ? 'text-rose-400' : 'text-rose-600')
+                    }`}>
+                      {formatSignedNumber(macdHist, 2)} ({macdHist >= 0 ? 'Bullish Crossover' : 'Bearish Momentum'})
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className={isDark ? 'text-gray-400' : 'text-slate-500'}>Stochastic (%K, %D):</span>
