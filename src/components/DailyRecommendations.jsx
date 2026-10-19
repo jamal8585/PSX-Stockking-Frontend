@@ -37,10 +37,11 @@ import officialQuotes from '../data/official_quotes.json';
 import { 
   SECTOR_CATEGORIES, 
   MASTER_STOCKS_LIST, 
+  getCompanyFullName,
   getPSXMarketSessionInfo,
   getPSXMarketStatus
 } from '../utils/marketSession';
-export { getPSXMarketSessionInfo };
+export { getPSXMarketSessionInfo, getCompanyFullName };
 
 // Generate Last N PSX Trading Days (skips Saturday and Sunday, syncs with marketSession)
 export function getPSXRecentTradingSessions(count = 5) {
@@ -480,7 +481,7 @@ export default function DailyRecommendations({
         );
 
         const masterStock = MASTER_STOCKS_LIST.find(m => m.symbol === sym);
-        const resolvedCompanyName = masterStock?.name || (stock.name && stock.name !== sym ? stock.name : null) || foundOfficial?.name || sym;
+        const resolvedCompanyName = getCompanyFullName(sym) || masterStock?.name || (stock.name && stock.name !== sym ? stock.name : null) || foundOfficial?.name || sym;
 
         return {
           symbol: sym,
@@ -855,7 +856,7 @@ export default function DailyRecommendations({
     );
 
     const masterStock = MASTER_STOCKS_LIST.find(m => m.symbol === sym);
-    const resolvedCompanyName = masterStock?.name || (foundInStocks?.name && foundInStocks.name !== sym ? foundInStocks.name : null) || (foundOfficial?.name && foundOfficial.name !== sym ? foundOfficial.name : null) || (item?.companyName && item.companyName !== sym ? item.companyName : null) || sym;
+    const resolvedCompanyName = getCompanyFullName(sym) || masterStock?.name || (foundInStocks?.name && foundInStocks.name !== sym ? foundInStocks.name : null) || (foundOfficial?.name && foundOfficial.name !== sym ? foundOfficial.name : null) || (item?.companyName && item.companyName !== sym ? item.companyName : null) || sym;
 
     return {
       ...item,
@@ -1619,6 +1620,9 @@ export default function DailyRecommendations({
                           <Lock className="w-3 h-3 text-amber-500 shrink-0" />
                           <span>{item.symbol}</span>
                         </div>
+                        <div className="text-[10px] font-sans font-normal text-zinc-500 dark:text-zinc-400 truncate max-w-[140px]" title={getCompanyFullName(item.symbol)}>
+                          {getCompanyFullName(item.symbol)}
+                        </div>
                       </td>
                       <td className="py-2 px-3 font-sans text-zinc-400 text-[11px] truncate max-w-[120px]">{item.sector}</td>
                       <td className="py-2 px-3 text-right tabular-nums text-zinc-900 dark:text-zinc-100">
@@ -1651,8 +1655,8 @@ export default function DailyRecommendations({
                       <div className="font-bold text-zinc-900 dark:text-zinc-100">
                         {item.symbol}
                       </div>
-                      <div className="text-[10px] font-sans text-zinc-400 truncate max-w-[130px]">
-                        {item.companyName}
+                      <div className="text-[10px] font-sans text-zinc-500 dark:text-zinc-400 truncate max-w-[140px] font-medium" title={getCompanyFullName(item.symbol)}>
+                        {getCompanyFullName(item.symbol)}
                       </div>
                     </td>
                     <td className="py-2 px-3 font-sans text-[11px] text-zinc-500 dark:text-zinc-400">
@@ -1738,7 +1742,10 @@ export default function DailyRecommendations({
                           <span className="text-base font-bold text-zinc-900 dark:text-zinc-100 font-mono">{item.symbol}</span>
                           <span className="text-[10px] text-zinc-400 font-mono">{marketSession.cardDateFormatted}</span>
                         </div>
-                        <p className="text-[11px] text-zinc-500">{item.sector}</p>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate max-w-[190px] font-medium" title={getCompanyFullName(item.symbol)}>
+                          {getCompanyFullName(item.symbol)}
+                        </p>
+                        <p className="text-[10px] text-zinc-400">{item.sector}</p>
                       </div>
                       <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/10 text-emerald-600">
                         Strong Buy
@@ -1779,6 +1786,7 @@ export default function DailyRecommendations({
                   {/* Card Header: Symbol, Name, Badge */}
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="min-w-0 flex-1">
+                      {/* Line 1: Symbol, Sector, Session Date */}
                       <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
                         <span className="text-base font-bold font-mono tracking-tight text-zinc-900 dark:text-zinc-100">
                           {item.symbol}
@@ -1790,11 +1798,10 @@ export default function DailyRecommendations({
                           {isHistoricalView ? activeSessionObj.label : marketSession.cardDateFormatted}
                         </span>
                       </div>
-                      {item.companyName && item.companyName.trim().toUpperCase() !== item.symbol.trim().toUpperCase() && (
-                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate" title={item.companyName}>
-                          {item.companyName}
-                        </p>
-                      )}
+                      {/* Line 2: Full Registered Company Name */}
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate max-w-[210px] font-medium" title={getCompanyFullName(item.symbol)}>
+                        {getCompanyFullName(item.symbol)}
+                      </p>
                     </div>
                     
                     <div className={`px-2 py-0.5 rounded text-[11px] font-bold flex items-center shrink-0 ${badge.className}`}>

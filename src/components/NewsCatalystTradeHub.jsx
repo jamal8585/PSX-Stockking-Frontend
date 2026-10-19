@@ -36,6 +36,7 @@ import officialQuotes from '../data/official_quotes.json';
 import { 
   SECTOR_CATEGORIES, 
   MASTER_STOCKS_LIST, 
+  getCompanyFullName,
   getPSXMarketSessionInfo, 
   getActiveSessionNewsCutoffDate, 
   isWithinActiveMarketSession,
@@ -45,6 +46,7 @@ import {
 export {
   SECTOR_CATEGORIES,
   MASTER_STOCKS_LIST,
+  getCompanyFullName,
   getPSXMarketSessionInfo,
   getActiveSessionNewsCutoffDate,
   isWithinActiveMarketSession
@@ -767,16 +769,48 @@ export default function NewsCatalystTradeHub({
 
       const escapeRegex = (s) => String(s).replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
 
+      // Sector compatibility validation matrix:
+      // Strictly isolates Cement news to Cement sector stocks, and ensures Oil & Gas tickers
+      // only accept Petroleum, Gas, or macro-energy catalysts.
+      const isSectorCompatible = (stCategory, newsCategory) => {
+        if (!newsCategory) return true;
+        
+        // Strict cement isolation: Cement news only matches CEMENT sector stocks
+        if (newsCategory === 'CEMENT' || stCategory === 'CEMENT') {
+          return stCategory === newsCategory;
+        }
+
+        // Oil & Gas tickers (OIL_GAS) only accept Petroleum, Gas, or macro-energy catalysts
+        if (stCategory === 'OIL_GAS') {
+          return newsCategory === 'OIL_GAS' || newsCategory === 'POWER_ENERGY' || newsCategory === 'MACRO_ECONOMY';
+        }
+        if (newsCategory === 'OIL_GAS') {
+          return stCategory === 'OIL_GAS' || stCategory === 'POWER_ENERGY';
+        }
+
+        // Other sectors must strictly match their own category
+        return stCategory === newsCategory;
+      };
+
       // Generic words to exclude from single-word stock matching to prevent cross-sector bleed
       const GENERIC_EXCLUSIONS = new Set([
         'limited', 'company', 'pakistan', 'bank', 'the', 'co', 'ltd', 'corp', 'corporation',
         'industries', 'industry', 'national', 'general', 'standard', 'commercial', 'enterprises',
         'holdings', 'services', 'products', 'group', 'international', 'mills', 'factory', 'sugar',
-        'foods', 'power', 'generation', 'refinery', 'petroleum', 'oil', 'gas', 'electric', 'electronic'
+        'foods', 'power', 'generation', 'refinery', 'petroleum', 'oil', 'gas', 'electric', 'electronic',
+        'southern', 'northern', 'state', 'pak', 'east', 'west', 'north', 'south', 'central',
+        'demand', 'export', 'import', 'board', 'energy', 'plants', 'plant', 'works', 'sales',
+        'trade', 'market', 'stock', 'share', 'fund', 'investment', 'islamic', 'first', 'allied',
+        'security', 'management', 'financial', 'finance', 'auto', 'motors', 'motor'
       ]);
 
       // 1. Match stocks explicitly mentioned by exact ticker symbol word boundary (\bSYM\b) or distinct brand name
       MASTER_STOCKS_LIST.forEach(st => {
+        // Enforce strict sector compatibility
+        if (!isSectorCompatible(st.category, newsItem.category)) {
+          return;
+        }
+
         const sym = st.symbol.toLowerCase();
         const hasSymInText = new RegExp(`\\b${escapeRegex(sym)}\\b`, 'i').test(fullText);
 
@@ -811,7 +845,7 @@ export default function NewsCatalystTradeHub({
         if (!s?.symbol) return;
         const upper = s.symbol.toUpperCase().trim();
         const masterObj = MASTER_STOCKS_LIST.find(st => st.symbol === upper);
-        if (masterObj && (!newsItem.category || masterObj.category === newsItem.category)) {
+        if (masterObj && isSectorCompatible(masterObj.category, newsItem.category)) {
           impactedStockSymbols.add(upper);
         }
       });
@@ -1575,21 +1609,20 @@ export default function NewsCatalystTradeHub({
                     className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] hover:border-[#2563EB] dark:hover:border-[#3B82F6] rounded-xl p-4 shadow-sm dark:shadow-md transition-all flex flex-col justify-between"
                   >
                     <div>
-                      {/* Card Header: Symbol + Name on left; Badges on right */}
+                      {/* Card Header: Symbol on Line 1, Full Name on Line 2, Sector/Date on Line 3 */}
                       <div className="flex items-start justify-between gap-2 mb-2.5">
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="text-lg font-black text-[#0F172A] dark:text-[#F8FAFC] tracking-tight font-mono">
-                              {stockData.symbol}
-                            </h3>
-                            {stockData.name && stockData.name.toUpperCase() !== stockData.symbol.toUpperCase() && (
-                              <span className="text-xs text-[#64748B] dark:text-[#94A3B8] font-normal truncate max-w-[180px]" title={stockData.name}>
-                                {stockData.name}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] font-semibold border border-[#E2E8F0] dark:border-[#243044] truncate max-w-[130px]">
+                          {/* Line 1: Ticker Symbol */}
+                          <h3 className="text-lg font-black text-[#0F172A] dark:text-[#F8FAFC] tracking-tight font-mono leading-tight">
+                            {stockData.symbol}
+                          </h3>
+                          {/* Line 2: Registered Full Company Name */}
+                          <p className="text-xs text-[#64748B] dark:text-[#94A3B8] font-medium truncate max-w-[210px] mt-0.5" title={getCompanyFullName(stockData.symbol)}>
+                            {getCompanyFullName(stockData.symbol)}
+                          </p>
+                          {/* Line 3: Sector & Session Date Badges */}
+                          <div className="flex items-center gap-1.5 mt-1.5">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] font-semibold border border-[#E2E8F0] dark:border-[#243044] truncate max-w-[130px]" title={stockData.sector}>
                               {stockData.sector}
                             </span>
                             <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-semibold border ${
@@ -1931,6 +1964,7 @@ export default function NewsCatalystTradeHub({
 // Sub-Component: Comprehensive Tomorrow's AI Signal & Forecast Modal
 function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculator, onSelectStock }) {
   const { trade, newsItem, isBullish, multiNews = [] } = data;
+  const companyFullName = getCompanyFullName(trade.symbol) || (trade.name && trade.name !== trade.symbol ? trade.name : trade.symbol);
   const currentPrice = Number(trade.currentPrice || 100);
   const isDownside = !isBullish || Boolean(trade.isDownsideRisk);
   const gainPct = Math.abs(Number(trade.expectedGainPct || (isBullish ? 12.5 : 6.5)));
@@ -1957,10 +1991,10 @@ function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculato
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
-      <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden my-8 animate-scale-up">
+      <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden my-4 sm:my-8 animate-scale-up max-h-[90vh] flex flex-col">
         
         {/* Modal Header */}
-        <div className={`p-6 text-white ${
+        <div className={`p-5 sm:p-6 text-white shrink-0 ${
           isBullish 
             ? 'bg-gradient-to-r from-[#1E3A8A] via-[#2563EB] to-[#4F46E5]' 
             : 'bg-gradient-to-r from-[#7F1D1D] via-[#DC2626] to-[#991B1B]'
@@ -1975,9 +2009,9 @@ function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculato
                   {marketSession?.sessionDateFormatted ? `Session: ${marketSession.sessionDateFormatted}` : 'Next Trading Session'}
                 </span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-black mono tracking-tight text-white flex items-center space-x-2">
+              <h2 className="text-2xl sm:text-3xl font-black mono tracking-tight text-white flex flex-wrap items-baseline gap-x-2">
                 <span>{trade.symbol}</span>
-                <span className="text-sm font-normal text-white/90">({trade.name})</span>
+                <span className="text-sm sm:text-base font-normal text-white/90">({companyFullName})</span>
               </h2>
             </div>
             <button
@@ -1990,7 +2024,7 @@ function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculato
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto text-[#0F172A] dark:text-[#F8FAFC]">
+        <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1 min-h-0 text-[#0F172A] dark:text-[#F8FAFC]">
           
           {/* 1. Triggering News Event / Multi-News List */}
           <div className="p-4 rounded-xl bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] space-y-2">
@@ -2119,7 +2153,7 @@ function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculato
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 bg-[#F8FAFC] dark:bg-[#0B0F19] border-t border-[#E2E8F0] dark:border-[#243044] space-y-2.5">
+        <div className="p-4 bg-[#F8FAFC] dark:bg-[#0B0F19] border-t border-[#E2E8F0] dark:border-[#243044] space-y-2.5 shrink-0">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center space-x-2 text-xs text-[#64748B] dark:text-[#94A3B8]">
               <Activity className="w-4 h-4 text-[#2563EB]" />
@@ -2132,7 +2166,7 @@ function TomorrowPredictionModal({ data, marketSession, onClose, onOpenCalculato
                   onClose();
                   onOpenCalculator({
                     symbol: trade.symbol,
-                    companyName: trade.name,
+                    companyName: companyFullName,
                     currentPrice: Number(currentPrice),
                     stopLoss: Number(stopLoss),
                     target1: Number(tomorrowTarget2),
