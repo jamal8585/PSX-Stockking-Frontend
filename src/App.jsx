@@ -1068,6 +1068,7 @@ export default function App() {
         {activeTab === 'screener' && (
           <StockScreenerTable
             stocks={stocks}
+            recommendations={recommendations}
             onSelectStock={handleSelectStock}
             onOpenCalculator={setCalcStock}
             onOpenDayTrade={setDayTradeStock}

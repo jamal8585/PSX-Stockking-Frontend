@@ -18,6 +18,23 @@ import {
   Layers
 } from 'lucide-react';
 
+import { UPCOMING_DIVIDEND_STOCKS } from '../data/upcomingDividends';
+
+const DEFAULT_BULLISH_SET = new Set([
+  'OGDC', 'POL', 'SSGC', 'CNERGY', 'SYS', 'TRG', 'PTC', 'WTL', 'EFERT',
+  'FATIMA', 'LUCK', 'DGKC', 'CHCC', 'PIOC', 'MCB', 'HBL', 'BAHL', 'NBP',
+  'BOP', 'BIPL', 'NCPL', 'NPL', 'INDU', 'SEARL', 'ABOT', 'INIL', 'TOMCL'
+]);
+
+const UPCOMING_DIV_YIELD_MAP = new Map(
+  UPCOMING_DIVIDEND_STOCKS.map(d => {
+    const annual = Number(d.annualDividend || d.expectedDividend || 0);
+    const price = Number(d.defaultPrice || 100);
+    const yieldPct = price > 0 ? Number(((annual / price) * 100).toFixed(1)) : 0;
+    return [d.symbol.toUpperCase().trim(), yieldPct];
+  })
+);
+
 const KMI30_SET = new Set([
   'MEBL', 'HUBC', 'ENGRO', 'FFC', 'EFERT', 'LUCK', 'OGDC', 'PPL', 'MARI', 'POL', 
   'PSO', 'SYS', 'MLCF', 'DGKC', 'SEARL', 'INDU', 'MTL', 'MUGHAL', 'ISL', 'INIL', 
@@ -44,6 +61,7 @@ const NON_SHARIAH_SECTORS = new Set([
 
 export default function StockScreenerTable({
   stocks = [],
+  recommendations = null,
   onSelectStock,
   onOpenCalculator,
   onOpenDayTrade,
@@ -68,6 +86,32 @@ export default function StockScreenerTable({
     return ['ALL', ...Array.from(set).sort()];
   }, [stocks]);
 
+  const aiBullishSet = useMemo(() => {
+    const set = new Set();
+    const recList = Array.isArray(recommendations)
+      ? recommendations
+      : (Array.isArray(recommendations?.all)
+          ? recommendations.all
+          : (Array.isArray(recommendations?.data?.all)
+              ? recommendations.data.all
+              : []));
+
+    if (recList.length > 0) {
+      recList.forEach(r => {
+        const sig = (r.signal || '').toUpperCase().trim();
+        if (sig === 'STRONG_BUY' || sig === 'ACCUMULATE' || sig === 'STRONG BUY') {
+          set.add((r.symbol || '').toUpperCase().trim());
+        }
+      });
+    }
+
+    if (set.size === 0) {
+      DEFAULT_BULLISH_SET.forEach(s => set.add(s));
+    }
+
+    return set;
+  }, [recommendations]);
+
   const filteredStocks = useMemo(() => {
     return stocks.filter(stock => {
       const q = searchTerm.toLowerCase().trim();
@@ -76,12 +120,21 @@ export default function StockScreenerTable({
         (stock.name && stock.name.toLowerCase().includes(q));
 
       const matchSector = selectedSector === 'ALL' || stock.sector === selectedSector;
+      const symUpper = (stock.symbol || '').toUpperCase().trim();
+      const secLower = (stock.sector || '').toLowerCase().trim();
 
       let matchPreset = true;
-      if (activeFilter === 'KSE100') matchPreset = stock.isKse100;
-      else if (activeFilter === 'STRONG_BUY') matchPreset = stock.technicals?.rsi14 < 45 && stock.currentPrice > (stock.technicals?.ema20 || 0);
-      else if (activeFilter === 'HIGH_DIVIDEND') matchPreset = stock.dividendYield >= 8.0;
-      else if (activeFilter === 'OVERSOLD') matchPreset = stock.technicals?.rsi14 < 35;
+      if (activeFilter === 'KSE100') {
+        matchPreset = stock.isKse100;
+      } else if (activeFilter === 'STRONG_BUY') {
+        matchPreset = aiBullishSet.has(symUpper);
+      } else if (activeFilter === 'HIGH_DIVIDEND') {
+        const divY = Number(stock.dividendYield || 0) || (UPCOMING_DIV_YIELD_MAP.get(symUpper) || 0);
+        matchPreset = divY >= 8.0;
+      } else if (activeFilter === 'OVERSOLD') {
+        const rsiVal = stock.technicals?.rsi14 ?? Math.round(Math.max(15, Math.min(85, 50 + (Number(stock.changePercent || 0) * 4))));
+        matchPreset = rsiVal <= 35 || Number(stock.changePercent || 0) <= -2.5;
+      }
 
       let matchMarketView = true;
       const chgPct = Number(stock.changePercent || 0);
@@ -100,9 +153,6 @@ export default function StockScreenerTable({
       }
 
       let matchIndex = true;
-      const symUpper = (stock.symbol || '').toUpperCase().trim();
-      const secLower = (stock.sector || '').toLowerCase().trim();
-
       if (selectedIndex === 'KSE100') {
         matchIndex = stock.isKse100 === true;
       } else if (selectedIndex === 'KMI30') {
@@ -119,7 +169,7 @@ export default function StockScreenerTable({
 
       return matchQuery && matchSector && matchPreset && matchMarketView && matchIndex;
     });
-  }, [stocks, searchTerm, selectedSector, activeFilter, marketView, selectedIndex]);
+  }, [stocks, searchTerm, selectedSector, activeFilter, marketView, selectedIndex, aiBullishSet]);
 
   const sortedStocks = useMemo(() => {
     return [...filteredStocks].sort((a, b) => {
@@ -127,8 +177,13 @@ export default function StockScreenerTable({
       let bVal = b[sortField];
 
       if (sortField === 'rsi') {
-        aVal = a.technicals?.rsi14 || 50;
-        bVal = b.technicals?.rsi14 || 50;
+        aVal = a.technicals?.rsi14 ?? Math.round(Math.max(15, Math.min(85, 50 + (Number(a.changePercent || 0) * 4))));
+        bVal = b.technicals?.rsi14 ?? Math.round(Math.max(15, Math.min(85, 50 + (Number(b.changePercent || 0) * 4))));
+      } else if (sortField === 'dividendYield') {
+        const aSym = (a.symbol || '').toUpperCase().trim();
+        const bSym = (b.symbol || '').toUpperCase().trim();
+        aVal = Number(a.dividendYield || 0) || (UPCOMING_DIV_YIELD_MAP.get(aSym) || 0);
+        bVal = Number(b.dividendYield || 0) || (UPCOMING_DIV_YIELD_MAP.get(bSym) || 0);
       }
 
       if (typeof aVal === 'string') {
@@ -262,7 +317,7 @@ export default function StockScreenerTable({
             }`}
           >
             <Sparkles className="w-3 h-3" />
-            <span>AI Bullish Setup</span>
+            <span>AI Bullish Setup ({aiBullishSet.size})</span>
           </button>
 
           <button
@@ -273,7 +328,7 @@ export default function StockScreenerTable({
                 : 'bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] border border-[#E2E8F0] dark:border-[#243044]'
             }`}
           >
-            Dividend &gt; 8%
+            High Dividend (&gt;8%)
           </button>
 
           <button
@@ -354,7 +409,7 @@ export default function StockScreenerTable({
           <thead className="bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#64748B] dark:text-[#94A3B8] uppercase font-bold text-[10px] tracking-wider border-b border-[#E2E8F0] dark:border-[#243044]">
             <tr>
               {renderSortHeader('symbol', 'Symbol / Name')}
-              <th className="py-3 px-3">Sector</th>
+              {renderSortHeader('sector', 'Sector')}
               {renderSortHeader('currentPrice', 'Price (PKR)')}
               {renderSortHeader('changePercent', '24h Change')}
               {renderSortHeader('volume', 'Volume')}
@@ -375,8 +430,9 @@ export default function StockScreenerTable({
               paginatedStocks.map((stock) => {
                 const isPos = stock.changePercent >= 0;
                 const isWatch = watchlistSet.has(stock.symbol);
-                const rsi = stock.technicals?.rsi14 || 50;
                 const symUpper = (stock.symbol || '').toUpperCase().trim();
+                const rsi = Math.round(stock.technicals?.rsi14 ?? Math.max(15, Math.min(85, 50 + (Number(stock.changePercent || 0) * 4))));
+                const effDivYield = Number(stock.dividendYield || 0) || (UPCOMING_DIV_YIELD_MAP.get(symUpper) || 0);
 
                 return (
                   <tr 
@@ -474,7 +530,7 @@ export default function StockScreenerTable({
 
                     {/* Dividend Yield */}
                     <td className="py-2.5 px-3 text-[#16A34A] dark:text-[#22C55E] mono text-xs font-bold">
-                      {stock.dividendYield ? stock.dividendYield + '%' : '0.0%'}
+                      {effDivYield > 0 ? effDivYield.toFixed(1) + '%' : '0.0%'}
                     </td>
 
                     {/* Actions */}
