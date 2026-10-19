@@ -255,7 +255,7 @@ export default function MarketHero({ marketSummary }) {
                     key={idx}
                     className="bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] hover:border-[#2563EB] dark:hover:border-[#3B82F6] rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-1.5 transition-colors"
                   >
-                    <span className="text-[11px] text-[#0F172A] dark:text-[#F8FAFC] truncate max-w-[130px] sm:max-w-[170px] font-semibold" title={sec.sector}>
+                    <span className="text-[11px] text-[#0F172A] dark:text-[#F8FAFC] truncate max-w-[105px] xs:max-w-[125px] sm:max-w-[155px] font-semibold" title={sec.sector}>
                       {sec.sector}
                     </span>
                     <span className={`text-[11px] font-bold font-mono shrink-0 ${
@@ -271,7 +271,7 @@ export default function MarketHero({ marketSummary }) {
 
           <div className="pt-2 text-[10px] text-[#64748B] dark:text-[#94A3B8] flex justify-between items-center border-t border-[#E2E8F0] dark:border-[#243044] mt-2">
             <span>Tracking {displaySectors.length} Sectors</span>
-            <span className="text-[#16A34A] dark:text-[#22C55E] font-bold">Top: {sortedSectors[0]?.sector} (+{sortedSectors[0]?.changePercent}%)</span>
+            <span className="text-[#16A34A] dark:text-[#22C55E] font-bold truncate max-w-[180px]">Top: {sortedSectors[0]?.sector} (+{sortedSectors[0]?.changePercent}%)</span>
           </div>
         </div>
       </div>

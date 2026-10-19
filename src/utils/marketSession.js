@@ -107,7 +107,8 @@ export function getNextPSXTradingDate(pktDate = null) {
   } else if (timeNum >= 1600) {
     next.setDate(d.getDate() + 1);
   } else {
-    next.setDate(d.getDate() + 1);
+    // During pre-market or live hours on a trading day, target is today
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Karachi' });
   }
   return next.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Karachi' });
 }
@@ -123,54 +124,72 @@ export function getPSXMarketSessionInfo() {
 
   let targetDate = new Date(pktDate);
   let isWeekend = false;
+  let isFridayEod = false;
+  let isPreMarket = false;
+  let isPostMarket = false;
+  let isLive = false;
   let statusBadge = '';
   let subText = '';
-  let isFridayEod = false;
 
-  if (day === 6) {
+  if (day === 6) { // Saturday
     isWeekend = true;
     targetDate.setDate(pktDate.getDate() + 2);
-    const nextFmt = targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    const nextFmt = targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Karachi' });
     statusBadge = 'Post-Market Analysis • Weekend Closed';
     subText = `Actionable for Upcoming Monday PSX Market Open (${nextFmt})`;
-  } else if (day === 0) {
+  } else if (day === 0) { // Sunday
     isWeekend = true;
     targetDate.setDate(pktDate.getDate() + 1);
-    const nextFmt = targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-    statusBadge = 'Post-Market Analysis • Weekend Closed';
+    const nextFmt = targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Karachi' });
+    statusBadge = 'Pre-Market Intelligence • Weekend Closed';
     subText = `Actionable for Tomorrow's Monday PSX Market Open (${nextFmt})`;
-  } else if (day === 5 && timeNum >= 1600) {
+  } else if (day === 5 && timeNum >= 1600) { // Friday Post-Market (4:00 PM to 11:59 PM PKT)
     isFridayEod = true;
+    isPostMarket = true;
     targetDate.setDate(pktDate.getDate() + 3);
-    const nextFmt = targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-    statusBadge = 'Post-Market Analysis • Friday EOD';
+    const nextFmt = targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Karachi' });
+    statusBadge = `Post-Market Analysis • Actionable for Upcoming Monday PSX Market Open (${nextFmt})`;
     subText = `Actionable for Upcoming Monday PSX Market Open (${nextFmt})`;
-  } else if (timeNum >= 1600) {
+  } else if (timeNum >= 1600) { // Monday-Thursday Post-Market (4:00 PM to 11:59 PM PKT)
+    isPostMarket = true;
     targetDate.setDate(pktDate.getDate() + 1);
-    const nextFmt = targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-    statusBadge = 'Post-Market Analysis';
+    const nextFmt = targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Karachi' });
+    statusBadge = `Post-Market Analysis • Actionable for Tomorrow's PSX Market Open (${nextFmt})`;
     subText = `Actionable for Tomorrow's PSX Market Open (${nextFmt})`;
-  } else {
+  } else if (timeNum < 915) { // Midnight to 09:14 AM PKT (Pre-Market Phase)
+    isPreMarket = true;
     targetDate = pktDate;
-    statusBadge = 'Active Trading Session: Today, ' + pktDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-    subText = "Effective & Actionable for Today's PSX Market (09:30 AM PKT)";
+    const todayFmt = pktDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Karachi' });
+    statusBadge = `Pre-Market Intelligence • Actionable for Today's PSX Market Open (${todayFmt})`;
+    subText = `Actionable for Today's PSX Market Open (${todayFmt})`;
+  } else { // 09:15 AM to 04:00 PM PKT (Live Market Session)
+    isLive = true;
+    targetDate = pktDate;
+    const todayFmt = pktDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Karachi' });
+    statusBadge = 'Live Trading Session • Today, ' + todayFmt;
+    subText = "Effective & Actionable for Today's PSX Market (09:15 AM PKT)";
   }
 
   const sessionDateFormatted = targetDate.toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
-    year: 'numeric'
+    year: 'numeric',
+    timeZone: 'Asia/Karachi'
   });
 
   const cardDateFormatted = targetDate.toLocaleDateString('en-US', {
     month: 'short',
-    day: 'numeric'
+    day: 'numeric',
+    timeZone: 'Asia/Karachi'
   });
 
   return {
     isWeekend,
     isFridayEod,
+    isPreMarket,
+    isPostMarket,
+    isLive,
     targetDate,
     sessionDateFormatted,
     cardDateFormatted,
