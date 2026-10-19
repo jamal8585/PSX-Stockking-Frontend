@@ -27,30 +27,45 @@ export default function CompanyFinancialsView({ stock, isDark = true }) {
 
   const symbol = stock?.symbol || 'WTL';
 
-  useEffect(() => {
-    let isMounted = true;
-    const loadData = async () => {
-      setLoading(true);
-      setError(null);
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  const loadData = async (manualRetry = false) => {
+    if (manualRetry) setIsRetrying(true);
+    else setLoading(true);
+    setError(null);
+
+    const maxAttempts = 2;
+    let lastError = null;
+
+    for (let attempt = 0; attempt <= maxAttempts; attempt++) {
       try {
         const res = await fetchStockFinancials(symbol);
-        if (isMounted) {
-          if (res?.success && res.data) {
-            setFinancials(res.data);
-          } else {
-            setError('Financial data could not be loaded for this company.');
-          }
+        if (res?.success && res.data) {
+          setFinancials(res.data);
+          setError(null);
+          setLoading(false);
+          setIsRetrying(false);
+          return;
+        } else {
+          lastError = new Error(res?.message || 'Financial statements not available');
         }
       } catch (err) {
-        if (isMounted) {
-          setError('Failed to fetch financial statements.');
-        }
-      } finally {
-        if (isMounted) setLoading(false);
+        lastError = err;
       }
-    };
+
+      if (attempt < maxAttempts) {
+        // Backoff: 600ms, 1200ms
+        await new Promise(res => setTimeout(res, 600 * (attempt + 1)));
+      }
+    }
+
+    setError('PSX financial data temporarily unavailable');
+    setLoading(false);
+    setIsRetrying(false);
+  };
+
+  useEffect(() => {
     loadData();
-    return () => { isMounted = false; };
   }, [symbol]);
 
   // Active dataset based on toggle (Quarterly vs Annual)
@@ -431,8 +446,21 @@ export default function CompanyFinancialsView({ stock, isDark = true }) {
 
   if (error || !financials) {
     return (
-      <div className={`p-8 text-center rounded-2xl border ${isDark ? 'bg-[#0B0F19] border-gray-800' : 'bg-white border-slate-200'}`}>
-        <p className="text-red-400 text-sm font-semibold">{error || 'Financial data currently unavailable.'}</p>
+      <div className={`p-8 text-center rounded-2xl border space-y-4 ${isDark ? 'bg-[#0B0F19] border-gray-800' : 'bg-white border-slate-200'}`}>
+        <p className="text-amber-400/90 text-sm font-semibold">
+          {error || 'PSX financial data temporarily unavailable'}
+        </p>
+        <p className={`text-xs max-w-md mx-auto ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
+          Failed to synchronize unconsolidated financial statements directly from the official PSX Data Portal.
+        </p>
+        <button
+          onClick={() => loadData(true)}
+          disabled={isRetrying}
+          className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 transition-all cursor-pointer"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isRetrying ? 'animate-spin' : ''}`} />
+          <span>{isRetrying ? 'Retrying...' : 'Retry'}</span>
+        </button>
       </div>
     );
   }
