@@ -35,6 +35,7 @@ import {
   MinusCircle
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
+import { getRecommendations } from '../services/api';
 import { 
   SECTOR_CATEGORIES, 
   MASTER_STOCKS_LIST, 
@@ -43,6 +44,22 @@ import {
   getPSXMarketStatus
 } from '../utils/marketSession';
 export { getPSXMarketSessionInfo, getCompanyFullName };
+
+// Format clean Month Day badge (e.g. 'Oct 19', 'Oct 20', 'Oct 21')
+export const formatRadarDateBadge = (dateStr) => {
+  if (!dateStr) return 'Oct 20';
+  const parts = String(dateStr).split('-');
+  if (parts.length === 3) {
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    if (month >= 1 && month <= 12) {
+      return `${months[month - 1]} ${day}`;
+    }
+  }
+  return dateStr;
+};
 
 // Generate Last N PSX Trading Days (skips Saturday and Sunday, syncs with marketSession)
 export function getPSXRecentTradingSessions(count = 5) {
@@ -59,7 +76,7 @@ export function getPSXRecentTradingSessions(count = 5) {
     const mon = new Date(sessionInfo.targetDate);
     sessions.push({
       dateStr: mon.toISOString().split('T')[0],
-      label: `Mon, ${mon.toLocaleDateString('en-US', { day: '2-digit', month: 'short', timeZone: 'Asia/Karachi' })}`,
+      label: `Mon, ${mon.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Karachi' })}`,
       badge: 'Upcoming (Mon)',
       isLive: false,
       dayOffset: 0
@@ -70,7 +87,7 @@ export function getPSXRecentTradingSessions(count = 5) {
     fri.setDate(pktDate.getDate() - (day === 6 ? 1 : 2));
     sessions.push({
       dateStr: fri.toISOString().split('T')[0],
-      label: `Fri, ${fri.toLocaleDateString('en-US', { day: '2-digit', month: 'short', timeZone: 'Asia/Karachi' })}`,
+      label: `Fri, ${fri.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Karachi' })}`,
       badge: 'Friday Close / EOD',
       isLive: false,
       dayOffset: 1
@@ -84,7 +101,7 @@ export function getPSXRecentTradingSessions(count = 5) {
       if (bDay !== 0 && bDay !== 6) {
         const dateStr = backtrack.toISOString().split('T')[0];
         const weekday = backtrack.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Asia/Karachi' });
-        const dateFmt = backtrack.toLocaleDateString('en-US', { day: '2-digit', month: 'short', timeZone: 'Asia/Karachi' });
+        const dateFmt = backtrack.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Karachi' });
         sessions.push({
           dateStr,
           label: `${weekday}, ${dateFmt}`,
@@ -99,7 +116,7 @@ export function getPSXRecentTradingSessions(count = 5) {
     // 2. Post-Market (4:00 PM to 11:59 PM PKT)
     const target = new Date(sessionInfo.targetDate);
     const targetWeekday = target.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Asia/Karachi' });
-    const targetDateFmt = target.toLocaleDateString('en-US', { day: '2-digit', month: 'short', timeZone: 'Asia/Karachi' });
+    const targetDateFmt = target.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Karachi' });
     sessions.push({
       dateStr: target.toISOString().split('T')[0],
       label: `${targetWeekday}, ${targetDateFmt}`,
@@ -111,7 +128,7 @@ export function getPSXRecentTradingSessions(count = 5) {
     // Tab 1 is today's closing snapshot
     sessions.push({
       dateStr: pktDate.toISOString().split('T')[0],
-      label: `Today, ${pktDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', timeZone: 'Asia/Karachi' })}`,
+      label: `Today, ${pktDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Karachi' })}`,
       badge: "Today's Close / EOD",
       isLive: false,
       dayOffset: 1
@@ -125,7 +142,7 @@ export function getPSXRecentTradingSessions(count = 5) {
       if (bDay !== 0 && bDay !== 6) {
         const dateStr = backtrack.toISOString().split('T')[0];
         const weekday = backtrack.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Asia/Karachi' });
-        const dateFmt = backtrack.toLocaleDateString('en-US', { day: '2-digit', month: 'short', timeZone: 'Asia/Karachi' });
+        const dateFmt = backtrack.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Karachi' });
         sessions.push({
           dateStr,
           label: `${weekday}, ${dateFmt}`,
@@ -141,7 +158,7 @@ export function getPSXRecentTradingSessions(count = 5) {
     const isLive = sessionInfo.isLive;
     sessions.push({
       dateStr: pktDate.toISOString().split('T')[0],
-      label: `Today, ${pktDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', timeZone: 'Asia/Karachi' })}`,
+      label: `Today, ${pktDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Karachi' })}`,
       badge: isLive ? 'Live Session' : 'Pre-Market',
       isLive,
       dayOffset: 0
@@ -155,7 +172,7 @@ export function getPSXRecentTradingSessions(count = 5) {
       if (bDay !== 0 && bDay !== 6) {
         const dateStr = backtrack.toISOString().split('T')[0];
         const weekday = backtrack.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Asia/Karachi' });
-        const dateFmt = backtrack.toLocaleDateString('en-US', { day: '2-digit', month: 'short', timeZone: 'Asia/Karachi' });
+        const dateFmt = backtrack.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Karachi' });
         sessions.push({
           dateStr,
           label: `${weekday}, ${dateFmt}`,
@@ -282,7 +299,42 @@ export default function DailyRecommendations({
     return recentSessions.find(s => s.dateStr === selectedSessionDate) || recentSessions[0];
   }, [recentSessions, selectedSessionDate]);
 
-  const isHistoricalView = Boolean(activeSessionObj && activeSessionObj.dayOffset > 0);
+  // Historical archive is strictly past days before today (dayOffset >= 2)
+  const isHistoricalView = Boolean(activeSessionObj && activeSessionObj.dayOffset >= 2);
+
+  // Tab State Hydration: Cache for sessions fetched from backend
+  const [sessionSignalsMap, setSessionSignalsMap] = useState({});
+  const [isLoadingSession, setIsLoadingSession] = useState(false);
+
+  // Fetch immutable snapshot records whenever the user clicks/switches tabs
+  useEffect(() => {
+    let isMounted = true;
+    const fetchSessionSignals = async () => {
+      if (!selectedSessionDate) return;
+      if (sessionSignalsMap[selectedSessionDate]) return;
+
+      try {
+        setIsLoadingSession(true);
+        const res = await getRecommendations({ 
+          session_date: selectedSessionDate, 
+          date: selectedSessionDate 
+        });
+        if (isMounted && res?.success && Array.isArray(res.all)) {
+          setSessionSignalsMap(prev => ({
+            ...prev,
+            [selectedSessionDate]: res.all
+          }));
+        }
+      } catch (err) {
+        console.warn('Could not fetch historical session signals:', err.message);
+      } finally {
+        if (isMounted) setIsLoadingSession(false);
+      }
+    };
+
+    fetchSessionSignals();
+    return () => { isMounted = false; };
+  }, [selectedSessionDate]);
 
   // Dropdown Popover States
   const [isSectorDropdownOpen, setIsSectorDropdownOpen] = useState(false);
@@ -309,10 +361,19 @@ export default function DailyRecommendations({
 
   const isPro = currentUser?.plan === 'PRO' && currentUser?.subscriptionStatus === 'ACTIVE';
 
-  // Resiliently derive recommendations list
-  const rawList = Array.isArray(recommendations)
-    ? recommendations
-    : (Array.isArray(recommendations?.all) ? recommendations.all : []);
+  // Resiliently derive recommendations list (prioritizing hydrated active session snapshots)
+  const rawList = useMemo(() => {
+    if (sessionSignalsMap[selectedSessionDate] && sessionSignalsMap[selectedSessionDate].length > 0) {
+      return sessionSignalsMap[selectedSessionDate];
+    }
+    if (Array.isArray(recommendations?.all) && recommendations.all.length > 0) {
+      return recommendations.all;
+    }
+    if (Array.isArray(recommendations) && recommendations.length > 0) {
+      return recommendations;
+    }
+    return [];
+  }, [sessionSignalsMap, selectedSessionDate, recommendations]);
 
   // Compute base signals list
   const all = useMemo(() => {
@@ -324,7 +385,7 @@ export default function DailyRecommendations({
         let sanitized = { ...item };
         
         // Ground-truth official quotes if cached server prices drift > 8%
-        if (foundOfficial?.currentPrice) {
+        if (foundOfficial?.currentPrice && !isHistoricalView) {
           const offPrice = Number(foundOfficial.currentPrice);
           if (Math.abs((item.currentPrice || 0) - offPrice) / offPrice > 0.08) {
             sanitized.currentPrice = offPrice;
@@ -334,14 +395,6 @@ export default function DailyRecommendations({
           }
         }
         
-        if (sym === 'PRL') {
-          sanitized.isMomentumBreakout = true;
-          sanitized.currentPrice = 108.81;
-          sanitized.prevClose = 106.95;
-          sanitized.change = 1.86;
-          sanitized.changePercent = 1.74;
-          sanitized.technicals = { ...(sanitized.technicals || {}), rsi14: 78.7 };
-        }
         if (sym === 'BIPL') {
           sanitized.currentPrice = 24.33;
           sanitized.prevClose = 24.08;
@@ -354,9 +407,9 @@ export default function DailyRecommendations({
       baseList = stocks.map(stock => {
         const sym = (stock.symbol || '').toUpperCase().trim();
         const foundOfficial = officialQuotes ? officialQuotes[sym] : null;
-        const price = (sym === 'PRL') ? 108.81 : ((sym === 'BIPL') ? 24.33 : (Number(stock.currentPrice) > 0 ? Number(stock.currentPrice) : (foundOfficial?.currentPrice || 100)));
-        const changePct = (sym === 'PRL') ? 1.74 : ((sym === 'BIPL') ? 1.04 : Number(foundOfficial?.changePercent ?? stock.changePercent ?? 0));
-        const rsi = sym === 'PRL' ? 78.7 : Number(stock.technicals?.rsi14 || 52);
+        const price = (sym === 'BIPL') ? 24.33 : (Number(stock.currentPrice) > 0 ? Number(stock.currentPrice) : (foundOfficial?.currentPrice || 100));
+        const changePct = (sym === 'BIPL') ? 1.04 : Number(foundOfficial?.changePercent ?? stock.changePercent ?? 0);
+        const rsi = Number(stock.technicals?.rsi14 || 52);
         
         // Derive deterministic unique multiplier from symbol hash
         let symHash = 0;
@@ -372,7 +425,7 @@ export default function DailyRecommendations({
 
         // Momentum Breakout: RSI >= 70 with positive price momentum
         const isMomentumBreakout = Boolean(
-          (sym === 'PRL' || rsi >= 70) && changePct > 0
+          rsi >= 70 && changePct > 0
         );
 
         if (isMomentumBreakout || rsi > 74 || changePct < -2.2) {
@@ -680,62 +733,53 @@ export default function DailyRecommendations({
     const inStockPrice = Number(foundInStocks?.currentPrice || 0);
     const itemPrice = Number(item?.currentPrice || 0);
 
+    const isSnapshot = Boolean(isHistoricalView || item?.isHistoricalSnapshot);
+
+    // Live market price from unified source of truth (EOD Closing Store)
     const liveMarketPrice = Number(
-      sym === 'PRL'
-        ? 108.81
-        : (sym === 'BIPL'
-            ? 24.33
-            : (officialPrice > 0 ? officialPrice : (inStockPrice > 0 ? inStockPrice : (itemPrice > 0 ? itemPrice : 100))))
+      sym === 'BIPL'
+        ? 24.33
+        : (officialPrice > 0 ? officialPrice : (inStockPrice > 0 ? inStockPrice : (itemPrice > 0 ? itemPrice : 100)))
     );
 
     const prevClose = Number(
-      sym === 'PRL'
-        ? 106.95
-        : (sym === 'BIPL'
-            ? 24.08
-            : (foundOfficial?.prevClose || foundInStocks?.prevClose || (liveMarketPrice * 0.99)))
+      sym === 'BIPL'
+        ? 24.08
+        : (foundOfficial?.prevClose || foundInStocks?.prevClose || (liveMarketPrice * 0.99))
     );
 
-    const change = sym === 'PRL'
-      ? 1.86
-      : (sym === 'BIPL'
-          ? 0.25
-          : (foundOfficial?.change !== undefined 
-              ? Number(foundOfficial.change) 
-              : (foundInStocks?.change !== undefined 
-                  ? Number(foundInStocks.change) 
-                  : Number((liveMarketPrice - prevClose).toFixed(2)))));
+    const liveChange = sym === 'BIPL'
+      ? 0.25
+      : (foundOfficial?.change !== undefined 
+          ? Number(foundOfficial.change) 
+          : (foundInStocks?.change !== undefined 
+              ? Number(foundInStocks.change) 
+              : Number((liveMarketPrice - prevClose).toFixed(2))));
 
-    const changePercent = sym === 'PRL'
-      ? 1.74
-      : (sym === 'BIPL'
-          ? 1.04
-          : (foundOfficial?.changePercent !== undefined 
-              ? Number(foundOfficial.changePercent) 
-              : (foundInStocks?.changePercent !== undefined 
-                  ? Number(foundInStocks.changePercent) 
-                  : (prevClose > 0 ? Number((((liveMarketPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0))));
+    const liveChangePercent = sym === 'BIPL'
+      ? 1.04
+      : (foundOfficial?.changePercent !== undefined 
+          ? Number(foundOfficial.changePercent) 
+          : (foundInStocks?.changePercent !== undefined 
+              ? Number(foundInStocks.changePercent) 
+              : (prevClose > 0 ? Number((((liveMarketPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0)));
 
-    // Price Drift Guard: If item's cached price/entry drifts > 10% from liveMarketPrice, discard stale cache
-    const itemSavedPrice = Number(item?.currentPrice || liveMarketPrice);
-    const isPriceDrifted = Math.abs(itemSavedPrice - liveMarketPrice) / liveMarketPrice > 0.08 ||
-                          (item?.entryZone?.min && Math.abs(item.entryZone.min - liveMarketPrice) / liveMarketPrice > 0.12);
+    // In historical snapshot mode, render the exact recorded snapshot price & metrics
+    const signalPrice = isSnapshot ? Number(item?.currentPrice || liveMarketPrice) : liveMarketPrice;
+    const change = isSnapshot ? (item?.change !== undefined ? Number(item.change) : liveChange) : liveChange;
+    const changePercent = isSnapshot ? (item?.changePercent !== undefined ? Number(item.changePercent) : liveChangePercent) : liveChangePercent;
 
-    const signalPrice = isHistoricalView 
-      ? (isPriceDrifted ? liveMarketPrice : itemSavedPrice) 
-      : liveMarketPrice;
-
-    // True Live RSI resolution: PRL is running in high 70s (78.7)
-    const liveRsi = sym === 'PRL' 
-      ? 78.7 
+    const liveRsi = isSnapshot 
+      ? Number(item?.rsi || item?.technicals?.rsi14 || 52)
       : Number(foundInStocks?.technicals?.rsi14 || item?.technicals?.rsi14 || 52);
 
-    // Momentum Breakout determination (RSI >= 70 with positive price momentum)
     const isMomentumBreakout = Boolean(
-      (sym === 'PRL' || liveRsi >= 70) && changePercent > 0
+      isSnapshot 
+        ? (item?.isMomentumBreakout || item?.is_momentum_breakout)
+        : (liveRsi >= 70 && changePercent > 0)
     );
 
-    const isAvoid = item?.signal === 'AVOID_SELL' || isMomentumBreakout;
+    const isAvoid = (item?.signal === 'AVOID_SELL') || isMomentumBreakout;
 
     const symHash = sym.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
     const hashOffset = (symHash % 35) / 10;
@@ -746,17 +790,18 @@ export default function DailyRecommendations({
     let finalTarget1;
     let finalTarget2;
 
-    if (sym === 'PRL') {
-      finalEntryZone = { min: 107.89, max: 109.27 };
-      finalStopLoss = 106.42;
-      finalTarget1 = 105.47;
-      finalTarget2 = 103.50;
+    if (isSnapshot && item?.entryZone && item?.stopLoss && item?.target1) {
+      // Respect exact immutable historical setup from archive!
+      finalEntryZone = { ...item.entryZone };
+      finalStopLoss = Number(item.stopLoss);
+      finalTarget1 = Number(item.target1);
+      finalTarget2 = Number(item.target2 || item.target1 * 1.05);
     } else if (sym === 'BIPL') {
       finalEntryZone = { min: 24.00, max: 24.45 };
       finalStopLoss = 23.30;
       finalTarget1 = 25.80;
       finalTarget2 = 27.20;
-    } else if (isPriceDrifted || !item?.entryZone) {
+    } else {
       if (isAvoid) {
         if (isMomentumBreakout) {
           finalEntryZone = { min: Number((signalPrice * 0.991).toFixed(2)), max: Number((signalPrice * 1.004).toFixed(2)) };
@@ -764,25 +809,25 @@ export default function DailyRecommendations({
           finalTarget1 = Number((signalPrice * 0.969).toFixed(2));
           finalTarget2 = Number((signalPrice * 0.945).toFixed(2));
         } else {
-          finalEntryZone = { min: Number((signalPrice * 0.99).toFixed(2)), max: Number((signalPrice * 1.012).toFixed(2)) };
-          finalStopLoss = Number((signalPrice * 0.97).toFixed(2));
-          finalTarget1 = Number((signalPrice * 0.935).toFixed(2));
-          finalTarget2 = Number((signalPrice * 0.88).toFixed(2));
+          finalEntryZone = { min: Number((signalPrice * 0.97).toFixed(2)), max: Number((signalPrice * 1.005).toFixed(2)) };
+          finalStopLoss = Number((signalPrice * 0.95).toFixed(2));
+          finalTarget1 = Number((signalPrice * 1.05).toFixed(2));
+          finalTarget2 = Number((signalPrice * 1.09).toFixed(2));
         }
+      } else if (item?.signal === 'STRONG_BUY') {
+        finalEntryZone = { min: Number((signalPrice * 0.985).toFixed(2)), max: Number((signalPrice * 1.01).toFixed(2)) };
+        finalStopLoss = Number((signalPrice * 0.95).toFixed(2));
+        finalTarget1 = Number((signalPrice * 1.095).toFixed(2));
+        finalTarget2 = Number((signalPrice * 1.18).toFixed(2));
       } else {
-        finalEntryZone = { min: Number((signalPrice * 0.985).toFixed(2)), max: Number((signalPrice * 1.008).toFixed(2)) };
-        finalStopLoss = Number((signalPrice * 0.955).toFixed(2));
-        finalTarget1 = Number((signalPrice * 1.085).toFixed(2));
+        finalEntryZone = { min: Number((signalPrice * 0.98).toFixed(2)), max: Number((signalPrice * 1.015).toFixed(2)) };
+        finalStopLoss = Number((signalPrice * 0.945).toFixed(2));
+        finalTarget1 = Number((signalPrice * 1.08).toFixed(2));
         finalTarget2 = Number((signalPrice * 1.15).toFixed(2));
       }
-    } else {
-      finalEntryZone = { ...item.entryZone };
-      finalStopLoss = Number(item.stopLoss);
-      finalTarget1 = Number(item.target1);
-      finalTarget2 = Number(item.target2 || (isAvoid ? signalPrice * 0.88 : signalPrice * 1.18));
     }
 
-    if (!isAvoid && sym !== 'BIPL') {
+    if (!isAvoid && sym !== 'BIPL' && !isSnapshot) {
       if (finalEntryZone.min >= signalPrice) finalEntryZone.min = Number((signalPrice * 0.985).toFixed(2));
       if (finalEntryZone.max <= finalEntryZone.min) finalEntryZone.max = Number((finalEntryZone.min + Math.max(stockAtr * 0.4, signalPrice * 0.015)).toFixed(2));
       if (finalStopLoss >= finalEntryZone.min) finalStopLoss = Number((finalEntryZone.min - Math.max(stockAtr * 0.6, signalPrice * 0.02)).toFixed(2));
@@ -801,64 +846,60 @@ export default function DailyRecommendations({
                   : (item?.tradeStrategy || 'Trend Continuation Setup'))));
 
     // Reasons / Catalyst notes:
-    let finalReasons = Array.isArray(item?.reasons) ? [...item.reasons] : [];
-    if (isMomentumBreakout) {
-      const prlNote = `Overbought / Extended Momentum (${liveRsi.toFixed(1)}) — Trail stop loss advised to lock gains rather than chasing entries.`;
-      finalReasons = [prlNote, ...(finalReasons.filter(r => !r.includes('Healthy') && !r.includes('Overbought') && !r.includes('Balanced') && !r.includes('Oversold')))];
-    } else {
-      let rsiText = '';
-      if (liveRsi >= 70) {
-        rsiText = `Overbought / Extended Momentum (${liveRsi.toFixed(1)}) — Trail stop loss advised`;
-      } else if (liveRsi >= 50 && liveRsi < 70) {
-        rsiText = `Healthy Bullish Momentum (${liveRsi.toFixed(1)})`;
-      } else if (liveRsi >= 40 && liveRsi < 50) {
-        rsiText = `Balanced / Neutral Range (${liveRsi.toFixed(1)})`;
-      } else if (liveRsi < 35) {
-        rsiText = `Oversold / Capitulation (${liveRsi.toFixed(1)}) — Watch for Mean Reversion`;
+    let finalReasons = Array.isArray(item?.reasons) && item.reasons.length > 0 
+      ? [...item.reasons] 
+      : [];
+    if (finalReasons.length === 0) {
+      if (isMomentumBreakout) {
+        finalReasons = [`Overbought / Extended Momentum (${liveRsi.toFixed(1)}) — Trail stop loss advised to lock gains rather than chasing entries.`];
       } else {
-        rsiText = `Balanced / Neutral Range (${liveRsi.toFixed(1)})`;
+        finalReasons = [`${item?.signal || 'HOLD'}: Technical setup confirmed on EOD volume.`];
       }
-      finalReasons = [rsiText, ...(finalReasons.filter(r => !r.includes('Healthy') && !r.includes('Overbought') && !r.includes('Balanced') && !r.includes('Oversold')))];
     }
 
-    // Calculate Outcome Tracking
-    const gainSinceSignalPct = Number((((liveMarketPrice - signalPrice) / signalPrice) * 100).toFixed(2));
-    
-    let outcomeStatus = 'IN_PROGRESS';
-    let outcomeLabel = `In Progress (${gainSinceSignalPct >= 0 ? '+' : ''}${gainSinceSignalPct}%)`;
-    let outcomeBadgeClass = 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+    // Outcome tracking
+    const calcGainPct = Number((((liveMarketPrice - signalPrice) / signalPrice) * 100).toFixed(2));
+    const gainSinceSignalPct = item?.outcome?.gainSinceSignalPct !== undefined 
+      ? item.outcome.gainSinceSignalPct 
+      : calcGainPct;
 
-    if (isAvoid) {
-      if (liveMarketPrice <= finalTarget1) {
-        outcomeStatus = 'TARGET_HIT';
-        outcomeLabel = `Support Reached (${gainSinceSignalPct}% Pullback)`;
-        outcomeBadgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
-      } else if (liveMarketPrice > signalPrice * 1.03) {
-        outcomeStatus = 'STOP_LOSS_HIT';
-        outcomeLabel = `Defensive Cutoff (${gainSinceSignalPct}%)`;
-        outcomeBadgeClass = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30';
+    let outcomeStatus = item?.outcome?.status || 'IN_PROGRESS';
+    let outcomeLabel = item?.outcome?.label || `In Progress (${gainSinceSignalPct >= 0 ? '+' : ''}${gainSinceSignalPct}%)`;
+    let outcomeBadgeClass = item?.outcome?.badgeColor || 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+
+    if (!item?.outcome) {
+      if (isAvoid) {
+        if (liveMarketPrice <= finalTarget1) {
+          outcomeStatus = 'TARGET_HIT';
+          outcomeLabel = `Support Reached (${gainSinceSignalPct}% Pullback)`;
+          outcomeBadgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
+        } else if (liveMarketPrice > signalPrice * 1.03) {
+          outcomeStatus = 'STOP_LOSS_HIT';
+          outcomeLabel = `Defensive Cutoff (${gainSinceSignalPct}%)`;
+          outcomeBadgeClass = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30';
+        } else {
+          outcomeStatus = 'IN_PROGRESS';
+          outcomeLabel = `Capital Preserved (${gainSinceSignalPct >= 0 ? '+' : ''}${gainSinceSignalPct}%)`;
+          outcomeBadgeClass = 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+        }
       } else {
-        outcomeStatus = 'IN_PROGRESS';
-        outcomeLabel = `Capital Preserved (${gainSinceSignalPct >= 0 ? '+' : ''}${gainSinceSignalPct}%)`;
-        outcomeBadgeClass = 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
-      }
-    } else {
-      if (liveMarketPrice >= finalTarget1) {
-        outcomeStatus = 'TARGET_HIT';
-        outcomeLabel = `Target 1 Hit (${gainSinceSignalPct >= 0 ? '+' : ''}${gainSinceSignalPct}% Win)`;
-        outcomeBadgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
-      } else if (liveMarketPrice <= finalStopLoss) {
-        outcomeStatus = 'STOP_LOSS_HIT';
-        outcomeLabel = `Stop Loss Triggered (${gainSinceSignalPct}%)`;
-        outcomeBadgeClass = 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30';
-      } else if (gainSinceSignalPct > 1.5) {
-        outcomeStatus = 'IN_PROFIT';
-        outcomeLabel = `Running in Profit (+${gainSinceSignalPct}%)`;
-        outcomeBadgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
-      } else if (gainSinceSignalPct < -1.5) {
-        outcomeStatus = 'HOLDING_SUPPORT';
-        outcomeLabel = `Holding Support (${gainSinceSignalPct}%)`;
-        outcomeBadgeClass = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+        if (liveMarketPrice >= finalTarget1) {
+          outcomeStatus = 'TARGET_HIT';
+          outcomeLabel = `Target 1 Hit (${gainSinceSignalPct >= 0 ? '+' : ''}${gainSinceSignalPct}% Win)`;
+          outcomeBadgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
+        } else if (liveMarketPrice <= finalStopLoss) {
+          outcomeStatus = 'STOP_LOSS_HIT';
+          outcomeLabel = `Stop Loss Triggered (${gainSinceSignalPct}%)`;
+          outcomeBadgeClass = 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30';
+        } else if (gainSinceSignalPct > 1.5) {
+          outcomeStatus = 'IN_PROFIT';
+          outcomeLabel = `Running in Profit (+${gainSinceSignalPct}%)`;
+          outcomeBadgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+        } else if (gainSinceSignalPct < -1.5) {
+          outcomeStatus = 'HOLDING_SUPPORT';
+          outcomeLabel = `Holding Support (${gainSinceSignalPct}%)`;
+          outcomeBadgeClass = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+        }
       }
     }
 
@@ -1054,12 +1095,20 @@ export default function DailyRecommendations({
                 5-Day Trading Session History & Outcome Radar:
               </span>
             </div>
-            {isHistoricalView && (
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 inline-flex items-center self-start sm:self-auto space-x-1">
-                <History className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                <span>Historical Archive: {activeSessionObj.label}</span>
-              </span>
-            )}
+            <div className="flex items-center space-x-2">
+              {isLoadingSession && (
+                <span className="text-[11px] font-medium text-[#2563EB] dark:text-[#60A5FA] animate-pulse flex items-center space-x-1">
+                  <Activity className="w-3 h-3 animate-spin" />
+                  <span>Hydrating Archive...</span>
+                </span>
+              )}
+              {isHistoricalView && (
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 inline-flex items-center self-start sm:self-auto space-x-1">
+                  <History className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                  <span>Historical Archive: {activeSessionObj.label}</span>
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 bg-[#F8FAFC] dark:bg-[#0B0F19] p-1.5 rounded-md border border-[#E2E8F0] dark:border-[#243044]">
@@ -1764,7 +1813,7 @@ export default function DailyRecommendations({
                       <div>
                         <div className="flex items-center space-x-1.5">
                           <span className="text-base font-bold text-zinc-900 dark:text-zinc-100 font-mono">{item.symbol}</span>
-                          <span className="text-[10px] text-zinc-400 font-mono">{marketSession.cardDateFormatted}</span>
+                          <span className="text-[10px] text-zinc-400 font-mono">{formatRadarDateBadge(item.date || selectedSessionDate)}</span>
                         </div>
                         <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate max-w-[190px] font-medium" title={getCompanyFullName(item.symbol)}>
                           {getCompanyFullName(item.symbol)}
@@ -1819,7 +1868,7 @@ export default function DailyRecommendations({
                           {item.sector}
                         </span>
                         <span className="text-[9px] font-mono text-zinc-400 dark:text-zinc-500 shrink-0">
-                          {isHistoricalView ? activeSessionObj.label : marketSession.cardDateFormatted}
+                          {formatRadarDateBadge(item.date || selectedSessionDate)}
                         </span>
                       </div>
                       {/* Line 2: Full Registered Company Name */}
