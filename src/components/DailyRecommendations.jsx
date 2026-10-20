@@ -31,7 +31,8 @@ import {
   List,
   Newspaper,
   ShieldAlert,
-  Activity
+  Activity,
+  MinusCircle
 } from 'lucide-react';
 import officialQuotes from '../data/official_quotes.json';
 import { 
@@ -662,7 +663,7 @@ export default function DailyRecommendations({
   const holdCount = all.filter(r => r.signal === 'HOLD').length;
   const avoidSellCount = all.filter(r => r.signal === 'AVOID_SELL').length;
 
-  const summary = recommendations?.summary || {
+  const summary = {
     total: all.length,
     strongBuyCount,
     accumulateCount,
@@ -1103,7 +1104,7 @@ export default function DailyRecommendations({
               </span>
             </div>
             <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
-              Multi-factor quantitative setups, volume absorption detection, and 5-day performance tracking.
+              Evaluated {summary.total} Active Coverage Stocks • Multi-factor quantitative setups, volume absorption detection, and 5-day performance tracking.
             </p>
           </div>
 
@@ -1172,6 +1173,18 @@ export default function DailyRecommendations({
                 <ArrowUpRight className="w-3.5 h-3.5 mr-1" />
                 <span>Accumulate</span>
                 <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] bg-black/20 font-bold font-mono">{summary.accumulateCount || 0}</span>
+              </button>
+              <button
+                onClick={() => setFilterSignal('HOLD')}
+                className={`px-2.5 py-1 rounded font-bold transition-all flex items-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
+                  filterSignal === 'HOLD' 
+                    ? 'bg-amber-600 text-white shadow-xs' 
+                    : 'text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
+                }`}
+              >
+                <MinusCircle className="w-3.5 h-3.5 mr-1" />
+                <span>Hold / Neutral</span>
+                <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] bg-black/20 font-bold font-mono">{summary.holdCount || 0}</span>
               </button>
               <button
                 onClick={() => setFilterSignal('AVOID_SELL')}
@@ -1523,7 +1536,7 @@ export default function DailyRecommendations({
             {/* Signal Filter Badge */}
             {filterSignal !== 'ALL' && (
               <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
-                <span>Signal: {filterSignal === 'STRONG_BUY' ? 'Strong Buy' : (filterSignal === 'ACCUMULATE' ? 'Accumulate' : 'Avoid / Exit')}</span>
+                <span>Signal: {filterSignal === 'STRONG_BUY' ? 'Strong Buy' : (filterSignal === 'ACCUMULATE' ? 'Accumulate' : (filterSignal === 'HOLD' ? 'Hold / Neutral' : 'Avoid / Exit'))}</span>
                 <button
                   onClick={() => setFilterSignal('ALL')}
                   className="hover:text-rose-500 p-0.5 rounded cursor-pointer ml-1"
