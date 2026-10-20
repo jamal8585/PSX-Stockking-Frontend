@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { 
   RefreshCw, 
   Bookmark, 
@@ -16,6 +16,8 @@ import {
   Coins,
   LogOut,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   User as UserIcon,
   TrendingUp,
   TrendingDown
@@ -102,6 +104,37 @@ export default function Navbar({
   const isPro = currentUser?.plan === 'PRO' && currentUser?.subscriptionStatus === 'ACTIVE';
   const isAdmin = currentUser?.role === 'ADMIN';
   const isLight = theme === 'light';
+
+  const navRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = () => {
+    if (!navRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = navRef.current;
+    setCanScrollLeft(scrollLeft > 6);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 6);
+  };
+
+  const scrollNav = (offset) => {
+    if (!navRef.current) return;
+    navRef.current.scrollBy({ left: offset, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    checkScroll();
+    window.addEventListener('resize', checkScroll);
+    return () => window.removeEventListener('resize', checkScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!navRef.current) return;
+    const activeEl = navRef.current.querySelector('[data-active="true"]');
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    }
+    checkScroll();
+  }, [activeTab]);
 
   return (
     <header className={`sticky top-0 z-40 transition-colors ${
@@ -370,94 +403,153 @@ export default function Navbar({
         </div>
       </div>
 
-      {/* 3. Dedicated Terminal Module Navigation Bar (All Screens - Clean & Never Overflows) */}
-      <div className={`border-t transition-colors ${
+      {/* 3. Dedicated Terminal Module Navigation Bar (Scrollable Strip with Visual Arrow/Fade Affordances) */}
+      <div className={`border-t transition-colors relative ${
         isLight ? 'bg-[#F8FAFC] border-[#E2E8F0]' : 'bg-[#0B0F19] border-[#243044]'
       }`}>
-        <div className="max-w-[1680px] w-full mx-auto px-2 sm:px-6 lg:px-8 py-1.5 flex items-center justify-start sm:justify-center overflow-x-auto space-x-1 sm:space-x-2 scrollbar-none touch-pan-x">
-          <button
-            onClick={() => setActiveTab('news')}
-            className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
-              activeTab === 'news' 
-                ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
-                : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
-            }`}
-          >
-            <Zap className="w-3.5 h-3.5" />
-            <span>All Sectors News</span>
-          </button>
+        <div className="max-w-[1680px] w-full mx-auto px-1 sm:px-4 lg:px-8 relative flex items-center">
+          {/* Left Scroll Affordance (Arrow & Fade Mask) */}
+          {canScrollLeft && (
+            <div className={`absolute left-0 top-0 bottom-0 z-20 flex items-center pl-1 sm:pl-2 pr-6 bg-gradient-to-r pointer-events-none ${
+              isLight ? 'from-[#F8FAFC] via-[#F8FAFC]/90 to-transparent' : 'from-[#0B0F19] via-[#0B0F19]/90 to-transparent'
+            }`}>
+              <button
+                type="button"
+                onClick={() => scrollNav(-220)}
+                className={`p-1.5 rounded-full shadow-md border cursor-pointer pointer-events-auto transition-transform hover:scale-110 active:scale-95 ${
+                  isLight ? 'bg-[#FFFFFF] border-[#CBD5E1] text-[#0F172A] hover:bg-[#F1F5F9]' : 'bg-[#151E2E] border-[#334155] text-[#F8FAFC] hover:bg-[#1E293B]'
+                }`}
+                title="Scroll Left"
+                aria-label="Scroll navigation tabs left"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
-          <button
-            onClick={() => setActiveTab('portfolio')}
-            className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
-              activeTab === 'portfolio' 
-                ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
-                : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
-            }`}
+          {/* Scrollable Tabs Strip (Always starts at 0, no negative scroll clipping) */}
+          <div 
+            ref={navRef}
+            onScroll={checkScroll}
+            className="w-full py-1.5 flex items-center justify-start overflow-x-auto space-x-1 sm:space-x-2 scrollbar-none touch-pan-x scroll-smooth"
           >
-            <Briefcase className="w-3.5 h-3.5" />
-            <span>My Portfolio ({portfolioCount})</span>
-          </button>
+            <button
+              type="button"
+              data-active={activeTab === 'news'}
+              onClick={() => setActiveTab('news')}
+              className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+                activeTab === 'news' 
+                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
+                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>All Sectors News</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('recommendations')}
-            className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
-              activeTab === 'recommendations' 
-                ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
-                : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Daily AI Signals</span>
-          </button>
+            <button
+              type="button"
+              data-active={activeTab === 'portfolio'}
+              onClick={() => setActiveTab('portfolio')}
+              className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+                activeTab === 'portfolio' 
+                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
+                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+              }`}
+            >
+              <Briefcase className="w-3.5 h-3.5" />
+              <span>My Portfolio ({portfolioCount})</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('dividends')}
-            className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
-              activeTab === 'dividends' 
-                ? (isLight ? 'bg-[#D97706] text-white shadow-sm' : 'bg-[#F59E0B] text-black shadow-sm font-black')
-                : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
-            }`}
-          >
-            <Coins className="w-3.5 h-3.5" />
-            <span>Upcoming Dividends</span>
-          </button>
+            <button
+              type="button"
+              data-active={activeTab === 'recommendations'}
+              onClick={() => setActiveTab('recommendations')}
+              className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+                activeTab === 'recommendations' 
+                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
+                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Daily AI Signals</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('watchlist')}
-            className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
-              activeTab === 'watchlist' 
-                ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
-                : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
-            }`}
-          >
-            <Bookmark className="w-3.5 h-3.5" />
-            <span>Watchlist Radar ({watchlistCount})</span>
-          </button>
+            <button
+              type="button"
+              data-active={activeTab === 'dividends'}
+              onClick={() => setActiveTab('dividends')}
+              className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+                activeTab === 'dividends' 
+                  ? (isLight ? 'bg-[#D97706] text-white shadow-sm' : 'bg-[#F59E0B] text-black shadow-sm font-black')
+                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+              }`}
+            >
+              <Coins className="w-3.5 h-3.5" />
+              <span>Upcoming Dividends</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('screener')}
-            className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
-              activeTab === 'screener' 
-                ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
-                : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
-            }`}
-          >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>Full PSX Screener</span>
-          </button>
+            <button
+              type="button"
+              data-active={activeTab === 'watchlist'}
+              onClick={() => setActiveTab('watchlist')}
+              className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+                activeTab === 'watchlist' 
+                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
+                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+              }`}
+            >
+              <Bookmark className="w-3.5 h-3.5" />
+              <span>Watchlist Radar ({watchlistCount})</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('charts')}
-            className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
-              activeTab === 'charts' 
-                ? (isLight ? 'bg-[#06B6D4] text-black shadow-sm font-black' : 'bg-[#06B6D4] text-black shadow-sm font-black')
-                : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
-            }`}
-          >
-            <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
-            <span>TradingView Pro</span>
-          </button>
+            <button
+              type="button"
+              data-active={activeTab === 'screener'}
+              onClick={() => setActiveTab('screener')}
+              className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+                activeTab === 'screener' 
+                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
+                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>Full PSX Screener</span>
+            </button>
+
+            <button
+              type="button"
+              data-active={activeTab === 'charts'}
+              onClick={() => setActiveTab('charts')}
+              className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+                activeTab === 'charts' 
+                  ? (isLight ? 'bg-[#06B6D4] text-black shadow-sm font-black' : 'bg-[#06B6D4] text-black shadow-sm font-black')
+                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
+              <span>TradingView Pro</span>
+            </button>
+          </div>
+
+          {/* Right Scroll Affordance (Arrow & Fade Mask) */}
+          {canScrollRight && (
+            <div className={`absolute right-0 top-0 bottom-0 z-20 flex items-center pr-1 sm:pr-2 pl-6 bg-gradient-to-l pointer-events-none ${
+              isLight ? 'from-[#F8FAFC] via-[#F8FAFC]/90 to-transparent' : 'from-[#0B0F19] via-[#0B0F19]/90 to-transparent'
+            }`}>
+              <button
+                type="button"
+                onClick={() => scrollNav(220)}
+                className={`p-1.5 rounded-full shadow-md border cursor-pointer pointer-events-auto transition-transform hover:scale-110 active:scale-95 ${
+                  isLight ? 'bg-[#FFFFFF] border-[#CBD5E1] text-[#0F172A] hover:bg-[#F1F5F9]' : 'bg-[#151E2E] border-[#334155] text-[#F8FAFC] hover:bg-[#1E293B]'
+                }`}
+                title="Scroll Right"
+                aria-label="Scroll navigation tabs right"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>
