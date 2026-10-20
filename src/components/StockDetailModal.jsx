@@ -322,7 +322,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
 
   const [currentStock, setCurrentStock] = useState(stock);
   const [activeTab, setActiveTab] = useState('chart'); // 'chart' | 'fundamentals' | 'technicals'
-  const [selectedTimeframe, setSelectedTimeframe] = useState('1M');
+  const [selectedTimeframe, setSelectedTimeframe] = useState('1D'); // Default 1D so scale matches card closing price
   const [chartType, setChartType] = useState('candlestick'); // 'candlestick' | 'area'
   const [liveHistoryData, setLiveHistoryData] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -405,43 +405,48 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
     return () => clearTimeout(t);
   }, []);
 
-  // Canonical pricing: prioritize liveHistoryData (bars / quote) then official quote then stockObj
+  // Unified Canonical Pricing (Single Source of Truth: EOD Official Closing Store)
   const liveBars = liveHistoryData?.bars;
   const latestBar = liveBars && liveBars.length > 0 ? liveBars[liveBars.length - 1] : null;
   const prevBar = liveBars && liveBars.length > 1 ? liveBars[liveBars.length - 2] : null;
 
   const currentPrice = Number(
-    latestBar?.close || 
-    liveHistoryData?.quote?.currentPrice || 
     official?.currentPrice || 
     stockObj.currentPrice || 
+    stockObj.price || 
+    liveHistoryData?.quote?.currentPrice || 
+    latestBar?.close || 
     100
   );
 
   const prevClose = Number(
-    prevBar?.close || 
-    liveHistoryData?.quote?.prevClose || 
     official?.prevClose || 
     stockObj.prevClose || 
+    liveHistoryData?.quote?.prevClose || 
+    prevBar?.close || 
     (currentPrice * 0.99)
   );
 
   const change = Number(
-    (latestBar && prevBar) 
-      ? Number((latestBar.close - prevBar.close).toFixed(2))
-      : (liveHistoryData?.quote?.change !== undefined 
-          ? Number(liveHistoryData.quote.change) 
-          : (official?.change !== undefined 
-              ? Number(official.change) 
-              : (stockObj.change !== undefined 
-                  ? Number(stockObj.change) 
+    official?.change !== undefined 
+      ? Number(official.change) 
+      : (stockObj.change !== undefined 
+          ? Number(stockObj.change) 
+          : (liveHistoryData?.quote?.change !== undefined 
+              ? Number(liveHistoryData.quote.change) 
+              : (latestBar && prevBar 
+                  ? Number((latestBar.close - prevBar.close).toFixed(2)) 
                   : Number((currentPrice - prevClose).toFixed(2)))))
   );
 
   const changePercent = Number(
-    (prevClose > 0)
-      ? Number((((change) / prevClose) * 100).toFixed(2))
-      : 0
+    official?.changePercent !== undefined 
+      ? Number(official.changePercent) 
+      : (stockObj.changePercent !== undefined 
+          ? Number(stockObj.changePercent) 
+          : (liveHistoryData?.quote?.changePercent !== undefined 
+              ? Number(liveHistoryData.quote.changePercent) 
+              : (prevClose > 0 ? Number((((change) / prevClose) * 100).toFixed(2)) : 0)))
   );
   const volume = Number(liveHistoryData?.quote?.volume || stockObj.volume || official?.volume || 0);
   const name = stockObj.name || official?.name || masterEntry?.name || sym;
@@ -537,44 +542,81 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
   const ret6M = Number((realReturns['6M'] !== undefined ? realReturns['6M'] : (changePercent > 0 ? (changePercent * 14.3 + 45.0) : 18.5)).toFixed(2));
   const ret1Y = Number((realReturns['1Y'] !== undefined ? realReturns['1Y'] : (changePercent > 0 ? (changePercent * 11.2 + 35.8) : 8.2)).toFixed(2));
 
-  // Multi-Timeframe Chart Data Hook
+  // Multi-Timeframe Chart Data Hook with Strict EOD Closing Candle Synchronization
   const chartData = useMemo(() => {
+    let rawBars = [];
     if (liveHistoryData?.bars && liveHistoryData.bars.length > 0) {
-      return liveHistoryData.bars;
+      rawBars = liveHistoryData.bars.map(b => ({ ...b }));
+    } else {
+      // Dynamic fallback generation based on selected timeframe
+      let count = 30;
+      if (selectedTimeframe === '1D') count = 15;
+      else if (selectedTimeframe === '5D') count = 5;
+      else if (selectedTimeframe === '1M') count = 22;
+      else if (selectedTimeframe === '3M') count = 60;
+      else if (selectedTimeframe === '1Y') count = 120;
+
+      rawBars = Array.from({ length: count }, (_, i) => {
+        const isIntraday = selectedTimeframe === '1D';
+        const stepLabel = isIntraday 
+          ? `${9 + Math.floor(i / 3)}:${(i % 3) * 20 || '00'} AM`
+          : `D-${count - i}`;
+        
+        const base = price * (0.92 + (i / count) * 0.08 + Math.sin(i * 0.4) * 0.015);
+        const openVal = Number((base * (1 + (Math.sin(i) * 0.006))).toFixed(2));
+        const closeVal = Number((base * (1 + (Math.cos(i) * 0.008))).toFixed(2));
+        const hi = Number((Math.max(openVal, closeVal) * 1.008).toFixed(2));
+        const lo = Number((Math.min(openVal, closeVal) * 0.992).toFixed(2));
+        const vol = Math.round(volume * (0.6 + Math.sin(i) * 0.3 + 0.3));
+
+        return {
+          date: stepLabel,
+          price: closeVal,
+          open: openVal,
+          high: hi,
+          low: lo,
+          close: closeVal,
+          volume: vol
+        };
+      });
     }
 
-    // Dynamic fallback generation based on selected timeframe
-    let count = 30;
-    if (selectedTimeframe === '1D') count = 15;
-    else if (selectedTimeframe === '5D') count = 5;
-    else if (selectedTimeframe === '1M') count = 22;
-    else if (selectedTimeframe === '3M') count = 60;
-    else if (selectedTimeframe === '1Y') count = 120;
+    // Append/synchronize today's official verified closing bar (O, H, L, C, V)
+    if (rawBars.length > 0) {
+      const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Karachi' });
+      const todayFullDate = new Date().toISOString().split('T')[0];
+      const lastIdx = rawBars.length - 1;
+      const lastBar = rawBars[lastIdx];
 
-    return Array.from({ length: count }, (_, i) => {
-      const isIntraday = selectedTimeframe === '1D';
-      const stepLabel = isIntraday 
-        ? `${9 + Math.floor(i / 3)}:${(i % 3) * 20 || '00'} AM`
-        : `D-${count - i}`;
-      
-      const base = price * (0.92 + (i / count) * 0.08 + Math.sin(i * 0.4) * 0.015);
-      const open = Number((base * (1 + (Math.sin(i) * 0.006))).toFixed(2));
-      const close = Number((base * (1 + (Math.cos(i) * 0.008))).toFixed(2));
-      const hi = Number((Math.max(open, close) * 1.008).toFixed(2));
-      const lo = Number((Math.min(open, close) * 0.992).toFixed(2));
-      const vol = Math.round(volume * (0.6 + Math.sin(i) * 0.3 + 0.3));
-
-      return {
-        date: stepLabel,
-        price: close,
-        open,
-        high: hi,
-        low: lo,
-        close,
-        volume: vol
+      const officialBar = {
+        date: selectedTimeframe === '1D' ? '3:30 PM' : (lastBar.date || todayStr),
+        fullDate: todayFullDate,
+        open: Number((official?.open || stockObj.open || prevClose || currentPrice).toFixed(2)),
+        high: Number((Math.max(high, currentPrice)).toFixed(2)),
+        low: Number((Math.min(low, currentPrice)).toFixed(2)),
+        close: Number(currentPrice.toFixed(2)),
+        price: Number(currentPrice.toFixed(2)),
+        volume: Number(volume || lastBar.volume || 100000)
       };
-    });
-  }, [liveHistoryData, selectedTimeframe, price, volume]);
+
+      const isTodayOrLatest = lastBar.date === 'Today' || 
+                              lastBar.date === '3:30 PM' || 
+                              lastBar.date === todayStr ||
+                              lastBar.fullDate === todayFullDate ||
+                              selectedTimeframe === '1D';
+
+      if (isTodayOrLatest) {
+        rawBars[lastIdx] = {
+          ...lastBar,
+          ...officialBar
+        };
+      } else {
+        rawBars.push(officialBar);
+      }
+    }
+
+    return rawBars;
+  }, [liveHistoryData, selectedTimeframe, currentPrice, price, volume, prevClose, high, low, official, stockObj]);
 
   // AI Decision Summary & Mathematically Calibrated Trade Setup
   const isOverbought = Number(rsi) > 75;

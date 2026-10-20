@@ -384,14 +384,19 @@ export default function DailyRecommendations({
         const foundOfficial = officialQuotes ? officialQuotes[sym] : null;
         let sanitized = { ...item };
         
-        // Ground-truth official quotes if cached server prices drift > 8%
+        // For active / live sessions, ground-truth official quotes as authoritative EOD single source of truth
         if (foundOfficial?.currentPrice && !isHistoricalView) {
           const offPrice = Number(foundOfficial.currentPrice);
-          if (Math.abs((item.currentPrice || 0) - offPrice) / offPrice > 0.08) {
-            sanitized.currentPrice = offPrice;
-            sanitized.prevClose = Number(foundOfficial.prevClose || offPrice * 0.99);
-            sanitized.change = foundOfficial.change !== undefined ? Number(foundOfficial.change) : sanitized.change;
-            sanitized.changePercent = foundOfficial.changePercent !== undefined ? Number(foundOfficial.changePercent) : sanitized.changePercent;
+          sanitized.currentPrice = offPrice;
+          sanitized.prevClose = Number(foundOfficial.prevClose || offPrice * 0.99);
+          sanitized.change = foundOfficial.change !== undefined ? Number(foundOfficial.change) : Number((offPrice - sanitized.prevClose).toFixed(2));
+          sanitized.changePercent = foundOfficial.changePercent !== undefined ? Number(foundOfficial.changePercent) : (sanitized.prevClose > 0 ? Number((((offPrice - sanitized.prevClose) / sanitized.prevClose) * 100).toFixed(2)) : 0);
+          
+          // Re-evaluate signal if drop < -2.2% (e.g. PRL -6.77% cannot remain Momentum Breakout)
+          if (sanitized.changePercent < -2.2) {
+            sanitized.signal = 'AVOID_SELL';
+            sanitized.isMomentumBreakout = false;
+            sanitized.tradeStrategy = 'Capital Preservation (Defensive Exit)';
           }
         }
         
@@ -607,8 +612,8 @@ export default function DailyRecommendations({
       }).sort((a, b) => b.confidence - a.confidence);
     }
 
-    // If viewing a historical session, derive historical price snapshot
-    if (isHistoricalView && baseList.length > 0) {
+    // If viewing a historical session, derive historical price snapshot only if not already hydrated from immutable snapshots
+    if (isHistoricalView && baseList.length > 0 && !sessionSignalsMap[selectedSessionDate]) {
       const dayOffset = activeSessionObj?.dayOffset || 1;
       return baseList.map(item => {
         const liveP = Number(item.currentPrice || 100);
@@ -860,14 +865,45 @@ export default function DailyRecommendations({
     // Outcome tracking
     const calcGainPct = Number((((liveMarketPrice - signalPrice) / signalPrice) * 100).toFixed(2));
     const gainSinceSignalPct = item?.outcome?.gainSinceSignalPct !== undefined 
-      ? item.outcome.gainSinceSignalPct 
+      ? Number(item.outcome.gainSinceSignalPct) 
       : calcGainPct;
 
-    let outcomeStatus = item?.outcome?.status || 'IN_PROGRESS';
-    let outcomeLabel = item?.outcome?.label || `In Progress (${gainSinceSignalPct >= 0 ? '+' : ''}${gainSinceSignalPct}%)`;
-    let outcomeBadgeClass = item?.outcome?.badgeColor || 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+    let outcomeStatus = item?.outcome?.status || (isHistoricalView ? 'CLOSED' : 'IN_PROGRESS');
+    let outcomeLabel = item?.outcome?.label || (isHistoricalView ? `Closed (${gainSinceSignalPct >= 0 ? '+' : ''}${gainSinceSignalPct}%)` : `In Progress (${gainSinceSignalPct >= 0 ? '+' : ''}${gainSinceSignalPct}%)`);
+    let outcomeBadgeClass = item?.outcome?.badgeColor || (isHistoricalView ? 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20');
 
-    if (!item?.outcome) {
+    // For past historical sessions (Day -2, Day -3, Day -4), lock outcome strictly to completed state - NEVER "In Progress"
+    if (isHistoricalView && (!item?.outcome || outcomeStatus === 'IN_PROGRESS' || outcomeLabel.includes('In Progress'))) {
+      if (isAvoid || isMomentumBreakout) {
+        if (gainSinceSignalPct < 0 || signalPrice > liveMarketPrice) {
+          outcomeStatus = 'CLOSED_NEXT_DAY_DROP';
+          outcomeLabel = 'Closed on Next Day Drop';
+          outcomeBadgeClass = 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30';
+        } else {
+          outcomeStatus = 'CAPITAL_PRESERVED';
+          outcomeLabel = 'Capital Preserved';
+          outcomeBadgeClass = 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+        }
+      } else {
+        if (gainSinceSignalPct >= 3.0 || liveMarketPrice >= finalTarget1) {
+          outcomeStatus = 'TARGET_HIT';
+          outcomeLabel = `Target 1 Hit (${gainSinceSignalPct >= 0 ? '+' : ''}${gainSinceSignalPct}% Win)`;
+          outcomeBadgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
+        } else if (gainSinceSignalPct <= -2.5 || liveMarketPrice <= finalStopLoss) {
+          outcomeStatus = 'STOP_LOSS_HIT';
+          outcomeLabel = `Stopped Out (${gainSinceSignalPct}%)`;
+          outcomeBadgeClass = 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30';
+        } else if (gainSinceSignalPct > 0) {
+          outcomeStatus = 'CLOSED_PROFIT';
+          outcomeLabel = `Closed in Profit (+${gainSinceSignalPct}%)`;
+          outcomeBadgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+        } else {
+          outcomeStatus = 'CLOSED_NEUTRAL';
+          outcomeLabel = `Closed at Session Close (${gainSinceSignalPct}%)`;
+          outcomeBadgeClass = 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20';
+        }
+      }
+    } else if (!isHistoricalView && !item?.outcome) {
       if (isAvoid) {
         if (liveMarketPrice <= finalTarget1) {
           outcomeStatus = 'TARGET_HIT';
@@ -1813,7 +1849,7 @@ export default function DailyRecommendations({
                       <div>
                         <div className="flex items-center space-x-1.5">
                           <span className="text-base font-bold text-zinc-900 dark:text-zinc-100 font-mono">{item.symbol}</span>
-                          <span className="text-[10px] text-zinc-400 font-mono">{formatRadarDateBadge(item.date || selectedSessionDate)}</span>
+                          <span className="text-[10px] text-zinc-400 font-mono">{formatRadarDateBadge(selectedSessionDate || item.date)}</span>
                         </div>
                         <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate max-w-[190px] font-medium" title={getCompanyFullName(item.symbol)}>
                           {getCompanyFullName(item.symbol)}
@@ -1868,7 +1904,7 @@ export default function DailyRecommendations({
                           {item.sector}
                         </span>
                         <span className="text-[9px] font-mono text-zinc-400 dark:text-zinc-500 shrink-0">
-                          {formatRadarDateBadge(item.date || selectedSessionDate)}
+                          {formatRadarDateBadge(selectedSessionDate || item.date)}
                         </span>
                       </div>
                       {/* Line 2: Full Registered Company Name */}
@@ -1908,15 +1944,9 @@ export default function DailyRecommendations({
                         <span className="text-base font-bold font-mono tabular-nums text-zinc-900 dark:text-zinc-100">
                           PKR {item.currentPrice.toFixed(2)}
                         </span>
-                        {isHistoricalView ? (
-                          <span className="text-[10.5px] font-mono text-zinc-400">
-                            (Now: {item.liveMarketPrice.toFixed(2)})
-                          </span>
-                        ) : (
-                          <span className={`text-[11px] font-mono font-semibold ${isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                            {isUp ? '+' : ''}{item.changePercent}%
-                          </span>
-                        )}
+                        <span className={`text-[11px] font-mono font-semibold ${isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                          {isUp ? '+' : ''}{item.changePercent}%
+                        </span>
                       </div>
                     </div>
                     <div className="text-right">

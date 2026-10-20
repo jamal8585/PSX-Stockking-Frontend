@@ -346,19 +346,24 @@ const mergeWithOfficialQuotes = (serverStocks = []) => {
             ? existing.sector 
             : (s.sector && s.sector !== 'General Market' ? s.sector : 'Miscellaneous');
           const resolvedSector = canonicalizeSector(rawSector, symKey);
+          const authoritativePrice = Number(existing.currentPrice > 0 ? existing.currentPrice : (serverPrice > 0 ? serverPrice : 100));
+          const authoritativePrevClose = Number(existing.prevClose > 0 ? existing.prevClose : (s.prevClose || (authoritativePrice * 0.99)));
+          const authoritativeChange = existing.change !== undefined ? Number(existing.change) : (s.change !== undefined ? Number(s.change) : Number((authoritativePrice - authoritativePrevClose).toFixed(2)));
+          const authoritativeChangePercent = existing.changePercent !== undefined ? Number(existing.changePercent) : (s.changePercent !== undefined ? Number(s.changePercent) : (authoritativePrevClose > 0 ? Number((((authoritativePrice - authoritativePrevClose) / authoritativePrevClose) * 100).toFixed(2)) : 0));
+
           stockMap.set(symKey, {
             ...existing,
             ...s,
             symbol: symKey,
             name: existing.name || s.name,
             sector: resolvedSector,
-            currentPrice: serverPrice > 0 ? serverPrice : existing.currentPrice,
-            prevClose: Number(s.prevClose || existing.prevClose || (serverPrice * 0.99)),
-            change: s.change !== undefined ? Number(s.change) : existing.change,
-            changePercent: s.changePercent !== undefined ? Number(s.changePercent) : existing.changePercent,
-            volume: Number(s.volume || existing.volume || 0),
-            high: Number(s.high || existing.high || (serverPrice * 1.02)),
-            low: Number(s.low || existing.low || (serverPrice * 0.98)),
+            currentPrice: authoritativePrice,
+            prevClose: authoritativePrevClose,
+            change: authoritativeChange,
+            changePercent: authoritativeChangePercent,
+            volume: Number(existing.volume || s.volume || 0),
+            high: Number(existing.high || s.high || (authoritativePrice * 1.02)),
+            low: Number(existing.low || s.low || (authoritativePrice * 0.98)),
             technicals: s.technicals || existing.technicals || { rsi14: 52, signal: 'NEUTRAL' }
           });
         } else {
@@ -817,10 +822,18 @@ export default function App() {
       // Fetch deep technicals and historical series from API
       const res = await getStockDetail(symKey);
       if (res?.success && res.data) {
-        setSelectedStock(prev => ({
-          ...(localStock || {}),
-          ...res.data
-        }));
+        setSelectedStock(prev => {
+          const official = (officialQuotes && officialQuotes[symKey]) || null;
+          const verifiedPrice = Number(official?.currentPrice || localStock?.currentPrice || 0);
+          return {
+            ...(localStock || {}),
+            ...res.data,
+            currentPrice: verifiedPrice > 0 ? verifiedPrice : Number(res.data?.currentPrice || 100),
+            prevClose: Number(official?.prevClose || localStock?.prevClose || res.data?.prevClose || 0),
+            change: official?.change !== undefined ? Number(official.change) : (localStock?.change !== undefined ? Number(localStock.change) : res.data?.change),
+            changePercent: official?.changePercent !== undefined ? Number(official.changePercent) : (localStock?.changePercent !== undefined ? Number(localStock.changePercent) : res.data?.changePercent)
+          };
+        });
       }
     } catch (err) {
       console.error('Failed to fetch stock detail:', err);
