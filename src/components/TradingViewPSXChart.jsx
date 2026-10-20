@@ -500,17 +500,17 @@ export default function TradingViewPSXChart({
   const officialQuote = officialQuotes ? officialQuotes[currentSymbol] : null;
   const quote = historyData?.quote || officialQuote || {};
   const currentPrice = Number(
-    chartLatestBar?.close ??
     quote.currentPrice ??
     initialPrice ??
     officialQuote?.currentPrice ??
+    chartLatestBar?.close ??
     100
   );
   const prevClose = Number(
-    chartPrevBar?.close ??
     quote.prevClose ??
     initialPrevClose ??
     officialQuote?.prevClose ??
+    chartPrevBar?.close ??
     (currentPrice * 0.99)
   );
   const change = Number(
@@ -605,7 +605,7 @@ export default function TradingViewPSXChart({
 
     // Factual multi-day anchor baseline (100 bars) so that 20 SMA, 50 SMA, 50 EMA and candlestick canvas ALWAYS render densely
     const fallbackCount = 100;
-    const baseP = Number(currentPrice || quote?.currentPrice || prevClose || 100);
+    const baseP = Number(quote?.currentPrice || initialPrice || officialQuote?.currentPrice || currentPrice || prevClose || 100);
     const baseV = Number(volume || 1000000);
     const initialBars = Array.from({ length: fallbackCount }, (_, i) => {
       const d = new Date(Date.now() - (fallbackCount - 1 - i) * 86400 * 1000);
