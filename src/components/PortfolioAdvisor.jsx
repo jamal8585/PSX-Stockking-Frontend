@@ -12,7 +12,8 @@ import {
   Search,
   Edit3,
   DollarSign,
-  History
+  History,
+  AlertTriangle
 } from 'lucide-react';
 import { getPSXMarketStatus } from '../utils/marketSession';
 
@@ -67,6 +68,19 @@ export default function PortfolioAdvisor({
   const [sellHoldingQty, setSellHoldingQty] = useState('');
   const [sellHoldingComm, setSellHoldingComm] = useState('0.05');
   const [sellHoldingNotes, setSellHoldingNotes] = useState('');
+
+  // Confirmation Dialog & 10s Soft-Delete Undo Toast State
+  const [confirmModal, setConfirmModal] = useState(null);
+  const [confirmInput, setConfirmInput] = useState('');
+  const [undoToast, setUndoToast] = useState(null);
+
+  useEffect(() => {
+    if (!undoToast) return;
+    const timer = setTimeout(() => {
+      setUndoToast(null);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [undoToast]);
 
   // All-Time Closed Trades History (User Scoped with universal multi-key recovery)
   const [closedTrades, setClosedTrades] = useState(() => {
@@ -278,10 +292,104 @@ export default function PortfolioAdvisor({
     }
   };
 
-  const handleDeleteClosedTrade = (id) => {
-    if (window.confirm('Remove this closed trade from all-time history?')) {
-      setClosedTrades(prev => prev.filter(t => t.id !== id));
+  const formatPnl = (amount = 0, percent = 0) => {
+    const numAmount = Number(amount || 0);
+    const numPercent = Number(percent || 0);
+
+    if (numAmount === 0 || Math.abs(numAmount) < 0.005) {
+      return {
+        isZero: true,
+        className: 'text-[#64748B] dark:text-[#94A3B8]',
+        badgeBg: 'bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] border-[#E2E8F0] dark:border-[#243044]',
+        amountText: 'PKR 0.00',
+        percentText: '(0.00%)',
+        fullText: 'PKR 0.00 (0.00%)',
+        arrow: null
+      };
     }
+
+    if (numAmount > 0) {
+      return {
+        isZero: false,
+        className: 'text-[#16A34A] dark:text-[#22C55E]',
+        badgeBg: 'bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/30 dark:bg-[#22C55E]/10 dark:text-[#22C55E] dark:border-[#22C55E]/30',
+        amountText: `+PKR ${numAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        percentText: `(+${numPercent.toFixed(2)}%)`,
+        fullText: `+PKR ${numAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (+${numPercent.toFixed(2)}%)`,
+        arrow: 'UP'
+      };
+    }
+
+    return {
+      isZero: false,
+      className: 'text-[#DC2626] dark:text-[#EF4444]',
+      badgeBg: 'bg-[#DC2626]/10 text-[#DC2626] border-[#DC2626]/30 dark:bg-[#EF4444]/10 dark:text-[#EF4444] dark:border-[#EF4444]/30',
+      amountText: `-PKR ${Math.abs(numAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      percentText: `(${numPercent.toFixed(2)}%)`,
+      fullText: `-PKR ${Math.abs(numAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${numPercent.toFixed(2)}%)`,
+      arrow: 'DOWN'
+    };
+  };
+
+  const handleClearAllHistory = () => {
+    if (closedTrades.length === 0) return;
+    setConfirmModal({
+      title: 'Confirm Permanent Deletion',
+      message: `This permanently deletes ${closedTrades.length} closed trades. Type DELETE to confirm:`,
+      requireText: 'DELETE',
+      onConfirm: () => {
+        const backup = [...closedTrades];
+        setClosedTrades([]);
+        setUndoToast({
+          message: `Cleared ${backup.length} closed trades.`,
+          onUndo: () => setClosedTrades(backup)
+        });
+      }
+    });
+  };
+
+  const handleDeletePositionPrompt = (pos) => {
+    setConfirmModal({
+      title: 'Delete Active Position',
+      message: `Are you sure you want to delete your active position in ${pos.symbol} (${Number(pos.quantity).toLocaleString()} shares)?`,
+      requireText: null,
+      onConfirm: async () => {
+        const backup = { ...pos };
+        if (onDeletePosition) {
+          await onDeletePosition(pos._id);
+        }
+        setUndoToast({
+          message: `Deleted position in ${pos.symbol}.`,
+          onUndo: async () => {
+            if (onAddPosition) {
+              await onAddPosition({
+                symbol: backup.symbol,
+                buyPrice: backup.buyPrice,
+                commission: backup.commission,
+                quantity: backup.quantity,
+                notes: backup.notes
+              });
+            }
+          }
+        });
+      }
+    });
+  };
+
+  const handleDeleteClosedTradePrompt = (trade) => {
+    setConfirmModal({
+      title: 'Delete Closed Trade Record',
+      message: `Are you sure you want to delete the closed trade record for ${trade.symbol} (${trade.closedDate || 'N/A'})?`,
+      requireText: null,
+      onConfirm: () => {
+        const backup = { ...trade };
+        setClosedTrades(prev => prev.filter(t => t.id !== trade.id));
+        setUndoToast({
+          message: `Deleted closed trade for ${trade.symbol}.`,
+          onUndo: () => setClosedTrades(prev => [backup, ...prev])
+        });
+      }
+    });
   };
 
   const handleOpenEdit = (pos) => {
@@ -310,9 +418,6 @@ export default function PortfolioAdvisor({
       setIsSubmitting(false);
     }
   };
-
-  const isTotalPos = (summary.totalUnrealizedPnl || 0) >= 0;
-  const isTodayPos = (summary.totalTodayPnl || 0) >= 0;
 
   // Closed Trades Analytics Calculations
   const totalRealizedPnl = closedTrades.reduce((acc, t) => acc + (t.realizedPnl || 0), 0);
@@ -376,38 +481,57 @@ export default function PortfolioAdvisor({
           <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-3.5 border border-[#E2E8F0] dark:border-[#243044]">
             <span className="text-[10px] uppercase text-[#64748B] dark:text-[#94A3B8] font-bold block">Active Capital Invested</span>
             <span className="text-lg font-extrabold text-[#0F172A] dark:text-[#F8FAFC] mono mt-1 block">
-              PKR {(summary.totalInvested || 0).toLocaleString()}
+              PKR {(summary.totalInvested || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
 
           <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-3.5 border border-[#E2E8F0] dark:border-[#243044]">
             <span className="text-[10px] uppercase text-[#64748B] dark:text-[#94A3B8] font-bold block">Active Portfolio Value</span>
             <span className="text-lg font-extrabold text-[#2563EB] dark:text-[#3B82F6] mono mt-1 block">
-              PKR {(summary.totalCurrentValue || 0).toLocaleString()}
+              PKR {(summary.totalCurrentValue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
 
           <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-3.5 border border-[#E2E8F0] dark:border-[#243044]">
             <span className="text-[10px] uppercase text-[#64748B] dark:text-[#94A3B8] font-bold block">Aaj Ka Day Move</span>
-            <div className={`text-lg font-extrabold mono mt-1 flex items-center ${isTodayPos ? 'text-[#16A34A] dark:text-[#22C55E]' : 'text-[#DC2626] dark:text-[#EF4444]'}`}>
-              {isTodayPos ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
-              <span>{isTodayPos ? '+' : ''}PKR {(summary.totalTodayPnl || 0).toLocaleString()} ({isTodayPos ? '+' : ''}{summary.totalTodayPnlPercent || 0}%)</span>
-            </div>
+            {(() => {
+              const pnl = formatPnl(summary.totalTodayPnl, summary.totalTodayPnlPercent);
+              return (
+                <div className={`text-lg font-extrabold mono mt-1 flex items-center ${pnl.className}`}>
+                  {pnl.arrow === 'UP' && <TrendingUp className="w-4 h-4 mr-1" />}
+                  {pnl.arrow === 'DOWN' && <TrendingDown className="w-4 h-4 mr-1" />}
+                  <span>{pnl.fullText}</span>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-3.5 border border-[#E2E8F0] dark:border-[#243044]">
             <span className="text-[10px] uppercase text-[#64748B] dark:text-[#94A3B8] font-bold block">Unrealized Net P&L</span>
-            <div className={`text-lg font-extrabold mono mt-1 flex items-center ${isTotalPos ? 'text-[#16A34A] dark:text-[#22C55E]' : 'text-[#DC2626] dark:text-[#EF4444]'}`}>
-              {isTotalPos ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
-              <span>{isTotalPos ? '+' : ''}PKR {(summary.totalUnrealizedPnl || 0).toLocaleString()} ({isTotalPos ? '+' : ''}{summary.totalPnlPercent || 0}%)</span>
-            </div>
+            {(() => {
+              const pnl = formatPnl(summary.totalUnrealizedPnl, summary.totalPnlPercent);
+              return (
+                <div className={`text-lg font-extrabold mono mt-1 flex items-center ${pnl.className}`}>
+                  {pnl.arrow === 'UP' && <TrendingUp className="w-4 h-4 mr-1" />}
+                  {pnl.arrow === 'DOWN' && <TrendingDown className="w-4 h-4 mr-1" />}
+                  <span>{pnl.fullText}</span>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-3.5 border border-[#D97706]/40 dark:border-[#F59E0B]/40">
             <span className="text-[10px] uppercase text-[#D97706] dark:text-[#F59E0B] font-bold block">All-Time Booked Profit</span>
-            <div className={`text-lg font-extrabold mono mt-1 flex items-center ${totalRealizedPnl >= 0 ? 'text-[#16A34A] dark:text-[#22C55E]' : 'text-[#DC2626] dark:text-[#EF4444]'}`}>
-              <span>{totalRealizedPnl >= 0 ? '+' : ''}PKR {totalRealizedPnl.toLocaleString()} ({totalRealizedPnl >= 0 ? '+' : ''}{totalRealizedPct.toFixed(2)}%)</span>
-            </div>
+            {(() => {
+              const pnl = formatPnl(totalRealizedPnl, totalRealizedPct);
+              return (
+                <div className={`text-lg font-extrabold mono mt-1 flex items-center ${pnl.className}`}>
+                  {pnl.arrow === 'UP' && <TrendingUp className="w-4 h-4 mr-1" />}
+                  {pnl.arrow === 'DOWN' && <TrendingDown className="w-4 h-4 mr-1" />}
+                  <span>{pnl.fullText}</span>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -501,24 +625,23 @@ export default function PortfolioAdvisor({
                             </div>
 
                             {/* P&L Badges */}
-                            <div className="flex items-center space-x-2">
-                              <div className={`px-3 py-1.5 rounded-lg text-xs font-bold mono flex items-center space-x-1 border ${
-                                ((pos.dayChange || 0) >= 0) 
-                                  ? 'bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/20 dark:bg-[#22C55E]/10 dark:text-[#22C55E] dark:border-[#22C55E]/20' 
-                                  : 'bg-[#DC2626]/10 text-[#DC2626] border-[#DC2626]/20 dark:bg-[#EF4444]/10 dark:text-[#EF4444] dark:border-[#EF4444]/20'
-                              }`}>
-                                <span>Day Move: {((pos.dayChange || 0) >= 0) ? '+' : ''}PKR {pos.todayPnlAmount?.toLocaleString()} ({((pos.dayChange || 0) >= 0) ? '+' : ''}{pos.dayChangePercent}%)</span>
-                              </div>
+                            {(() => {
+                              const dayFmt = formatPnl(pos.todayPnlAmount, pos.dayChangePercent);
+                              const unrlFmt = formatPnl(pos.pnlAmount, pos.pnlPercent);
+                              return (
+                                <div className="flex items-center space-x-2">
+                                  <div className={`px-3 py-1.5 rounded-lg text-xs font-bold mono flex items-center space-x-1 border ${dayFmt.badgeBg}`}>
+                                    <span>Day Move: {dayFmt.fullText}</span>
+                                  </div>
 
-                              <div className={`px-3.5 py-1.5 rounded-lg text-xs font-bold mono flex items-center space-x-1.5 border ${
-                                isPos 
-                                  ? 'bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/30 dark:bg-[#22C55E]/10 dark:text-[#22C55E] dark:border-[#22C55E]/30' 
-                                  : 'bg-[#DC2626]/10 text-[#DC2626] border-[#DC2626]/30 dark:bg-[#EF4444]/10 dark:text-[#EF4444] dark:border-[#EF4444]/30'
-                              }`}>
-                                {isPos ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
-                                <span>Unrealized P&L: {isPos ? '+' : ''}PKR {pos.pnlAmount.toLocaleString()} ({isPos ? '+' : ''}{pos.pnlPercent}%)</span>
-                              </div>
-                            </div>
+                                  <div className={`px-3.5 py-1.5 rounded-lg text-xs font-bold mono flex items-center space-x-1.5 border ${unrlFmt.badgeBg}`}>
+                                    {unrlFmt.arrow === 'UP' && <TrendingUp className="w-4 h-4 mr-1" />}
+                                    {unrlFmt.arrow === 'DOWN' && <TrendingDown className="w-4 h-4 mr-1" />}
+                                    <span>Unrealized P&L: {unrlFmt.fullText}</span>
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           {/* Matrix */}
@@ -569,7 +692,7 @@ export default function PortfolioAdvisor({
                             </button>
 
                             <button
-                              onClick={() => onDeletePosition(pos._id)}
+                              onClick={() => handleDeletePositionPrompt(pos)}
                               className="px-2.5 py-1.5 rounded-lg bg-[#DC2626]/10 border border-[#DC2626]/20 hover:bg-[#DC2626] text-[#DC2626] hover:text-white dark:bg-[#EF4444]/10 dark:border-[#EF4444]/20 dark:hover:bg-[#EF4444] dark:text-[#EF4444] dark:hover:text-white text-[11px] font-bold flex items-center justify-center space-x-1 cursor-pointer transition-colors"
                               title="Delete position"
                             >
@@ -634,12 +757,8 @@ export default function PortfolioAdvisor({
               </div>
               {closedTrades.length > 0 && (
                 <button
-                  onClick={() => {
-                    if (window.confirm('Are you sure you want to clear all closed trade history?')) {
-                      setClosedTrades([]);
-                    }
-                  }}
-                  className="text-[10px] text-[#DC2626] dark:text-[#EF4444] hover:underline cursor-pointer"
+                  onClick={handleClearAllHistory}
+                  className="text-[10px] text-[#DC2626] dark:text-[#EF4444] hover:underline cursor-pointer font-bold"
                 >
                   Clear All History
                 </button>
@@ -674,7 +793,7 @@ export default function PortfolioAdvisor({
                     </tr>
                   ) : (
                     closedTrades.map(trade => {
-                      const isProfit = trade.realizedPnl >= 0;
+                      const pnlFmt = formatPnl(trade.realizedPnl, trade.realizedPct);
 
                       return (
                         <tr key={trade.id} className="hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors">
@@ -699,17 +818,13 @@ export default function PortfolioAdvisor({
                             {Number(trade.quantity).toLocaleString()}
                           </td>
                           <td className="py-3 px-4 font-bold mono text-sm">
-                            <span className={isProfit ? 'text-[#16A34A] dark:text-[#22C55E]' : 'text-[#DC2626] dark:text-[#EF4444]'}>
-                              {isProfit ? '+' : ''}PKR {Number(trade.realizedPnl).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            <span className={pnlFmt.className}>
+                              {pnlFmt.amountText}
                             </span>
                           </td>
                           <td className="py-3 px-4 font-bold mono">
-                            <span className={`px-2 py-0.5 rounded text-[10px] border ${
-                              isProfit 
-                                ? 'bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/20 dark:bg-[#22C55E]/10 dark:text-[#22C55E] dark:border-[#22C55E]/20' 
-                                : 'bg-[#DC2626]/10 text-[#DC2626] border-[#DC2626]/20 dark:bg-[#EF4444]/10 dark:text-[#EF4444] dark:border-[#EF4444]/20'
-                            }`}>
-                              {isProfit ? '+' : ''}{trade.realizedPct}%
+                            <span className={`px-2 py-0.5 rounded text-[10px] border ${pnlFmt.badgeBg}`}>
+                              {pnlFmt.percentText.replace(/[()]/g, '')}
                             </span>
                           </td>
                           <td className="py-3 px-4 text-[#64748B] dark:text-[#94A3B8] text-[11px] max-w-[150px] truncate">
@@ -717,7 +832,7 @@ export default function PortfolioAdvisor({
                           </td>
                           <td className="py-3 px-4 text-right">
                             <button
-                              onClick={() => handleDeleteClosedTrade(trade.id)}
+                              onClick={() => handleDeleteClosedTradePrompt(trade)}
                               className="p-1.5 rounded-lg text-[#64748B] hover:text-[#DC2626] dark:text-[#94A3B8] dark:hover:text-[#EF4444] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] cursor-pointer"
                               title="Delete Record"
                             >
@@ -1194,6 +1309,95 @@ export default function PortfolioAdvisor({
               </button>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-xl bg-[#DC2626]/10 text-[#DC2626] dark:bg-[#EF4444]/10 dark:text-[#EF4444] flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 stroke-[2.5]" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[#0F172A] dark:text-[#F8FAFC]">
+                  {confirmModal.title}
+                </h3>
+                <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
+                  {confirmModal.message}
+                </p>
+              </div>
+            </div>
+
+            {confirmModal.requireText && (
+              <div className="space-y-1.5 pt-2">
+                <label className="text-[11px] font-bold uppercase text-[#64748B] dark:text-[#94A3B8]">
+                  Type <span className="text-[#DC2626] dark:text-[#EF4444] mono font-mono font-black">{confirmModal.requireText}</span> to confirm:
+                </label>
+                <input
+                  type="text"
+                  value={confirmInput}
+                  onChange={(e) => setConfirmInput(e.target.value)}
+                  placeholder={confirmModal.requireText}
+                  autoFocus
+                  className="w-full bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] rounded-lg px-3 py-2 text-sm text-[#0F172A] dark:text-[#F8FAFC] font-bold mono focus:outline-none focus:border-[#DC2626] dark:focus:border-[#EF4444]"
+                />
+              </div>
+            )}
+
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#E2E8F0] dark:border-[#243044]">
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmModal(null);
+                  setConfirmInput('');
+                }}
+                className="px-4 py-2 rounded-lg text-xs font-bold text-[#64748B] dark:text-[#94A3B8] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={Boolean(confirmModal.requireText && confirmInput !== confirmModal.requireText)}
+                onClick={() => {
+                  const action = confirmModal.onConfirm;
+                  setConfirmModal(null);
+                  setConfirmInput('');
+                  if (action) action();
+                }}
+                className="px-4 py-2 rounded-lg text-xs font-bold bg-[#DC2626] hover:bg-[#B91C1C] dark:bg-[#EF4444] dark:hover:bg-[#DC2626] text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm transition-all"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 10s Undo Toast */}
+      {undoToast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-3 bg-[#0F172A] dark:bg-[#1E293B] text-white px-4 py-3 rounded-xl shadow-2xl border border-white/10 animate-in slide-in-from-bottom-5 duration-200 max-w-md">
+          <div className="flex-1 text-xs">
+            <span className="font-medium text-white">{undoToast.message}</span>
+            <span className="text-[10px] text-[#94A3B8] block mt-0.5">Undo available for 10 seconds</span>
+          </div>
+          <button
+            onClick={() => {
+              if (undoToast.onUndo) undoToast.onUndo();
+              setUndoToast(null);
+            }}
+            className="px-3 py-1.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#2563EB] text-white font-bold text-xs shrink-0 cursor-pointer shadow"
+          >
+            Undo
+          </button>
+          <button
+            onClick={() => setUndoToast(null)}
+            className="p-1 text-[#94A3B8] hover:text-white cursor-pointer ml-1"
+            title="Dismiss"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
     </div>
