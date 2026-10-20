@@ -1041,16 +1041,22 @@ export default function NewsCatalystTradeHub({
 
       // Strict Rule: If stock closed in the red (< -0.5%) AND trades below 20 EMA,
       // it CANNOT be labeled "BULLISH SETUP" solely because of generic sector news items.
+      const isTechnicalOnlyBear = isWeakTechnicals && negativeCount === 0 && (Number(quote.changePercent) <= -1.5 || isClosedInRed);
+
       if (isWeakTechnicals) {
         if (negativeCount > positiveCount || Number(quote.changePercent) <= -1.5) {
           quote = getLiveQuote(sym, 100, data.name, positiveCount, negativeCount, true);
           netSentiment = 'NEGATIVE';
-          netVerdict = `🔴 Downside Risk • Defensive Pullback (${quote.changePercent}% below 20 EMA)`;
+          netVerdict = isTechnicalOnlyBear 
+            ? `🔴 Bearish Setup • Technical Breakdown (${quote.changePercent}% below 20 EMA, No Negative News)`
+            : `🔴 Downside Risk • Defensive Pullback (${quote.changePercent}% below 20 EMA)`;
           action = 'DEFENSIVE_PULLBACK';
           direction = 'DOWN';
           badgeClass = 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20';
           confidence = Math.min(95, 78 + Math.round(Math.abs(quote.changePercent) * 3));
-          primaryReason = `Price closed in red (${quote.changePercent}%) below 20 EMA (PKR ${quote.ema20.toFixed(2)}). Downside pullback target projected at PKR ${quote.downsideTarget} with protective stop at PKR ${quote.exitTrigger}.`;
+          primaryReason = isTechnicalOnlyBear
+            ? `Technical-only bearish signal (no negative news): Price closed in red (${quote.changePercent}%) below 20 EMA (PKR ${quote.ema20.toFixed(2)}) despite positive sector catalysts. Downside pullback target projected at PKR ${quote.downsideTarget} with protective stop at PKR ${quote.exitTrigger}.`
+            : `Price closed in red (${quote.changePercent}%) below 20 EMA (PKR ${quote.ema20.toFixed(2)}). Downside pullback target projected at PKR ${quote.downsideTarget} with protective stop at PKR ${quote.exitTrigger}.`;
         } else {
           netSentiment = 'BALANCED';
           netVerdict = `⚖️ Neutral / Rangebound (Price Drag Below 20 EMA)`;
@@ -1097,6 +1103,7 @@ export default function NewsCatalystTradeHub({
         change: quote.change,
         changePercent: quote.changePercent,
         isDownsideRisk: Boolean(quote.isDownsideRisk),
+        isTechnicalOnlyBear: Boolean(isTechnicalOnlyBear && netSentiment === 'NEGATIVE'),
         downsideTarget: quote.downsideTarget,
         downsideRiskPct: quote.downsideRiskPct,
         exitTrigger: quote.exitTrigger,
@@ -1163,6 +1170,8 @@ export default function NewsCatalystTradeHub({
 
   // Filter Consolidated Stocks by Multi-Sector, Multi-Stock, Sentiment, and Search Query
   const filteredStocks = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+
     return consolidatedStocksData.filter(item => {
       // 1. Multi-Sector Filter
       if (selectedSectors.length > 0 && !selectedSectors.includes(item.category)) {
@@ -1174,18 +1183,31 @@ export default function NewsCatalystTradeHub({
         return false;
       }
 
-      // 3. Sentiment Filter
+      // 3. Sentiment Filter (Bear Setup matches all negative technical or news signals)
       if (selectedSentiment === 'POSITIVE' && item.netSentiment !== 'POSITIVE') return false;
       if (selectedSentiment === 'NEGATIVE' && item.netSentiment !== 'NEGATIVE') return false;
 
-      // 4. Free-Text Search Filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
+      // 4. Free-Text Search Filter (Matches across symbol, name, full name, sector, category, AI catalyst, and headlines)
+      if (q) {
         const symMatch = item.symbol.toLowerCase().includes(q);
         const nameMatch = (item.name || '').toLowerCase().includes(q);
+        const fullName = getCompanyFullName(item.symbol);
+        const fullNameMatch = fullName ? fullName.toLowerCase().includes(q) : false;
         const sectorMatch = (item.sector || '').toLowerCase().includes(q);
-        const newsMatch = item.newsItems.some(n => n.title.toLowerCase().includes(q));
-        if (!symMatch && !nameMatch && !sectorMatch && !newsMatch) return false;
+        const categoryObj = SECTOR_CATEGORIES.find(c => c.id === item.category);
+        const categoryLabelMatch = categoryObj ? categoryObj.label.toLowerCase().includes(q) : false;
+        const categoryIdMatch = (item.category || '').toLowerCase().includes(q);
+        const aiCatalystMatch = (item.primaryReason || '').toLowerCase().includes(q);
+        const verdictMatch = (item.netVerdict || '').toLowerCase().includes(q);
+        const newsMatch = (item.newsItems || []).some(n => 
+          (n.title || '').toLowerCase().includes(q) ||
+          (n.tradeReason || '').toLowerCase().includes(q) ||
+          (n.source || '').toLowerCase().includes(q)
+        );
+
+        if (!symMatch && !nameMatch && !fullNameMatch && !sectorMatch && !categoryLabelMatch && !categoryIdMatch && !aiCatalystMatch && !verdictMatch && !newsMatch) {
+          return false;
+        }
       }
 
       return true;
@@ -1194,6 +1216,8 @@ export default function NewsCatalystTradeHub({
 
   // Filter Chronological News Feed
   const filteredNewsFeed = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+
     return cleanNewsList.filter(n => {
       const globalPol = evaluateArticleSentiment(n.title, n.impactSummary || n.description);
       
@@ -1217,13 +1241,14 @@ export default function NewsCatalystTradeHub({
       
       // 4. Free-Text Search Match
       let matchSearch = true;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
+      if (q) {
         const titleMatch = (n.title || '').toLowerCase().includes(q);
         const descMatch = (n.impactSummary || n.description || '').toLowerCase().includes(q);
+        const sourceMatch = (n.source || '').toLowerCase().includes(q);
+        const categoryMatch = (n.categoryName || n.category || '').toLowerCase().includes(q);
         const stockMatch = (n.upStocks || []).some(s => (s.symbol || '').toLowerCase().includes(q) || (s.name || '').toLowerCase().includes(q)) ||
                            (n.downStocks || []).some(s => (s.symbol || '').toLowerCase().includes(q) || (s.name || '').toLowerCase().includes(q));
-        matchSearch = titleMatch || descMatch || stockMatch;
+        matchSearch = titleMatch || descMatch || sourceMatch || categoryMatch || stockMatch;
       }
 
       return matchCategory && matchStock && matchSentiment && matchSearch;
@@ -1581,38 +1606,41 @@ export default function NewsCatalystTradeHub({
           {/* 4. Sentiment Filter Buttons */}
           <div className="md:col-span-2 flex items-center space-x-1 bg-[#F8FAFC] dark:bg-[#0B0F19] p-1 rounded-lg border border-[#E2E8F0] dark:border-[#243044] text-xs">
             <button
+              type="button"
               onClick={() => setSelectedSentiment('ALL')}
               className={`flex-1 py-1.5 rounded-md font-bold transition-all text-center cursor-pointer ${
                 selectedSentiment === 'ALL' 
                   ? 'bg-[#2563EB] dark:bg-[#3B82F6] text-white shadow-sm' 
-                  : 'text-[#64748B] dark:text-[#94A3B8]'
+                  : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC]'
               }`}
             >
               All
             </button>
             <button
+              type="button"
               onClick={() => setSelectedSentiment('POSITIVE')}
-              title="Bullish Catalysts"
+              title="Bullish Setup (Constructive Catalysts & Momentum)"
               className={`flex-1 py-1.5 rounded-md font-bold transition-all flex items-center justify-center space-x-0.5 cursor-pointer ${
                 selectedSentiment === 'POSITIVE' 
                   ? 'bg-[#16A34A] dark:bg-[#22C55E] text-white shadow-sm' 
-                  : 'text-[#16A34A] dark:text-[#22C55E]'
+                  : 'text-[#16A34A] dark:text-[#22C55E] hover:bg-emerald-500/10'
               }`}
             >
               <TrendingUp className="w-3 h-3" />
-              <span className="hidden xl:inline">Bull</span>
+              <span className="hidden xl:inline">Bull Setup</span>
             </button>
             <button
+              type="button"
               onClick={() => setSelectedSentiment('NEGATIVE')}
-              title="Bearish Headwinds"
+              title="Bearish Setup (Technical Breakdown or Negative News)"
               className={`flex-1 py-1.5 rounded-md font-bold transition-all flex items-center justify-center space-x-0.5 cursor-pointer ${
                 selectedSentiment === 'NEGATIVE' 
                   ? 'bg-[#DC2626] dark:bg-[#EF4444] text-white shadow-sm' 
-                  : 'text-[#DC2626] dark:text-[#EF4444]'
+                  : 'text-[#DC2626] dark:text-[#EF4444] hover:bg-rose-500/10'
               }`}
             >
               <TrendingDown className="w-3 h-3" />
-              <span className="hidden xl:inline">Bear</span>
+              <span className="hidden xl:inline">Bear Setup</span>
             </button>
           </div>
         </div>
@@ -1628,6 +1656,7 @@ export default function NewsCatalystTradeHub({
               return (
                 <button
                   key={sym}
+                  type="button"
                   onClick={() => toggleStock(sym)}
                   className={`px-2.5 py-1 rounded-md text-[11px] font-mono font-bold shrink-0 transition-all cursor-pointer border ${
                     isSelected 
@@ -1643,6 +1672,7 @@ export default function NewsCatalystTradeHub({
 
           {hasActiveFilters && (
             <button
+              type="button"
               onClick={clearAllFilters}
               className="flex items-center space-x-1 text-xs font-bold text-[#DC2626] dark:text-[#EF4444] hover:underline cursor-pointer shrink-0 self-end sm:self-auto"
             >
@@ -1671,6 +1701,7 @@ export default function NewsCatalystTradeHub({
                 >
                   <span>{catObj?.icon || '🏢'} {catObj?.label || secId}</span>
                   <button
+                    type="button"
                     onClick={() => toggleSector(secId)}
                     className="hover:text-[#1D4ED8] p-0.5 rounded-full cursor-pointer ml-1"
                   >
@@ -1688,6 +1719,7 @@ export default function NewsCatalystTradeHub({
               >
                 <span>{sym}</span>
                 <button
+                  type="button"
                   onClick={() => toggleStock(sym)}
                   className="hover:text-emerald-800 p-0.5 rounded-full cursor-pointer ml-1"
                 >
@@ -1699,8 +1731,9 @@ export default function NewsCatalystTradeHub({
             {/* Free Search Query Badge */}
             {searchQuery.trim() && (
               <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30">
-                <span>🔍 "{searchQuery}"</span>
+                <span>🔍 "{searchQuery.trim()}"</span>
                 <button
+                  type="button"
                   onClick={() => setSearchQuery('')}
                   className="hover:text-purple-800 p-0.5 rounded-full cursor-pointer ml-1"
                 >
@@ -1716,8 +1749,9 @@ export default function NewsCatalystTradeHub({
                   ? 'bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/30'
                   : 'bg-[#DC2626]/10 text-[#DC2626] border-[#DC2626]/30'
               }`}>
-                <span>{selectedSentiment === 'POSITIVE' ? '🟢 Bullish Only' : '🔴 Bearish Only'}</span>
+                <span>{selectedSentiment === 'POSITIVE' ? '🟢 Bullish Setup' : '🔴 Bearish Setup'}</span>
                 <button
+                  type="button"
                   onClick={() => setSelectedSentiment('ALL')}
                   className="p-0.5 rounded-full cursor-pointer ml-1"
                 >
@@ -1735,14 +1769,64 @@ export default function NewsCatalystTradeHub({
       {viewMode === 'NET_STOCK_VIEW' && (
         <div>
           {filteredStocks.length === 0 ? (
-            <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-12 text-center text-[#64748B] dark:text-[#94A3B8]">
-              <p className="font-bold text-sm">No stocks found matching your active filters.</p>
-              <button
-                onClick={clearAllFilters}
-                className="mt-3 px-4 py-1.5 rounded-lg bg-[#2563EB] text-white font-bold text-xs cursor-pointer"
-              >
-                Reset All Filters
-              </button>
+            <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-8 sm:p-12 text-center text-[#64748B] dark:text-[#94A3B8]">
+              <p className="font-bold text-sm text-[#0F172A] dark:text-[#F8FAFC]">
+                No stocks found matching your active filters.
+              </p>
+              {hasActiveFilters && (
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5 text-xs">
+                  <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8] font-bold">Active criteria:</span>
+                  {searchQuery.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30 hover:bg-purple-500/20 cursor-pointer"
+                    >
+                      <span>🔍 "{searchQuery.trim()}"</span>
+                      <X className="w-3 h-3 ml-1" />
+                    </button>
+                  )}
+                  {selectedSentiment !== 'ALL' && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSentiment('ALL')}
+                      className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/20 cursor-pointer"
+                    >
+                      <span>{selectedSentiment === 'POSITIVE' ? '🟢 Bullish Setup' : '🔴 Bearish Setup'}</span>
+                      <X className="w-3 h-3 ml-1" />
+                    </button>
+                  )}
+                  {selectedSectors.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSectors([])}
+                      className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 cursor-pointer"
+                    >
+                      <span>{selectedSectors.length} Sectors</span>
+                      <X className="w-3 h-3 ml-1" />
+                    </button>
+                  )}
+                  {selectedStocks.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStocks([])}
+                      className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 cursor-pointer"
+                    >
+                      <span>{selectedStocks.length} Stocks</span>
+                      <X className="w-3 h-3 ml-1" />
+                    </button>
+                  )}
+                </div>
+              )}
+              <div className="mt-4 flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={clearAllFilters}
+                  className="px-4 py-1.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs cursor-pointer shadow-sm transition-colors"
+                >
+                  Reset All Filters
+                </button>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1794,11 +1878,19 @@ export default function NewsCatalystTradeHub({
                             {stockData.netSentiment === 'POSITIVE' 
                               ? 'BULLISH SETUP' 
                               : stockData.netSentiment === 'NEGATIVE' 
-                                ? 'DOWNSIDE RISK' 
+                                ? (stockData.isTechnicalOnlyBear ? 'BEARISH SETUP (TECH)' : 'DOWNSIDE RISK') 
                                 : 'BALANCED'}
                           </span>
                         </div>
                       </div>
+
+                      {/* Technical-only bearish signal banner */}
+                      {stockData.isTechnicalOnlyBear && (
+                        <div className="mb-2.5 p-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-700 dark:text-amber-300 text-[11px] font-semibold flex items-center space-x-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-500" />
+                          <span>Technical-only bearish signal (no negative news)</span>
+                        </div>
+                      )}
 
                       {/* Price & Target Matrix Grid */}
                       <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-2.5 border border-[#E2E8F0] dark:border-[#243044] mb-2.5">
@@ -1915,7 +2007,11 @@ export default function NewsCatalystTradeHub({
                           </span>
                           <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">
                             {stockData.positiveCount > 0 && <b className="text-emerald-600 dark:text-emerald-400 mr-1.5">{stockData.positiveCount} Positive</b>}
-                            {stockData.negativeCount > 0 && <b className="text-red-600 dark:text-red-400">{stockData.negativeCount} Negative</b>}
+                            {stockData.negativeCount > 0 ? (
+                              <b className="text-red-600 dark:text-red-400">{stockData.negativeCount} Negative</b>
+                            ) : stockData.netSentiment === 'NEGATIVE' ? (
+                              <b className="text-amber-600 dark:text-amber-400">0 Negative (Technical Breakdown)</b>
+                            ) : null}
                           </span>
                         </div>
 
