@@ -170,6 +170,49 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
   const singlePayoutYield = totalInvestment > 0 ? (netDividendInBank / totalInvestment) * 100 : 0;
   const estimatedAnnualYield = singlePayoutYield * 4;
 
+  const currentCycleInfo = useMemo(() => {
+    const now = new Date();
+    const month = now.getMonth(); // 0 = Jan, 8 = Sep, 11 = Dec
+    const year = now.getFullYear();
+
+    let label = `Sep – Dec ${year} Peak Season`;
+    let shortRange = 'Sep – Dec';
+
+    if (month >= 8 && month <= 11) {
+      label = `Sep – Dec ${year} Peak Season`;
+      shortRange = 'Sep – Dec';
+    } else if (month >= 0 && month <= 2) {
+      label = `Jan – Mar ${year} H1 Earnings Season`;
+      shortRange = 'Jan – Mar';
+    } else if (month >= 3 && month <= 5) {
+      label = `Apr – Jun ${year} Q3 Corporate Actions`;
+      shortRange = 'Apr – Jun';
+    } else {
+      label = `Jul – Aug ${year} FY-Close Pre-Season`;
+      shortRange = 'Jul – Aug';
+    }
+
+    const rankedStocks = UPCOMING_DIVIDEND_STOCKS
+      .map(item => {
+        const p = getLivePrice(item.symbol, item.defaultPrice);
+        return {
+          symbol: item.symbol,
+          annualYield: p > 0 ? (item.annualDividend / p) * 100 : 0
+        };
+      })
+      .sort((a, b) => b.annualYield - a.annualYield);
+
+    const topStocks = rankedStocks.slice(0, 2);
+    const topYieldVal = topStocks[0]?.annualYield || 16.4;
+    const topNames = topStocks.map(s => s.symbol).join(' / ') || 'KAPCO / POL';
+
+    return {
+      label,
+      shortRange,
+      topYieldText: `Up to ${topYieldVal.toFixed(1)}% (${topNames})`
+    };
+  }, [stocks]);
+
   return (
     <div className="space-y-6">
       {/* 1. Header Hero Banner */}
@@ -198,12 +241,12 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
           <div className="flex items-center space-x-4 bg-[#F8FAFC] dark:bg-[#0B0F19] px-4 py-2.5 rounded-lg border border-[#E2E8F0] dark:border-[#243044] shrink-0 text-xs">
             <div>
               <span className="text-[9px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] block">Current Cycle</span>
-              <span className="font-bold text-[#D97706] dark:text-[#F59E0B] mono">Sep – Dec Peak Season</span>
+              <span className="font-bold text-[#D97706] dark:text-[#F59E0B] mono">{currentCycleInfo.label}</span>
             </div>
             <div className="h-7 w-[1px] bg-[#E2E8F0] dark:bg-[#243044]"></div>
             <div>
               <span className="text-[9px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] block">Top Annual Yield</span>
-              <span className="font-bold text-[#16A34A] dark:text-[#22C55E] mono">Up to 16.4% (KAPCO / POL)</span>
+              <span className="font-bold text-[#16A34A] dark:text-[#22C55E] mono">{currentCycleInfo.topYieldText}</span>
             </div>
             <Sparkles className="w-5 h-5 text-[#D97706] dark:text-[#F59E0B] animate-pulse" />
           </div>
@@ -261,7 +304,7 @@ export default function DividendIntelligenceHub({ stocks = [], onSelectStock }) 
                     : 'bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] border border-[#E2E8F0] dark:border-[#243044]'
                 }`}
               >
-                {m === 'All Months' ? '🌐 All Months (Sep – Dec)' : `🗓️ ${m}`}
+                {m === 'All Months' ? `🌐 All Months (${currentCycleInfo.shortRange})` : `🗓️ ${m}`}
               </button>
             ))}
           </div>
