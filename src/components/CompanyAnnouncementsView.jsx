@@ -53,12 +53,19 @@ export default function CompanyAnnouncementsView({ stock, isDark = true }) {
   const categories = data?.categories || { financialResults: [], boardMeetings: [], others: [] };
   const allList = data?.all || [];
 
-  // Filter by category
+  const parseDateMs = (dStr) => {
+    if (!dStr) return 0;
+    const ms = Date.parse(dStr);
+    return isNaN(ms) ? 0 : ms;
+  };
+
+  // Filter by category and guarantee strict chronological descending order (newest first)
   const categoryFiltered = useMemo(() => {
-    if (selectedCategory === 'financial') return categories.financialResults || [];
-    if (selectedCategory === 'board') return categories.boardMeetings || [];
-    if (selectedCategory === 'others') return categories.others || [];
-    return allList;
+    let list = allList;
+    if (selectedCategory === 'financial') list = categories.financialResults || [];
+    else if (selectedCategory === 'board') list = categories.boardMeetings || [];
+    else if (selectedCategory === 'others') list = categories.others || [];
+    return [...list].sort((a, b) => parseDateMs(b.date) - parseDateMs(a.date));
   }, [selectedCategory, categories, allList]);
 
   // Filter by search query
