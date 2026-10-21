@@ -47,7 +47,7 @@ export { getPSXMarketSessionInfo, getCompanyFullName };
 
 // Format clean Month Day badge (e.g. 'Oct 19', 'Oct 20', 'Oct 21')
 export const formatRadarDateBadge = (dateStr) => {
-  if (!dateStr) return 'Oct 20';
+  if (!dateStr) return 'Oct 21';
   const parts = String(dateStr).split('-');
   if (parts.length === 3) {
     const year = parseInt(parts[0], 10);
@@ -59,6 +59,94 @@ export const formatRadarDateBadge = (dateStr) => {
     }
   }
   return dateStr;
+};
+
+// Dynamic Card Session Badge for the top right pill (e.g. 'ACTIONABLE: OCT 22 OPEN', 'OCT 21 CLOSE', 'ARCHIVE: OCT 20')
+export const getCardSessionBadge = ({ isHistoricalView, isLive, activeSessionObj }) => {
+  if (isHistoricalView) {
+    const dateBadge = formatRadarDateBadge(activeSessionObj?.dateStr);
+    return `ARCHIVE: ${dateBadge.toUpperCase()}`;
+  }
+  if (isLive) {
+    return 'LIVE SESSION';
+  }
+  if (activeSessionObj?.dayOffset === 0) {
+    const targetBadge = formatRadarDateBadge(activeSessionObj?.dateStr);
+    return `ACTIONABLE: ${targetBadge.toUpperCase()} OPEN`;
+  }
+  const dateBadge = formatRadarDateBadge(activeSessionObj?.dateStr);
+  return `${dateBadge.toUpperCase()} CLOSE`;
+};
+
+// Dynamic Price Metric Label (Decouples base reference price from future actionable session date)
+export const getPriceMetricLabel = ({ isHistoricalView, isLive, activeSessionObj, recentSessions }) => {
+  if (isHistoricalView) {
+    const dateBadge = formatRadarDateBadge(activeSessionObj?.dateStr);
+    return `SIGNAL PRICE (${dateBadge.toUpperCase()})`;
+  }
+  if (isLive) {
+    return 'LIVE PRICE';
+  }
+  // When viewing tomorrow's / actionable open (dayOffset === 0 in post-market / pre-market / weekend)
+  if (activeSessionObj?.dayOffset === 0) {
+    // Reference price is from the last completed trading day (recentSessions[1])
+    const lastCompletedDateStr = recentSessions && recentSessions[1]?.dateStr;
+    const lastDateBadge = formatRadarDateBadge(lastCompletedDateStr || '');
+    return `LAST EOD CLOSE (${lastDateBadge.toUpperCase()})`;
+  }
+  // When viewing today's closing / EOD snapshot (dayOffset === 1)
+  const currentBadge = formatRadarDateBadge(activeSessionObj?.dateStr);
+  return `CLOSING PRICE (${currentBadge.toUpperCase()})`;
+};
+
+// Action Summary Heading (e.g. '🎯 WHAT TO DO (OCT 22 OPEN):')
+export const getActionHeading = ({ isHistoricalView, isLive, activeSessionObj }) => {
+  if (isHistoricalView) {
+    const dateBadge = formatRadarDateBadge(activeSessionObj?.dateStr);
+    return `🎯 SESSION ACTION PLAN (${dateBadge.toUpperCase()}):`;
+  }
+  if (isLive) {
+    return '🎯 WHAT TO DO (LIVE SESSION):';
+  }
+  if (activeSessionObj?.dayOffset === 0) {
+    const targetBadge = formatRadarDateBadge(activeSessionObj?.dateStr);
+    return `🎯 WHAT TO DO (${targetBadge.toUpperCase()} OPEN):`;
+  }
+  const dateBadge = formatRadarDateBadge(activeSessionObj?.dateStr);
+  return `🎯 WHAT TO DO (${dateBadge.toUpperCase()} CLOSE):`;
+};
+
+// Dynamic Action Summary Generator tailored to regime and exact price levels
+export const generateActionSummary = (item) => {
+  const signal = item.signal || 'HOLD';
+  const isMomentumBreakout = Boolean(item.isMomentumBreakout);
+  const entryMin = item.entryZone?.min ? Number(item.entryZone.min).toFixed(2) : (item.currentPrice * 0.985).toFixed(2);
+  const entryMax = item.entryZone?.max ? Number(item.entryZone.max).toFixed(2) : (item.currentPrice * 1.01).toFixed(2);
+  const stopLoss = item.stopLoss ? Number(item.stopLoss).toFixed(2) : (item.currentPrice * 0.95).toFixed(2);
+  const target1 = item.target1 ? Number(item.target1).toFixed(2) : (item.currentPrice * 1.08).toFixed(2);
+  const price = Number(item.currentPrice || 100);
+
+  // 1. MOMENTUM BREAKOUT • TRAIL STOP (High RSI > 70 runners)
+  if (isMomentumBreakout || (Number(item.rsi || item.technicals?.rsi14 || 50) >= 70 && Number(item.changePercent || 0) > 0)) {
+    return `Do not chase high opens. Trail stop loss tightly to PKR ${stopLoss}. Lock partial profits near PKR ${target1} and let runner shares ride the momentum.`;
+  }
+
+  // 2. BEARISH SETUP / TECH BREAKDOWN (AVOID_SELL / SELL)
+  if (signal === 'AVOID_SELL' || signal === 'SELL') {
+    const defensiveHigh = entryMax || (price * 1.008).toFixed(2);
+    const exitTrigger = stopLoss || (price * 0.965).toFixed(2);
+    return `Avoid fresh buying. If holding existing positions, use any morning pullbacks toward PKR ${defensiveHigh} to exit. Trigger defensive stop if price breaches below PKR ${exitTrigger}.`;
+  }
+
+  // 3. BULLISH SETUP (STRONG_BUY / ACCUMULATE)
+  if (signal === 'STRONG_BUY' || signal === 'ACCUMULATE') {
+    return `Wait for a 10-15 min opening dip into the entry zone (PKR ${entryMin} - ${entryMax}). Accumulate with a strict stop loss below PKR ${stopLoss}. First target PKR ${target1}.`;
+  }
+
+  // 4. CONSOLIDATION / NEUTRAL (HOLD / NEUTRAL)
+  const support = entryMin || (price * 0.98).toFixed(2);
+  const resistance = target1 || (price * 1.04).toFixed(2);
+  return `Range-bound session expected. Stand aside for clear directional breakout. Buy only near support PKR ${support} or sell near resistance PKR ${resistance}.`;
 };
 
 // Generate Last N PSX Trading Days (skips Saturday and Sunday, syncs with marketSession)
@@ -1849,7 +1937,7 @@ export default function DailyRecommendations({
                       <div>
                         <div className="flex items-center space-x-1.5">
                           <span className="text-base font-bold text-zinc-900 dark:text-zinc-100 font-mono">{item.symbol}</span>
-                          <span className="text-[10px] text-zinc-400 font-mono">{formatRadarDateBadge(selectedSessionDate || item.date)}</span>
+                          <span className="text-[10px] text-zinc-400 font-mono font-semibold uppercase">{getCardSessionBadge({ isHistoricalView, isLive: isMarketOpen, activeSessionObj })}</span>
                         </div>
                         <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate max-w-[190px] font-medium" title={getCompanyFullName(item.symbol)}>
                           {getCompanyFullName(item.symbol)}
@@ -1861,6 +1949,9 @@ export default function DailyRecommendations({
                       </span>
                     </div>
                     <div className="py-2 border-y border-zinc-100 dark:border-zinc-800 mb-2">
+                      <span className="text-[9px] uppercase tracking-wider text-zinc-400 font-semibold block">
+                        {getPriceMetricLabel({ isHistoricalView, isLive: isMarketOpen, activeSessionObj, recentSessions })}
+                      </span>
                       <p className="text-base font-bold font-mono text-zinc-900 dark:text-zinc-100">PKR {item.currentPrice.toFixed(2)}</p>
                     </div>
                   </div>
@@ -1903,8 +1994,8 @@ export default function DailyRecommendations({
                         <span className="text-[10px] text-zinc-500 font-medium px-1.5 py-0.2 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700/60 truncate max-w-[130px]" title={item.sector}>
                           {item.sector}
                         </span>
-                        <span className="text-[9px] font-mono text-zinc-400 dark:text-zinc-500 shrink-0">
-                          {formatRadarDateBadge(selectedSessionDate || item.date)}
+                        <span className="text-[9px] font-mono text-zinc-600 dark:text-zinc-300 font-semibold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700/80 shrink-0 uppercase tracking-tight">
+                          {getCardSessionBadge({ isHistoricalView, isLive: isMarketOpen, activeSessionObj })}
                         </span>
                       </div>
                       {/* Line 2: Full Registered Company Name */}
@@ -1935,10 +2026,8 @@ export default function DailyRecommendations({
                   {/* Price & Confidence Bar */}
                   <div className="flex items-baseline justify-between mb-2">
                     <div>
-                      <span className="text-[9px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold block">
-                        {isHistoricalView 
-                          ? 'Signal Price' 
-                          : (isMarketOpen ? 'Live Price' : 'Closing Price')}
+                      <span className="text-[9px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-bold block">
+                        {getPriceMetricLabel({ isHistoricalView, isLive: isMarketOpen, activeSessionObj, recentSessions })}
                       </span>
                       <div className="flex items-baseline space-x-1.5">
                         <span className="text-base font-bold font-mono tabular-nums text-zinc-900 dark:text-zinc-100">
@@ -1991,6 +2080,16 @@ export default function DailyRecommendations({
                   <div className="text-[11px] text-zinc-600 dark:text-zinc-400 truncate flex items-center space-x-1.5 mb-2.5">
                     <Activity className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                     <span className="truncate">{item.reasons?.[0] || 'Technical setup confirmed on EOD volume.'}</span>
+                  </div>
+
+                  {/* 🎯 What to Do (Action Summary Box) */}
+                  <div className="bg-zinc-50 dark:bg-zinc-800/70 border border-zinc-200 dark:border-zinc-700/80 rounded p-2.5 text-xs mb-2.5">
+                    <div className="text-[10px] font-bold tracking-wider text-zinc-900 dark:text-zinc-100 uppercase mb-1 flex items-center space-x-1.5">
+                      <span>{getActionHeading({ isHistoricalView, isLive: isMarketOpen, activeSessionObj })}</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-300 font-sans">
+                      {generateActionSummary(item)}
+                    </p>
                   </div>
                 </div>
 
