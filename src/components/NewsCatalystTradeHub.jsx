@@ -1892,78 +1892,61 @@ export default function NewsCatalystTradeHub({
                         </div>
                       )}
 
-                      {/* Price & Target Matrix Grid */}
-                      <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-2.5 border border-[#E2E8F0] dark:border-[#243044] mb-2.5">
-                        <div className="flex items-baseline justify-between mb-2">
-                          <div>
-                            <span className="text-[10px] uppercase text-[#64748B] dark:text-[#94A3B8] font-bold">
-                              {isMarketOpen ? 'Current Live Price' : 'Closing Price (EOD)'}
+                      {/* 2x2 Tabular Metric Grid on Signal Cards (Koyfin / Bloomberg Institutional Style) */}
+                      <div className="border border-zinc-200 dark:border-zinc-800 rounded divide-y divide-zinc-200 dark:divide-zinc-800 overflow-hidden mb-2.5 bg-zinc-50/50 dark:bg-zinc-900/50">
+                        <div className="grid grid-cols-2 divide-x divide-zinc-200 dark:divide-zinc-800">
+                          {/* Box 1: LAST EOD CLOSE (with % change) */}
+                          <div className="p-2">
+                            <span className="text-[10px] font-semibold tracking-wider text-zinc-500 uppercase block truncate">
+                              {isMarketOpen ? 'CURRENT LIVE PRICE' : 'LAST EOD CLOSE'}
                             </span>
-                            <p className="text-base font-extrabold text-[#0F172A] dark:text-[#F8FAFC] font-mono flex items-center">
-                              PKR {stockData.currentPrice.toFixed(2)}
-                              <span className={`text-[11px] ml-1.5 font-bold ${isUp ? 'text-[#16A34A] dark:text-[#22C55E]' : 'text-[#DC2626] dark:text-[#EF4444]'}`}>
+                            <div className="font-mono font-bold text-sm text-zinc-900 dark:text-zinc-100 flex items-baseline space-x-1">
+                              <span>PKR {stockData.currentPrice.toFixed(2)}</span>
+                              <span className={`text-[11px] font-semibold ${isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                                 ({isUp ? '+' : ''}{stockData.changePercent}%)
                               </span>
-                            </p>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            {stockData.netSentiment === 'NEGATIVE' ? (
-                              <>
-                                <span className="text-[10px] uppercase text-[#DC2626] dark:text-[#EF4444] font-bold">Downside Pullback Floor</span>
-                                <p className="text-sm font-bold text-[#DC2626] dark:text-[#EF4444] font-mono">
-                                  PKR {stockData.downsideTarget ? stockData.downsideTarget.toFixed(2) : stockData.targetSellPrice.toFixed(2)} ({stockData.expectedGainPct}%)
-                                </p>
-                              </>
-                            ) : (
-                              <>
-                                <span className="text-[10px] uppercase text-[#16A34A] dark:text-[#22C55E] font-bold">
-                                  {stockData.netSentiment === 'BALANCED' ? 'Range Resistance' : 'Target Sell Price'}
-                                </span>
-                                <p className="text-sm font-bold text-[#16A34A] dark:text-[#22C55E] font-mono">
-                                  PKR {stockData.targetSellPrice.toFixed(2)} (+{stockData.expectedGainPct}%)
-                                </p>
-                              </>
-                            )}
+
+                          {/* Box 2: TARGET 1 (or Downside Pullback Floor) */}
+                          <div className="p-2">
+                            <span className="text-[10px] font-semibold tracking-wider text-zinc-500 uppercase block truncate">
+                              {stockData.netSentiment === 'NEGATIVE' 
+                                ? 'PULLBACK FLOOR' 
+                                : (stockData.netSentiment === 'BALANCED' ? 'RANGE RESISTANCE' : 'TARGET 1')}
+                            </span>
+                            <div className={`font-mono font-bold text-sm ${
+                              stockData.netSentiment === 'NEGATIVE' 
+                                ? 'text-rose-600 dark:text-rose-400' 
+                                : 'text-emerald-600 dark:text-emerald-400'
+                            }`}>
+                              PKR {(stockData.netSentiment === 'NEGATIVE' && stockData.downsideTarget ? stockData.downsideTarget : stockData.targetSellPrice).toFixed(2)}
+                            </div>
                           </div>
                         </div>
 
-                        {/* Trade Setup Limits */}
-                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#E2E8F0] dark:border-[#243044] text-[11px]">
-                          {stockData.netSentiment === 'NEGATIVE' ? (
-                            <>
-                              <div className="bg-[#FFFFFF] dark:bg-[#151E2E] rounded p-1.5 border border-[#E2E8F0] dark:border-[#243044]">
-                                <span className="text-[9px] uppercase text-amber-600 dark:text-amber-400 block font-bold">Defensive Range</span>
-                                <b className="text-xs font-mono text-[#0F172A] dark:text-[#F8FAFC]">
-                                  PKR {stockData.defensiveRangeMin ? stockData.defensiveRangeMin.toFixed(2) : stockData.entryPriceMin.toFixed(2)} - {stockData.defensiveRangeMax ? stockData.defensiveRangeMax.toFixed(2) : stockData.entryPriceMax.toFixed(2)}
-                                </b>
-                              </div>
-                              <div className="bg-[#FFFFFF] dark:bg-[#151E2E] rounded p-1.5 border border-[#E2E8F0] dark:border-[#243044]">
-                                <span className="text-[9px] uppercase text-[#DC2626] dark:text-[#EF4444] block font-bold">Exit Trigger / Stop</span>
-                                <b className="text-xs font-mono text-[#DC2626] dark:text-[#EF4444]">
-                                  PKR {stockData.exitTrigger ? stockData.exitTrigger.toFixed(2) : stockData.stopLoss.toFixed(2)}
-                                </b>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="bg-[#FFFFFF] dark:bg-[#151E2E] rounded p-1.5 border border-[#E2E8F0] dark:border-[#243044]">
-                                <span className="text-[9px] uppercase text-[#2563EB] dark:text-[#3B82F6] block font-bold">
-                                  {stockData.netSentiment === 'BALANCED' ? 'Consolidation Band' : 'Entry Buy Zone'}
-                                </span>
-                                <b className="text-xs font-mono text-[#0F172A] dark:text-[#F8FAFC]">
-                                  PKR {stockData.entryPriceMin.toFixed(2)} - {stockData.entryPriceMax.toFixed(2)}
-                                </b>
-                              </div>
-                              <div className="bg-[#FFFFFF] dark:bg-[#151E2E] rounded p-1.5 border border-[#E2E8F0] dark:border-[#243044]">
-                                <span className="text-[9px] uppercase text-[#DC2626] dark:text-[#EF4444] block font-bold">
-                                  {stockData.netSentiment === 'BALANCED' ? 'Support Floor' : 'Protective Stop Loss'}
-                                </span>
-                                <b className="text-xs font-mono text-[#DC2626] dark:text-[#EF4444]">
-                                  PKR {stockData.stopLoss.toFixed(2)}
-                                </b>
-                              </div>
-                            </>
-                          )}
+                        <div className="grid grid-cols-2 divide-x divide-zinc-200 dark:divide-zinc-800">
+                          {/* Box 3: ENTRY BUY ZONE (or Defensive Range) */}
+                          <div className="p-2">
+                            <span className="text-[10px] font-semibold tracking-wider text-zinc-500 uppercase block truncate">
+                              {stockData.netSentiment === 'NEGATIVE' 
+                                ? 'DEFENSIVE RANGE' 
+                                : (stockData.netSentiment === 'BALANCED' ? 'CONSOLIDATION BAND' : 'ENTRY BUY ZONE')}
+                            </span>
+                            <div className="font-mono font-bold text-sm text-zinc-800 dark:text-zinc-200 truncate">
+                              PKR {stockData.entryPriceMin.toFixed(2)} - {stockData.entryPriceMax.toFixed(2)}
+                            </div>
+                          </div>
+
+                          {/* Box 4: PROTECTIVE STOP (or Exit Trigger) */}
+                          <div className="p-2">
+                            <span className="text-[10px] font-semibold tracking-wider text-zinc-500 uppercase block truncate">
+                              {stockData.netSentiment === 'NEGATIVE' ? 'EXIT TRIGGER' : 'PROTECTIVE STOP'}
+                            </span>
+                            <div className="font-mono font-bold text-sm text-rose-600 dark:text-rose-400">
+                              PKR {(stockData.netSentiment === 'NEGATIVE' && stockData.exitTrigger ? stockData.exitTrigger : stockData.stopLoss).toFixed(2)}
+                            </div>
+                          </div>
                         </div>
                       </div>
 
@@ -1989,7 +1972,7 @@ export default function NewsCatalystTradeHub({
                           isBullish: stockData.netSentiment === 'POSITIVE',
                           multiNews: stockData.newsItems
                         })}
-                        className="text-xs text-[#0F172A] dark:text-[#F8FAFC] leading-relaxed bg-[#F8FAFC] dark:bg-[#0B0F19] p-2.5 rounded-lg border border-[#E2E8F0] dark:border-[#243044] mb-2.5 font-medium cursor-pointer hover:border-[#2563EB]/50 transition-colors group"
+                        className="text-xs text-[#0F172A] dark:text-[#F8FAFC] leading-relaxed bg-[#F8FAFC] dark:bg-[#0B0F19] p-2 rounded-md border border-[#E2E8F0] dark:border-[#243044] mb-2 font-medium cursor-pointer hover:border-[#2563EB]/50 transition-colors group"
                         title="Click to view deep AI catalyst breakdown"
                       >
                         <p className="line-clamp-2">
@@ -1998,47 +1981,35 @@ export default function NewsCatalystTradeHub({
                         </p>
                       </div>
 
-                      {/* MULTI-NEWS IMPACT CATALYSTS LIST */}
-                      <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] rounded-lg p-2.5 border border-[#E2E8F0] dark:border-[#243044] mb-2.5 space-y-2">
-                        <div className="flex items-center justify-between text-xs font-bold">
-                          <span className="flex items-center text-[#2563EB] dark:text-[#3B82F6]">
-                            <Layers className="w-3.5 h-3.5 mr-1" />
-                            Impacting Catalysts ({stockData.totalCount}):
+                      {/* Compact News Catalyst List (Single-line Koyfin style) */}
+                      <div className="mb-2 p-2 rounded-md bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044]">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mb-1.5 pb-1 border-b border-zinc-200/60 dark:border-zinc-800">
+                          <span className="flex items-center space-x-1">
+                            <Layers className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                            <span className="uppercase tracking-wider text-[10px]">News Catalysts ({stockData.totalCount})</span>
                           </span>
-                          <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">
-                            {stockData.positiveCount > 0 && <b className="text-emerald-600 dark:text-emerald-400 mr-1.5">{stockData.positiveCount} Positive</b>}
-                            {stockData.negativeCount > 0 ? (
-                              <b className="text-red-600 dark:text-red-400">{stockData.negativeCount} Negative</b>
-                            ) : stockData.netSentiment === 'NEGATIVE' ? (
-                              <b className="text-amber-600 dark:text-amber-400">0 Negative (Technical Breakdown)</b>
-                            ) : null}
+                          <span className="text-[10px] font-mono">
+                            {stockData.positiveCount > 0 && <span className="text-emerald-600 dark:text-emerald-400 mr-1.5">{stockData.positiveCount} Pos</span>}
+                            {stockData.negativeCount > 0 && <span className="text-rose-600 dark:text-rose-400">{stockData.negativeCount} Neg</span>}
                           </span>
                         </div>
 
-                        <div className="space-y-1.5 max-h-[130px] overflow-y-auto pr-0.5">
-                          {stockData.newsItems.map((newsItem, nIdx) => {
+                        <div className="space-y-1">
+                          {stockData.newsItems.slice(0, 3).map((newsItem, nIdx) => {
                             const isPos = newsItem.polarity === 'POSITIVE';
                             return (
                               <div
                                 key={nIdx}
-                                className="p-2 rounded-md bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0]/70 dark:border-[#243044]/70 flex items-start space-x-2 text-[11px]"
+                                className="flex items-center space-x-1.5 text-xs text-zinc-700 dark:text-zinc-300 py-0.5 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                                title={`${newsItem.title} (${newsItem.source} · ${newsItem.timeAgo})`}
                               >
-                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-black shrink-0 ${
-                                  isPos 
-                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' 
-                                    : 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20'
-                                }`}>
-                                  {isPos ? '🟢 Positive' : '🔴 Negative'}
+                                <span className="shrink-0 text-[10px]">{isPos ? '🟢' : '🔴'}</span>
+                                <span className="truncate flex-1 font-medium text-[11px]">
+                                  {newsItem.title}
                                 </span>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-[#0F172A] dark:text-[#F8FAFC] font-semibold leading-tight line-clamp-2">
-                                    {newsItem.title} <span className="font-bold">{newsItem.tagLabel}</span>
-                                  </p>
-                                  <div className="flex items-center justify-between text-[10px] text-[#64748B] dark:text-[#94A3B8] mt-0.5">
-                                    <span>{newsItem.source}</span>
-                                    <span>{newsItem.timeAgo}</span>
-                                  </div>
-                                </div>
+                                <span className="shrink-0 text-[10px] text-zinc-400 font-mono">
+                                  · {newsItem.source} {newsItem.timeAgo}
+                                </span>
                               </div>
                             );
                           })}

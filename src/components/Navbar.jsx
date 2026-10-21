@@ -431,16 +431,16 @@ export default function Navbar({
           <div 
             ref={navRef}
             onScroll={checkScroll}
-            className="w-full py-1.5 flex items-center justify-start overflow-x-auto space-x-1 sm:space-x-2 scrollbar-none touch-pan-x scroll-smooth"
+            className="w-full pt-1 pb-0 flex items-center justify-start overflow-x-auto space-x-1 sm:space-x-2 scrollbar-none touch-pan-x scroll-smooth"
           >
             <button
               type="button"
               data-active={activeTab === 'news'}
               onClick={() => setActiveTab('news')}
-              className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`px-3.5 sm:px-4 py-2 border-b-2 text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'news' 
-                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
-                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500 bg-transparent font-bold'
+                  : (isLight ? 'border-transparent text-zinc-500 hover:text-zinc-900 hover:border-zinc-300' : 'border-transparent text-zinc-400 hover:text-zinc-100 hover:border-zinc-700')
               }`}
             >
               <Zap className="w-3.5 h-3.5" />
@@ -451,10 +451,10 @@ export default function Navbar({
               type="button"
               data-active={activeTab === 'portfolio'}
               onClick={() => setActiveTab('portfolio')}
-              className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`px-3.5 sm:px-4 py-2 border-b-2 text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'portfolio' 
-                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
-                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500 bg-transparent font-bold'
+                  : (isLight ? 'border-transparent text-zinc-500 hover:text-zinc-900 hover:border-zinc-300' : 'border-transparent text-zinc-400 hover:text-zinc-100 hover:border-zinc-700')
               }`}
             >
               <Briefcase className="w-3.5 h-3.5" />
@@ -465,10 +465,10 @@ export default function Navbar({
               type="button"
               data-active={activeTab === 'recommendations'}
               onClick={() => setActiveTab('recommendations')}
-              className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`px-3.5 sm:px-4 py-2 border-b-2 text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'recommendations' 
-                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
-                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500 bg-transparent font-bold'
+                  : (isLight ? 'border-transparent text-zinc-500 hover:text-zinc-900 hover:border-zinc-300' : 'border-transparent text-zinc-400 hover:text-zinc-100 hover:border-zinc-700')
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
@@ -479,10 +479,10 @@ export default function Navbar({
               type="button"
               data-active={activeTab === 'dividends'}
               onClick={() => setActiveTab('dividends')}
-              className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`px-3.5 sm:px-4 py-2 border-b-2 text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'dividends' 
-                  ? (isLight ? 'bg-[#D97706] text-white shadow-sm' : 'bg-[#F59E0B] text-black shadow-sm font-black')
-                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500 bg-transparent font-bold'
+                  : (isLight ? 'border-transparent text-zinc-500 hover:text-zinc-900 hover:border-zinc-300' : 'border-transparent text-zinc-400 hover:text-zinc-100 hover:border-zinc-700')
               }`}
             >
               <Coins className="w-3.5 h-3.5" />
@@ -493,10 +493,10 @@ export default function Navbar({
               type="button"
               data-active={activeTab === 'watchlist'}
               onClick={() => setActiveTab('watchlist')}
-              className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`px-3.5 sm:px-4 py-2 border-b-2 text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'watchlist' 
-                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
-                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500 bg-transparent font-bold'
+                  : (isLight ? 'border-transparent text-zinc-500 hover:text-zinc-900 hover:border-zinc-300' : 'border-transparent text-zinc-400 hover:text-zinc-100 hover:border-zinc-700')
               }`}
             >
               <Bookmark className="w-3.5 h-3.5" />
@@ -507,10 +507,10 @@ export default function Navbar({
               type="button"
               data-active={activeTab === 'screener'}
               onClick={() => setActiveTab('screener')}
-              className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`px-3.5 sm:px-4 py-2 border-b-2 text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'screener' 
-                  ? (isLight ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-[#3B82F6] text-white shadow-sm')
-                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500 bg-transparent font-bold'
+                  : (isLight ? 'border-transparent text-zinc-500 hover:text-zinc-900 hover:border-zinc-300' : 'border-transparent text-zinc-400 hover:text-zinc-100 hover:border-zinc-700')
               }`}
             >
               <BarChart3 className="w-3.5 h-3.5" />
@@ -521,13 +521,13 @@ export default function Navbar({
               type="button"
               data-active={activeTab === 'charts'}
               onClick={() => setActiveTab('charts')}
-              className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`px-3.5 sm:px-4 py-2 border-b-2 text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'charts' 
-                  ? (isLight ? 'bg-[#06B6D4] text-black shadow-sm font-black' : 'bg-[#06B6D4] text-black shadow-sm font-black')
-                  : (isLight ? 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#FFFFFF]' : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#151E2E]')
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500 bg-transparent font-bold'
+                  : (isLight ? 'border-transparent text-zinc-500 hover:text-zinc-900 hover:border-zinc-300' : 'border-transparent text-zinc-400 hover:text-zinc-100 hover:border-zinc-700')
               }`}
             >
-              <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
+              <TrendingUp className="w-3.5 h-3.5" />
               <span>TradingView Pro</span>
             </button>
           </div>

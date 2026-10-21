@@ -1376,20 +1376,20 @@ export default function DailyRecommendations({
         </div>
 
         {/* ========================================================================= */}
-        {/* MULTI-SELECT SEARCH & DROPDOWNS BAR                                       */}
+        {/* SEARCH, FILTERS & INLINE QUICK SELECT BAR (QUANT TERMINAL STYLE)           */}
         {/* ========================================================================= */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+        <div className="flex flex-wrap items-center gap-2 mt-2.5 pt-2.5 border-t border-zinc-200 dark:border-zinc-800">
           
           {/* 1. Free-Text Search Input with Ctrl+K Indicator */}
-          <div className="md:col-span-4 relative">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+          <div className="w-full sm:w-56 md:w-64 relative shrink-0">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
             <input
               ref={searchInputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search ticker, company name, sector..."
-              className="w-full pl-9 pr-14 py-2 rounded bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-500 transition-colors"
+              placeholder="Search ticker, company..."
+              className="w-full pl-8 pr-12 py-1.5 rounded bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-500 transition-colors"
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
               {searchQuery ? (
@@ -1400,7 +1400,7 @@ export default function DailyRecommendations({
                   <X className="w-3.5 h-3.5" />
                 </button>
               ) : (
-                <kbd className="hidden sm:inline-block text-[10px] bg-zinc-200/80 dark:bg-zinc-800 text-zinc-500 font-mono px-1.5 py-0.5 rounded border border-zinc-300 dark:border-zinc-700 select-none">
+                <kbd className="hidden sm:inline-block text-[9px] bg-zinc-200/80 dark:bg-zinc-800 text-zinc-500 font-mono px-1 py-0.2 rounded border border-zinc-300 dark:border-zinc-700 select-none">
                   Ctrl K
                 </kbd>
               )}
@@ -1408,70 +1408,68 @@ export default function DailyRecommendations({
           </div>
 
           {/* 2. Multi-Select Sector Dropdown */}
-          <div className="md:col-span-4 relative" ref={sectorDropdownRef}>
+          <div className="w-full sm:w-40 md:w-44 relative shrink-0" ref={sectorDropdownRef}>
             <button
               type="button"
               onClick={() => {
                 setIsSectorDropdownOpen(!isSectorDropdownOpen);
                 setIsStockDropdownOpen(false);
               }}
-              className={`w-full py-2.5 px-3 rounded-lg border text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
+              className={`w-full py-1.5 px-2.5 rounded border text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${
                 selectedSectors.length > 0 
-                  ? 'bg-[#2563EB]/10 border-[#2563EB] text-[#2563EB] dark:bg-[#3B82F6]/10 dark:border-[#3B82F6] dark:text-[#3B82F6]'
-                  : 'bg-[#F8FAFC] dark:bg-[#0B0F19] border-[#E2E8F0] dark:border-[#243044] text-[#0F172A] dark:text-[#F8FAFC] hover:border-[#CBD5E1]'
+                  ? 'bg-blue-600/10 border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500'
+                  : 'bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 hover:border-zinc-400'
               }`}
             >
-              <div className="flex items-center space-x-2 truncate">
-                <Layers className="w-4 h-4 shrink-0 text-[#2563EB] dark:text-[#3B82F6]" />
+              <div className="flex items-center space-x-1.5 truncate">
+                <Layers className="w-3.5 h-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
                 <span className="truncate">
                   {selectedSectors.length === 0 
                     ? 'All Sectors' 
-                    : `Sectors (${selectedSectors.length} selected)`}
+                    : `Sectors (${selectedSectors.length})`}
                 </span>
               </div>
-              <ChevronDown className={`w-4 h-4 ml-1 shrink-0 text-[#64748B] transition-transform duration-200 ${isSectorDropdownOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-3.5 h-3.5 ml-1 shrink-0 text-zinc-400 transition-transform duration-200 ${isSectorDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {/* Sector Dropdown Popover */}
             {isSectorDropdownOpen && (
-              <div className="absolute left-0 top-full mt-1.5 w-full sm:w-80 bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl shadow-2xl z-50 p-3 space-y-2 animate-scale-up">
-                <div className="flex items-center justify-between pb-2 border-b border-[#E2E8F0] dark:border-[#243044]">
-                  <span className="text-xs font-extrabold text-[#0F172A] dark:text-[#F8FAFC] flex items-center">
-                    <Layers className="w-3.5 h-3.5 mr-1.5 text-[#2563EB]" />
+              <div className="absolute left-0 top-full mt-1.5 w-full sm:w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl z-50 p-3 space-y-2 animate-scale-up">
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
+                  <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center">
+                    <Layers className="w-3.5 h-3.5 mr-1.5 text-blue-600 dark:text-blue-400" />
                     Select Industry Sectors
                   </span>
                   <div className="flex items-center space-x-2 text-[11px]">
                     <button
                       type="button"
                       onClick={() => setSelectedSectors((SECTOR_CATEGORIES || []).map(s => s.id))}
-                      className="text-[#2563EB] dark:text-[#3B82F6] hover:underline font-bold cursor-pointer"
+                      className="text-blue-600 dark:text-blue-400 hover:underline font-bold cursor-pointer"
                     >
-                      Select All
+                      All
                     </button>
-                    <span className="text-[#CBD5E1]">|</span>
+                    <span className="text-zinc-300">|</span>
                     <button
                       type="button"
                       onClick={() => setSelectedSectors([])}
-                      className="text-[#DC2626] dark:text-[#EF4444] hover:underline font-bold cursor-pointer"
+                      className="text-rose-600 dark:text-rose-400 hover:underline font-bold cursor-pointer"
                     >
                       Clear
                     </button>
                   </div>
                 </div>
 
-                {/* Sector Search inside dropdown */}
                 <div className="relative">
-                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#64748B] dark:text-[#94A3B8]" />
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
                   <input
                     type="text"
                     value={sectorFilterQuery}
                     onChange={(e) => setSectorFilterQuery(e.target.value)}
                     placeholder="Filter sectors..."
-                    className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] text-xs text-[#0F172A] dark:text-[#F8FAFC] focus:outline-none focus:border-[#2563EB]"
+                    className="w-full pl-8 pr-3 py-1.5 rounded bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-blue-600"
                   />
                 </div>
 
-                {/* Sector Checkboxes List */}
                 <div className="max-h-56 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
                   {filteredSectorOptions.map(cat => {
                     const isChecked = selectedSectors.includes(cat.id);
@@ -1480,20 +1478,18 @@ export default function DailyRecommendations({
                         key={cat.id}
                         type="button"
                         onClick={() => toggleSector(cat.id)}
-                        className={`w-full px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                        className={`w-full px-2 py-1.5 rounded text-left text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
                           isChecked 
-                            ? 'bg-[#2563EB]/10 text-[#2563EB] dark:text-[#3B82F6] dark:bg-[#3B82F6]/10' 
-                            : 'hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC]'
+                            ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' 
+                            : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200'
                         }`}
                       >
                         <span className="flex items-center space-x-2 truncate">
-                          <span className="text-sm">{cat.icon}</span>
+                          <span className="text-xs">{cat.icon}</span>
                           <span className="truncate">{cat.label}</span>
                         </span>
-                        <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                          isChecked 
-                            ? 'bg-[#2563EB] border-[#2563EB] text-white' 
-                            : 'border-[#CBD5E1] dark:border-[#475569]'
+                        <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                          isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'border-zinc-300 dark:border-zinc-600'
                         }`}>
                           {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
                         </div>
@@ -1502,11 +1498,11 @@ export default function DailyRecommendations({
                   })}
                 </div>
 
-                <div className="pt-2 border-t border-[#E2E8F0] dark:border-[#243044] flex justify-end">
+                <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 flex justify-end">
                   <button
                     type="button"
                     onClick={() => setIsSectorDropdownOpen(false)}
-                    className="px-3 py-1 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs cursor-pointer"
+                    className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer"
                   >
                     Done
                   </button>
@@ -1516,63 +1512,61 @@ export default function DailyRecommendations({
           </div>
 
           {/* 3. Multi-Select Stock / Company Dropdown */}
-          <div className="md:col-span-4 relative" ref={stockDropdownRef}>
+          <div className="w-full sm:w-44 md:w-48 relative shrink-0" ref={stockDropdownRef}>
             <button
               type="button"
               onClick={() => {
                 setIsStockDropdownOpen(!isStockDropdownOpen);
                 setIsSectorDropdownOpen(false);
               }}
-              className={`w-full py-2.5 px-3 rounded-lg border text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
+              className={`w-full py-1.5 px-2.5 rounded border text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${
                 selectedStocks.length > 0 
-                  ? 'bg-[#2563EB]/10 border-[#2563EB] text-[#2563EB] dark:bg-[#3B82F6]/10 dark:border-[#3B82F6] dark:text-[#3B82F6]'
-                  : 'bg-[#F8FAFC] dark:bg-[#0B0F19] border-[#E2E8F0] dark:border-[#243044] text-[#0F172A] dark:text-[#F8FAFC] hover:border-[#CBD5E1]'
+                  ? 'bg-blue-600/10 border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500'
+                  : 'bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 hover:border-zinc-400'
               }`}
             >
-              <div className="flex items-center space-x-2 truncate">
-                <Building2 className="w-4 h-4 shrink-0 text-[#2563EB] dark:text-[#3B82F6]" />
+              <div className="flex items-center space-x-1.5 truncate">
+                <Building2 className="w-3.5 h-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
                 <span className="truncate">
                   {selectedStocks.length === 0 
                     ? 'All Companies' 
-                    : `Companies (${selectedStocks.length} selected)`}
+                    : `Companies (${selectedStocks.length})`}
                 </span>
               </div>
-              <ChevronDown className={`w-4 h-4 ml-1 shrink-0 text-[#64748B] transition-transform duration-200 ${isStockDropdownOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-3.5 h-3.5 ml-1 shrink-0 text-zinc-400 transition-transform duration-200 ${isStockDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {/* Company Dropdown Popover */}
             {isStockDropdownOpen && (
-              <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 w-full sm:w-96 bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl shadow-2xl z-50 p-3 space-y-2 animate-scale-up">
-                <div className="flex items-center justify-between pb-2 border-b border-[#E2E8F0] dark:border-[#243044]">
-                  <span className="text-xs font-extrabold text-[#0F172A] dark:text-[#F8FAFC] flex items-center">
-                    <Building2 className="w-3.5 h-3.5 mr-1.5 text-[#2563EB]" />
+              <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 w-full sm:w-96 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl z-50 p-3 space-y-2 animate-scale-up">
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
+                  <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center">
+                    <Building2 className="w-3.5 h-3.5 mr-1.5 text-blue-600 dark:text-blue-400" />
                     Select Companies / Stocks
                   </span>
                   <button
                     type="button"
                     onClick={() => setSelectedStocks([])}
-                    className="text-[#DC2626] dark:text-[#EF4444] hover:underline text-[11px] font-bold cursor-pointer"
+                    className="text-rose-600 dark:text-rose-400 hover:underline text-[11px] font-bold cursor-pointer"
                   >
                     Clear Selection
                   </button>
                 </div>
 
-                {/* Search input inside company dropdown */}
                 <div className="relative">
-                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#64748B] dark:text-[#94A3B8]" />
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
                   <input
                     type="text"
                     value={stockFilterQuery}
                     onChange={(e) => setStockFilterQuery(e.target.value)}
                     placeholder="Search symbol or company (e.g. PRL, OGDC)..."
-                    className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] text-xs text-[#0F172A] dark:text-[#F8FAFC] focus:outline-none focus:border-[#2563EB]"
+                    className="w-full pl-8 pr-3 py-1.5 rounded bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-blue-600"
                   />
                 </div>
 
-                {/* Company Checkboxes List */}
                 <div className="max-h-64 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
                   {filteredStockOptions.length === 0 ? (
-                    <div className="py-4 text-center text-xs text-[#64748B]">
+                    <div className="py-4 text-center text-xs text-zinc-400">
                       No stock matches "{stockFilterQuery}"
                     </div>
                   ) : (
@@ -1583,27 +1577,25 @@ export default function DailyRecommendations({
                           key={st.symbol}
                           type="button"
                           onClick={() => toggleStock(st.symbol)}
-                          className={`w-full px-2.5 py-1.5 rounded-lg text-left text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                          className={`w-full px-2 py-1.5 rounded text-left text-xs flex items-center justify-between transition-colors cursor-pointer ${
                             isChecked 
-                              ? 'bg-[#2563EB]/10 text-[#2563EB] dark:text-[#3B82F6] dark:bg-[#3B82F6]/10' 
-                              : 'hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC]'
+                              ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' 
+                              : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200'
                           }`}
                         >
                           <div className="min-w-0 flex-1 pr-2">
                             <div className="flex items-center space-x-1.5">
-                              <b className="mono font-extrabold text-[#0F172A] dark:text-[#F8FAFC]">{st.symbol}</b>
-                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] border border-[#E2E8F0] dark:border-[#243044] truncate max-w-[120px]">
+                              <b className="font-mono font-bold text-zinc-900 dark:text-zinc-100">{st.symbol}</b>
+                              <span className="text-[10px] px-1 py-0.2 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500 border border-zinc-200 dark:border-zinc-700 truncate max-w-[120px]">
                                 {st.sector}
                               </span>
                             </div>
-                            <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] truncate mt-0.5">
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
                               {st.name}
                             </p>
                           </div>
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                            isChecked 
-                              ? 'bg-[#2563EB] border-[#2563EB] text-white' 
-                              : 'border-[#CBD5E1] dark:border-[#475569]'
+                          <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                            isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'border-zinc-300 dark:border-zinc-600'
                           }`}>
                             {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
                           </div>
@@ -1613,11 +1605,11 @@ export default function DailyRecommendations({
                   )}
                 </div>
 
-                <div className="pt-2 border-t border-[#E2E8F0] dark:border-[#243044] flex justify-end">
+                <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 flex justify-end">
                   <button
                     type="button"
                     onClick={() => setIsStockDropdownOpen(false)}
-                    className="px-3 py-1 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs cursor-pointer"
+                    className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer"
                   >
                     Done
                   </button>
@@ -1625,13 +1617,11 @@ export default function DailyRecommendations({
               </div>
             )}
           </div>
-        </div>
 
-        {/* Quick Popular Ticker Chips & Reset All */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-3 pt-3 border-t border-[#E2E8F0] dark:border-[#243044]">
-          <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar scroll-smooth touch-pan-x pb-1 text-xs">
-            <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8] font-bold shrink-0 mr-1 flex items-center">
-              <SlidersHorizontal className="w-3 h-3 mr-1 text-[#2563EB]" /> Quick Select:
+          {/* 4. Inline Quick Select Ticker Pills (Aligned directly inline with filter dropdowns!) */}
+          <div className="flex-1 min-w-[280px] flex items-center space-x-1 overflow-x-auto no-scrollbar scroll-smooth py-0.5">
+            <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider shrink-0 mr-1 flex items-center">
+              <SlidersHorizontal className="w-3 h-3 mr-1 text-blue-600 dark:text-blue-400" /> Quick:
             </span>
             {['PRL', 'OGDC', 'PPL', 'LUCK', 'MEBL', 'SYS', 'PSO', 'HUBC', 'INDU', 'FFC', 'DGKC', 'CNERGY', 'ATRL'].map(sym => {
               const isSelected = selectedStocks.includes(sym);
@@ -1639,10 +1629,10 @@ export default function DailyRecommendations({
                 <button
                   key={sym}
                   onClick={() => toggleStock(sym)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-mono font-bold shrink-0 transition-all cursor-pointer border ${
+                  className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold shrink-0 transition-all cursor-pointer border ${
                     isSelected 
-                      ? 'bg-[#2563EB] dark:bg-[#3B82F6] text-white border-transparent shadow-sm' 
-                      : 'bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#0F172A] dark:text-[#F8FAFC] hover:border-[#2563EB] border-[#E2E8F0] dark:border-[#243044]'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs' 
+                      : 'bg-zinc-50 dark:bg-zinc-800/80 text-zinc-700 dark:text-zinc-200 hover:border-zinc-400 border-zinc-200 dark:border-zinc-700'
                   }`}
                 >
                   {sym} {isSelected && '✓'}
@@ -1651,13 +1641,14 @@ export default function DailyRecommendations({
             })}
           </div>
 
+          {/* Reset All Filters Button */}
           {hasActiveFilters && (
             <button
               onClick={clearAllFilters}
-              className="flex items-center space-x-1 text-xs font-bold text-[#DC2626] dark:text-[#EF4444] hover:underline cursor-pointer shrink-0 self-end sm:self-auto"
+              className="flex items-center space-x-1 text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer shrink-0 ml-auto"
             >
               <RotateCcw className="w-3 h-3" />
-              <span>Reset All Filters</span>
+              <span>Reset</span>
             </button>
           )}
         </div>
@@ -1948,11 +1939,35 @@ export default function DailyRecommendations({
                         Strong Buy
                       </span>
                     </div>
-                    <div className="py-2 border-y border-zinc-100 dark:border-zinc-800 mb-2">
-                      <span className="text-[9px] uppercase tracking-wider text-zinc-400 font-semibold block">
-                        {getPriceMetricLabel({ isHistoricalView, isLive: isMarketOpen, activeSessionObj, recentSessions })}
-                      </span>
-                      <p className="text-base font-bold font-mono text-zinc-900 dark:text-zinc-100">PKR {item.currentPrice.toFixed(2)}</p>
+                    <div className="border border-zinc-200 dark:border-zinc-800 rounded divide-y divide-zinc-200 dark:divide-zinc-800 overflow-hidden mb-2 bg-zinc-50/50 dark:bg-zinc-900/50">
+                      <div className="grid grid-cols-2 divide-x divide-zinc-200 dark:divide-zinc-800">
+                        <div className="p-2">
+                          <span className="text-[10px] font-semibold tracking-wider text-zinc-500 uppercase block truncate">
+                            {getPriceMetricLabel({ isHistoricalView, isLive: isMarketOpen, activeSessionObj, recentSessions })}
+                          </span>
+                          <p className="text-sm font-bold font-mono text-zinc-900 dark:text-zinc-100">PKR {item.currentPrice.toFixed(2)}</p>
+                        </div>
+                        <div className="p-2">
+                          <span className="text-[10px] font-semibold tracking-wider text-zinc-500 uppercase block truncate">
+                            TARGET 1
+                          </span>
+                          <p className="text-sm font-bold font-mono text-emerald-600">PKR {(item.currentPrice * 1.08).toFixed(2)}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 divide-x divide-zinc-200 dark:divide-zinc-800">
+                        <div className="p-2">
+                          <span className="text-[10px] font-semibold tracking-wider text-zinc-500 uppercase block truncate">
+                            ENTRY BUY ZONE
+                          </span>
+                          <p className="text-sm font-bold font-mono text-zinc-700">{(item.currentPrice * 0.985).toFixed(2)} - {(item.currentPrice * 1.01).toFixed(2)}</p>
+                        </div>
+                        <div className="p-2">
+                          <span className="text-[10px] font-semibold tracking-wider text-zinc-500 uppercase block truncate">
+                            PROTECTIVE STOP
+                          </span>
+                          <p className="text-sm font-bold font-mono text-rose-600">PKR {(item.currentPrice * 0.95).toFixed(2)}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -1986,7 +2001,7 @@ export default function DailyRecommendations({
                   {/* Card Header: Symbol, Name, Badge */}
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="min-w-0 flex-1">
-                      {/* Line 1: Symbol, Sector, Session Date */}
+                      {/* Line 1: Symbol, Sector, Session Date, AI Conf */}
                       <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
                         <span className="text-base font-bold font-mono tracking-tight text-zinc-900 dark:text-zinc-100">
                           {item.symbol}
@@ -1996,6 +2011,9 @@ export default function DailyRecommendations({
                         </span>
                         <span className="text-[9px] font-mono text-zinc-600 dark:text-zinc-300 font-semibold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700/80 shrink-0 uppercase tracking-tight">
                           {getCardSessionBadge({ isHistoricalView, isLive: isMarketOpen, activeSessionObj })}
+                        </span>
+                        <span className="text-[9px] font-mono text-blue-600 dark:text-blue-400 font-semibold px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 shrink-0">
+                          {item.confidence}% AI
                         </span>
                       </div>
                       {/* Line 2: Full Registered Company Name */}
@@ -2023,56 +2041,57 @@ export default function DailyRecommendations({
                     </div>
                   )}
 
-                  {/* Price & Confidence Bar */}
-                  <div className="flex items-baseline justify-between mb-2">
-                    <div>
-                      <span className="text-[9px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-bold block">
-                        {getPriceMetricLabel({ isHistoricalView, isLive: isMarketOpen, activeSessionObj, recentSessions })}
-                      </span>
-                      <div className="flex items-baseline space-x-1.5">
-                        <span className="text-base font-bold font-mono tabular-nums text-zinc-900 dark:text-zinc-100">
-                          PKR {item.currentPrice.toFixed(2)}
+                  {/* 2x2 Tabular Metric Grid on Signal Cards (Koyfin / Bloomberg Institutional Style) */}
+                  <div className="border border-zinc-200 dark:border-zinc-800 rounded divide-y divide-zinc-200 dark:divide-zinc-800 overflow-hidden mb-2 bg-zinc-50/50 dark:bg-zinc-900/50">
+                    <div className="grid grid-cols-2 divide-x divide-zinc-200 dark:divide-zinc-800">
+                      {/* Box 1: LAST EOD CLOSE (with % change) */}
+                      <div className="p-2">
+                        <span className="text-[10px] font-semibold tracking-wider text-zinc-500 uppercase block truncate">
+                          {getPriceMetricLabel({ isHistoricalView, isLive: isMarketOpen, activeSessionObj, recentSessions })}
                         </span>
-                        <span className={`text-[11px] font-mono font-semibold ${isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                          {isUp ? '+' : ''}{item.changePercent}%
+                        <div className="font-mono font-bold text-sm text-zinc-900 dark:text-zinc-100 flex items-baseline space-x-1">
+                          <span>PKR {item.currentPrice.toFixed(2)}</span>
+                          <span className={`text-[11px] font-semibold ${isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                            ({isUp ? '+' : ''}{item.changePercent}%)
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Box 2: TARGET 1 (or Downside Pullback Floor) */}
+                      <div className="p-2">
+                        <span className="text-[10px] font-semibold tracking-wider text-zinc-500 uppercase block truncate">
+                          {item.isMomentumBreakout || item.signal === 'AVOID_SELL' ? 'PULLBACK FLOOR' : 'TARGET 1'}
                         </span>
+                        <div className={`font-mono font-bold text-sm ${
+                          item.signal === 'AVOID_SELL' 
+                            ? 'text-amber-600 dark:text-amber-400' 
+                            : 'text-emerald-600 dark:text-emerald-400'
+                        }`}>
+                          PKR {item.target1}
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className="text-[9px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold block">
-                        AI Conf
-                      </span>
-                      <span className="text-xs font-mono font-bold text-zinc-700 dark:text-zinc-300">
-                        {item.confidence}%
-                      </span>
-                    </div>
-                  </div>
 
-                  {/* Quant Metric Block: No soft pink/orange bubble pill borders! */}
-                  <div className="grid grid-cols-3 gap-2 py-2 border-y border-zinc-100 dark:border-zinc-800/80 mb-2">
-                    <div>
-                      <span className="text-[9px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold block truncate">
-                        {item.isMomentumBreakout ? 'TRAIL BAND' : (item.signal === 'AVOID_SELL' ? 'DEFENSIVE ZONE' : 'ENTRY ZONE')}
-                      </span>
-                      <span className="text-xs font-mono font-bold tabular-nums text-zinc-800 dark:text-zinc-200 block truncate">
-                        {item.entryZone?.min ? `${item.entryZone.min}-${item.entryZone.max}` : item.currentPrice.toFixed(2)}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[9px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold block truncate">
-                        {item.isMomentumBreakout ? 'TRAIL STOP' : (item.signal === 'AVOID_SELL' ? 'EXIT TRIGGER' : 'STOP LOSS')}
-                      </span>
-                      <span className="text-xs font-mono font-bold tabular-nums text-rose-600 dark:text-rose-400 block truncate">
-                        PKR {item.stopLoss}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[9px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold block truncate">
-                        {item.isMomentumBreakout || item.signal === 'AVOID_SELL' ? 'PULLBACK SUPP' : 'TARGET 1'}
-                      </span>
-                      <span className="text-xs font-mono font-bold tabular-nums text-emerald-600 dark:text-emerald-400 block truncate">
-                        PKR {item.target1}
-                      </span>
+                    <div className="grid grid-cols-2 divide-x divide-zinc-200 dark:divide-zinc-800">
+                      {/* Box 3: ENTRY BUY ZONE (or Defensive Range) */}
+                      <div className="p-2">
+                        <span className="text-[10px] font-semibold tracking-wider text-zinc-500 uppercase block truncate">
+                          {item.isMomentumBreakout ? 'TRAIL BAND' : (item.signal === 'AVOID_SELL' ? 'DEFENSIVE RANGE' : 'ENTRY BUY ZONE')}
+                        </span>
+                        <div className="font-mono font-bold text-sm text-zinc-800 dark:text-zinc-200 truncate">
+                          {item.entryZone?.min ? `${item.entryZone.min} - ${item.entryZone.max}` : item.currentPrice.toFixed(2)}
+                        </div>
+                      </div>
+
+                      {/* Box 4: PROTECTIVE STOP (or Exit Trigger) */}
+                      <div className="p-2">
+                        <span className="text-[10px] font-semibold tracking-wider text-zinc-500 uppercase block truncate">
+                          {item.isMomentumBreakout ? 'TRAIL STOP' : (item.signal === 'AVOID_SELL' ? 'EXIT TRIGGER' : 'PROTECTIVE STOP')}
+                        </span>
+                        <div className="font-mono font-bold text-sm text-rose-600 dark:text-rose-400">
+                          PKR {item.stopLoss}
+                        </div>
+                      </div>
                     </div>
                   </div>
 

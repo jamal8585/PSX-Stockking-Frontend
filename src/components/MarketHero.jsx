@@ -151,157 +151,158 @@ export default function MarketHero({ marketSummary, currentUser }) {
 
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
-        {/* 1. Live KSE-100 Index Card */}
-        <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-4 sm:p-5 shadow-sm dark:shadow-md transition-all relative overflow-hidden">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-2">
-              <span className="px-2.5 py-1 rounded-lg bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 text-[#2563EB] dark:text-[#3B82F6] border border-[#2563EB]/20 dark:border-[#3B82F6]/20 text-xs font-bold">
-                {indexName}
-              </span>
-              <span className="text-xs text-[#64748B] dark:text-[#94A3B8] font-medium">
-                {marketStatus.statusText || 'Official PSX DPS'}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5 sm:gap-3 mb-3 sm:mb-4">
+        {/* 1. Live KSE-100 Index Card (Compact Quant Terminal Style) */}
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-3 sm:p-3.5 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center space-x-1.5">
+                <span className="px-2 py-0.5 rounded bg-blue-600/10 text-blue-600 dark:text-blue-400 border border-blue-600/20 text-[11px] font-bold font-mono">
+                  {indexName}
+                </span>
+                <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium truncate max-w-[140px]">
+                  {marketStatus.statusText || 'Official PSX DPS'}
+                </span>
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded flex items-center space-x-1 border ${
+                isPositive 
+                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-400' 
+                  : 'bg-rose-500/10 text-rose-600 border-rose-500/20 dark:text-rose-400'
+              }`}>
+                {isPositive ? <TrendingUp className="w-2.5 h-2.5 mr-0.5" /> : <TrendingDown className="w-2.5 h-2.5 mr-0.5" />}
+                {marketSentiment.replace('_', ' ')}
               </span>
             </div>
-            <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center space-x-1 border ${
-              isPositive 
-                ? 'bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/20 dark:bg-[#22C55E]/10 dark:text-[#22C55E] dark:border-[#22C55E]/20' 
-                : 'bg-[#DC2626]/10 text-[#DC2626] border-[#DC2626]/20 dark:bg-[#EF4444]/10 dark:text-[#EF4444] dark:border-[#EF4444]/20'
-            }`}>
-              {isPositive ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
-              {marketSentiment.replace('_', ' ')}
-            </span>
-          </div>
 
-          <div className="flex flex-wrap items-baseline gap-2 sm:space-x-3 mb-4">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] dark:text-[#F8FAFC] mono tracking-tight">
-              {currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </h2>
-            <span className={`text-xs sm:text-sm font-bold mono flex items-center ${
-              isPositive 
-                ? 'text-[#16A34A] dark:text-[#22C55E]' 
-                : 'text-[#DC2626] dark:text-[#EF4444]'
-            }`}>
-              {isPositive ? '+' : ''}{change.toFixed(2)} ({isPositive ? '+' : ''}{changePercent.toFixed(2)}%)
-            </span>
-          </div>
-
-          {/* Day Range Bar */}
-          <div className="space-y-1.5 pt-2.5 border-t border-[#E2E8F0] dark:border-[#243044] text-xs">
-            <div className="flex justify-between items-center text-[#64748B] dark:text-[#94A3B8] font-medium">
-              <span>Day Low: <b className="text-[#0F172A] dark:text-[#F8FAFC] mono">{low.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></span>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 text-[#2563EB] dark:text-[#3B82F6] mono">
-                {dayRangeProgressPct.toFixed(0)}% of Range
+            <div className="flex items-baseline space-x-2 mb-2">
+              <h2 className="text-xl sm:text-2xl font-bold font-mono text-zinc-900 dark:text-zinc-100 tracking-tight">
+                {currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </h2>
+              <span className={`text-xs font-bold font-mono ${
+                isPositive 
+                  ? 'text-emerald-600 dark:text-emerald-400' 
+                  : 'text-rose-600 dark:text-rose-400'
+              }`}>
+                {isPositive ? '+' : ''}{change.toFixed(2)} ({isPositive ? '+' : ''}{changePercent.toFixed(2)}%)
               </span>
-              <span>Day High: <b className="text-[#0F172A] dark:text-[#F8FAFC] mono">{high.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></span>
             </div>
-            <div className="w-full h-2 bg-[#E2E8F0] dark:bg-[#1E293B] rounded-full relative overflow-hidden">
+          </div>
+
+          {/* Compact Day Range Bar */}
+          <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 text-[10px]">
+            <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400 mb-1">
+              <span>L: <b className="font-mono text-zinc-800 dark:text-zinc-200">{low.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></span>
+              <span className="font-mono text-[9px] text-zinc-400">{dayRangeProgressPct.toFixed(0)}% Range</span>
+              <span>H: <b className="font-mono text-zinc-800 dark:text-zinc-200">{high.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></span>
+            </div>
+            <div className="w-full h-1 bg-zinc-200 dark:bg-zinc-800 rounded-full relative overflow-hidden">
               <div 
-                className="h-full bg-gradient-to-r from-[#2563EB] to-[#3B82F6] dark:from-[#3B82F6] dark:to-[#60A5FA] rounded-full transition-all duration-500"
+                className="h-full bg-blue-600 dark:bg-blue-500 rounded-full transition-all duration-500"
                 style={{ width: `${Math.max(2, dayRangeProgressPct)}%` }}
               />
             </div>
           </div>
         </div>
 
-        {/* 2. High-Contrast Market Breadth */}
-        <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-5 shadow-sm dark:shadow-md flex flex-col justify-between">
+        {/* 2. Sleek Horizontal Inline Market Breadth Card */}
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-3 sm:p-3.5 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-2">
-                <Activity className="w-4 h-4 text-[#2563EB] dark:text-[#3B82F6]" />
-                <span className="text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] uppercase tracking-wider">
-                  {isPro 
-                    ? 'Market Breadth — Full 763 Listed Universe' 
-                    : 'Market Breadth — 64 Active Coverage Stocks (Upgrade to Pro for full 763 listed universe)'}
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center space-x-1.5">
+                <Activity className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                  {isPro ? 'Market Breadth — All 763 PSX Universe' : 'Market Breadth — 64 PSX Active Coverage'}
                 </span>
               </div>
-              <span className="text-xs text-[#64748B] dark:text-[#94A3B8] font-bold">{totalStocks} Stocks</span>
+              <span className="text-[10px] font-mono text-zinc-400 font-semibold">{totalStocks} Stocks</span>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 text-center my-3">
-              <div className="bg-[#16A34A]/10 dark:bg-[#22C55E]/10 border border-[#16A34A]/30 dark:border-[#22C55E]/30 rounded-lg p-2">
-                <span className="text-[10px] text-[#15803D] dark:text-[#22C55E] font-extrabold uppercase">Advances</span>
-                <p className="text-xl font-black text-[#15803D] dark:text-[#22C55E] mono">{advances}</p>
-                <span className="text-[10px] text-[#475569] dark:text-[#94A3B8] font-bold">{advancesPct}%</span>
+            {/* Sleek Horizontal Inline Stat Bar */}
+            <div className="grid grid-cols-3 gap-1 py-1.5 px-2 bg-zinc-50 dark:bg-zinc-800/60 rounded border border-zinc-200/80 dark:border-zinc-700/60 text-center items-center my-1.5">
+              <div className="flex items-center justify-center space-x-1.5">
+                <span className="text-emerald-600 dark:text-emerald-400 text-xs">▲</span>
+                <span className="text-xs font-bold font-mono text-emerald-600 dark:text-emerald-400">{advances}</span>
+                <span className="text-[10px] text-zinc-400 font-medium">({advancesPct}%)</span>
               </div>
-              <div className="bg-[#DC2626]/10 dark:bg-[#EF4444]/10 border border-[#DC2626]/30 dark:border-[#EF4444]/30 rounded-lg p-2">
-                <span className="text-[10px] text-[#DC2626] dark:text-[#EF4444] font-extrabold uppercase">Declines</span>
-                <p className="text-xl font-black text-[#DC2626] dark:text-[#EF4444] mono">{declines}</p>
-                <span className="text-[10px] text-[#475569] dark:text-[#94A3B8] font-bold">{declinesPct}%</span>
+              <div className="flex items-center justify-center space-x-1.5 border-x border-zinc-200 dark:border-zinc-700">
+                <span className="text-rose-600 dark:text-rose-400 text-xs">▼</span>
+                <span className="text-xs font-bold font-mono text-rose-600 dark:text-rose-400">{declines}</span>
+                <span className="text-[10px] text-zinc-400 font-medium">({declinesPct}%)</span>
               </div>
-              <div className="bg-[#F1F5F9] dark:bg-[#1E293B] border border-[#CBD5E1] dark:border-[#243044] rounded-lg p-2">
-                <span className="text-[10px] text-[#475569] dark:text-[#94A3B8] font-extrabold uppercase">Neutral</span>
-                <p className="text-xl font-black text-[#0F172A] dark:text-[#F8FAFC] mono">{unchanged}</p>
-                <span className="text-[10px] text-[#475569] dark:text-[#94A3B8] font-bold">{neutralPct}%</span>
+              <div className="flex items-center justify-center space-x-1.5">
+                <span className="text-zinc-500 dark:text-zinc-400 text-xs">■</span>
+                <span className="text-xs font-bold font-mono text-zinc-700 dark:text-zinc-300">{unchanged}</span>
+                <span className="text-[10px] text-zinc-400 font-medium">({neutralPct}%)</span>
               </div>
             </div>
           </div>
 
-          {/* High-Contrast Progress Bar: Bordered and Vibrantly Tinted for Crisp Visibility */}
-          <div className="w-full h-3 rounded-full overflow-hidden flex border border-[#CBD5E1] dark:border-[#334155] bg-[#E2E8F0] dark:bg-[#0B0F19] p-[1.5px] shadow-xs">
-            <div 
-              style={{ width: `${advancesPct}%` }} 
-              className="h-full shrink-0 bg-[#15803D] dark:bg-[#22C55E] transition-all duration-300 rounded-l-full" 
-              title={`Advances: ${advances} (${advancesPct}%)`} 
-            />
-            {neutralPct > 0 && (
+          {/* Integrated 4px Thin Distribution Bar Underneath */}
+          <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
+            <div className="w-full h-1 rounded-full overflow-hidden flex bg-zinc-200 dark:bg-zinc-800">
               <div 
-                style={{ width: `${neutralPct}%` }} 
-                className="h-full shrink-0 bg-[#64748B] dark:bg-[#94A3B8] transition-all duration-300" 
-                title={`Neutral: ${unchanged} (${neutralPct}%)`} 
+                style={{ width: `${advancesPct}%` }} 
+                className="h-full shrink-0 bg-emerald-500 transition-all duration-300" 
+                title={`Advances: ${advances} (${advancesPct}%)`} 
               />
-            )}
-            <div 
-              style={{ width: `${declinesPct}%` }} 
-              className="h-full shrink-0 bg-[#DC2626] dark:bg-[#EF4444] transition-all duration-300 rounded-r-full" 
-              title={`Declines: ${declines} (${declinesPct}%)`} 
-            />
+              {neutralPct > 0 && (
+                <div 
+                  style={{ width: `${neutralPct}%` }} 
+                  className="h-full shrink-0 bg-zinc-400 dark:bg-zinc-600 transition-all duration-300" 
+                  title={`Neutral: ${unchanged} (${neutralPct}%)`} 
+                />
+              )}
+              <div 
+                style={{ width: `${declinesPct}%` }} 
+                className="h-full shrink-0 bg-rose-500 transition-all duration-300" 
+                title={`Declines: ${declines} (${declinesPct}%)`} 
+              />
+            </div>
           </div>
         </div>
 
-        {/* 3. Real-Time Sector Performance Heatmap */}
-        <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-xl p-5 shadow-sm dark:shadow-md flex flex-col justify-between">
+        {/* 3. Real-Time Sector Performance (Compact Quant Heatmap) */}
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-3 sm:p-3.5 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between mb-2.5">
-              <div className="flex items-center space-x-2">
-                <Layers className="w-4 h-4 text-[#2563EB] dark:text-[#3B82F6]" />
-                <span className="text-xs font-bold text-[#0F172A] dark:text-[#F8FAFC] uppercase tracking-wider">
-                  {isPro ? 'Sector Performance — 37 Tracked Sectors' : 'Sector Performance — 15 Tracked Sectors'}
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center space-x-1.5">
+                <Layers className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                  {isPro ? 'Sector Radar — 37 PSX' : 'Sector Radar — 15 PSX'}
                 </span>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1.5">
                 <button
                   onClick={() => setViewAllSectors(true)}
-                  className="text-[10px] font-bold text-[#2563EB] dark:text-[#3B82F6] hover:underline cursor-pointer px-1.5 py-0.5 rounded hover:bg-[#2563EB]/10 transition-colors"
+                  className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                 >
                   View All ({displaySectors.length})
                 </button>
                 {marketStatus.isOpen ? (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#16A34A]/10 text-[#16A34A] dark:bg-[#22C55E]/10 dark:text-[#22C55E] border border-[#16A34A]/20 dark:border-[#22C55E]/20 flex items-center">
-                    <Radio className="w-2.5 h-2.5 mr-1 animate-pulse" /> LIVE
+                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center">
+                    <Radio className="w-2 h-2 mr-0.5 animate-pulse" /> LIVE
                   </span>
                 ) : (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#2563EB]/10 text-[#2563EB] dark:bg-[#3B82F6]/10 dark:text-[#3B82F6] border border-[#2563EB]/20 dark:border-[#3B82F6]/20 flex items-center">
-                    <Lock className="w-2.5 h-2.5 mr-1" /> CLOSED
+                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 border border-zinc-500/20 flex items-center">
+                    <Lock className="w-2 h-2 mr-0.5" /> CLOSED
                   </span>
                 )}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 max-h-[145px] overflow-y-auto pr-1">
-              {topSectors.map((sec, idx) => {
+            <div className="grid grid-cols-2 gap-1 max-h-[76px] overflow-y-auto pr-0.5 scrollbar-none">
+              {topSectors.slice(0, 6).map((sec, idx) => {
                 const isSecPos = sec.changePercent >= 0;
                 return (
                   <div 
                     key={idx}
-                    className="bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] hover:border-[#2563EB] dark:hover:border-[#3B82F6] rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-1.5 transition-colors"
+                    className="bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-700/60 rounded px-2 py-1 flex items-center justify-between gap-1 transition-colors"
                   >
-                    <span className="text-[11px] text-[#0F172A] dark:text-[#F8FAFC] font-semibold line-clamp-2 leading-tight flex-1 pr-1" title={sec.sector}>
+                    <span className="text-[10px] text-zinc-700 dark:text-zinc-300 font-semibold truncate flex-1" title={sec.sector}>
                       {sec.sector}
                     </span>
-                    <span className={`text-[11px] font-bold font-mono shrink-0 ${
-                      isSecPos ? 'text-[#16A34A] dark:text-[#22C55E]' : 'text-[#DC2626] dark:text-[#EF4444]'
+                    <span className={`text-[10px] font-bold font-mono shrink-0 ${
+                      isSecPos ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                     }`}>
                       {isSecPos ? '+' : ''}{sec.changePercent.toFixed(2)}%
                     </span>
@@ -311,9 +312,11 @@ export default function MarketHero({ marketSummary, currentUser }) {
             </div>
           </div>
 
-          <div className="pt-2 text-[10px] text-[#64748B] dark:text-[#94A3B8] flex justify-between items-center border-t border-[#E2E8F0] dark:border-[#243044] mt-2">
+          <div className="pt-2 text-[10px] text-zinc-400 dark:text-zinc-500 flex justify-between items-center border-t border-zinc-100 dark:border-zinc-800 mt-1.5">
             <span>Tracking {displaySectors.length} Sectors</span>
-            <span className="text-[#16A34A] dark:text-[#22C55E] font-bold truncate max-w-[180px]">Top: {sortedSectors[0]?.sector} (+{sortedSectors[0]?.changePercent}%)</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold font-mono truncate max-w-[170px]">
+              Top: {sortedSectors[0]?.sector} (+{sortedSectors[0]?.changePercent}%)
+            </span>
           </div>
         </div>
       </div>
