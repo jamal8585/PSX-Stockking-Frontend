@@ -1182,6 +1182,7 @@ export default function App() {
       {selectedStock && (
         <StockDetailModal
           stock={selectedStock}
+          stocks={stocks}
           theme={theme}
           onThemeChange={setTheme}
           onClose={() => setSelectedStock(null)}

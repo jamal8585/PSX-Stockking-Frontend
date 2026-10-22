@@ -317,7 +317,7 @@ function InteractiveStockChart({
   );
 }
 
-export default function StockDetailModal({ stock, onClose, onOpenCalculator, theme = 'dark', onThemeChange = null }) {
+export default function StockDetailModal({ stock, stocks = [], onClose, onOpenCalculator, theme = 'dark', onThemeChange = null }) {
   if (!stock) return null;
 
   const [currentStock, setCurrentStock] = useState(stock);
@@ -375,6 +375,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
   // Safely extract symbol whether currentStock is string or object
   const stockObj = typeof currentStock === 'string' ? { symbol: currentStock } : (currentStock || {});
   const sym = (stockObj.symbol || stockObj.name || (typeof currentStock === 'string' ? currentStock : '') || 'STOCK').toUpperCase().trim();
+  const foundInStocks = Array.isArray(stocks) ? stocks.find(s => s?.symbol?.toUpperCase() === sym) : null;
   const official = (officialQuotes && officialQuotes[sym]) ? officialQuotes[sym] : null;
   const masterEntry = (MASTER_STOCKS_LIST || []).find(s => s.symbol === sym);
 
@@ -411,8 +412,9 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
   const prevBar = liveBars && liveBars.length > 1 ? liveBars[liveBars.length - 2] : null;
 
   const currentPrice = Number(
-    official?.currentPrice || 
+    foundInStocks?.currentPrice ||
     stockObj.currentPrice || 
+    official?.currentPrice || 
     stockObj.price || 
     liveHistoryData?.quote?.currentPrice || 
     latestBar?.close || 
@@ -420,33 +422,38 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
   );
 
   const prevClose = Number(
+    foundInStocks?.prevClose ||
+    stockObj.prevClose ||
     official?.prevClose || 
-    stockObj.prevClose || 
     liveHistoryData?.quote?.prevClose || 
     prevBar?.close || 
     (currentPrice * 0.99)
   );
 
   const change = Number(
-    official?.change !== undefined 
-      ? Number(official.change) 
+    foundInStocks?.change !== undefined 
+      ? Number(foundInStocks.change)
       : (stockObj.change !== undefined 
           ? Number(stockObj.change) 
-          : (liveHistoryData?.quote?.change !== undefined 
-              ? Number(liveHistoryData.quote.change) 
-              : (latestBar && prevBar 
-                  ? Number((latestBar.close - prevBar.close).toFixed(2)) 
-                  : Number((currentPrice - prevClose).toFixed(2)))))
+          : (official?.change !== undefined 
+              ? Number(official.change) 
+              : (liveHistoryData?.quote?.change !== undefined 
+                  ? Number(liveHistoryData.quote.change) 
+                  : (latestBar && prevBar 
+                      ? Number((latestBar.close - prevBar.close).toFixed(2)) 
+                      : Number((currentPrice - prevClose).toFixed(2))))))
   );
 
   const changePercent = Number(
-    official?.changePercent !== undefined 
-      ? Number(official.changePercent) 
+    foundInStocks?.changePercent !== undefined 
+      ? Number(foundInStocks.changePercent)
       : (stockObj.changePercent !== undefined 
           ? Number(stockObj.changePercent) 
-          : (liveHistoryData?.quote?.changePercent !== undefined 
-              ? Number(liveHistoryData.quote.changePercent) 
-              : (prevClose > 0 ? Number((((change) / prevClose) * 100).toFixed(2)) : 0)))
+          : (official?.changePercent !== undefined 
+              ? Number(official.changePercent) 
+              : (liveHistoryData?.quote?.changePercent !== undefined 
+                  ? Number(liveHistoryData.quote.changePercent) 
+                  : (prevClose > 0 ? Number((((change) / prevClose) * 100).toFixed(2)) : 0))))
   );
   const volume = Number(liveHistoryData?.quote?.volume || stockObj.volume || official?.volume || 0);
   const name = stockObj.name || official?.name || masterEntry?.name || sym;

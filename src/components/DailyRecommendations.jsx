@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useTransition } from 'react';
 import { 
   Sparkles, 
   TrendingUp, 
@@ -19,6 +19,8 @@ import {
   Layers,
   Building2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Check,
   SlidersHorizontal,
   RotateCcw,
@@ -305,10 +307,50 @@ export default function DailyRecommendations({
   const marketStatus = marketSummary?.marketStatus || getPSXMarketStatus();
   const isMarketOpen = Boolean(marketStatus?.isOpen);
 
+  // Single Source of Truth: exact master pricing store consumed by the Ticker Tape
+  const masterStockMap = useMemo(() => {
+    const map = new Map();
+    if (officialQuotes && typeof officialQuotes === 'object') {
+      Object.values(officialQuotes).forEach(q => {
+        if (q?.symbol) map.set(q.symbol.toUpperCase().trim(), q);
+      });
+    }
+    if (Array.isArray(stocks)) {
+      stocks.forEach(s => {
+        if (s?.symbol && Number(s.currentPrice) > 0) {
+          const symKey = s.symbol.toUpperCase().trim();
+          map.set(symKey, { ...map.get(symKey), ...s });
+        }
+      });
+    }
+    return map;
+  }, [stocks]);
+
   const [filterSignal, setFilterSignal] = useState('ALL');
   const [selectedSectors, setSelectedSectors] = useState([]); // array of category IDs (e.g. ['OIL_GAS', 'CEMENT'])
   const [selectedStocks, setSelectedStocks] = useState([]); // array of stock symbols (e.g. ['PRL', 'HUBC'])
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Smooth Tab Transitions & Non-blocking State Updates (Prevent Layout Jerk)
+  const [isPending, startTransition] = useTransition();
+
+  // Pagination for High Volume Stocks (Prevents layout shifts & DOM jank)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(24);
+
+  const handleFilterSignalChange = (newSignal) => {
+    startTransition(() => {
+      setFilterSignal(newSignal);
+      setCurrentPage(1);
+    });
+  };
+
+  const handleSessionDateChange = (newDate) => {
+    startTransition(() => {
+      setSelectedSessionDate(newDate);
+      setCurrentPage(1);
+    });
+  };
 
   // Institutional View Mode: 'cards' (Compact Quant Cards) vs 'table' (Dense Spreadsheet Grid)
   const [viewMode, setViewMode] = useState(() => {
@@ -469,18 +511,18 @@ export default function DailyRecommendations({
     if (rawList && rawList.length > 0) {
       baseList = rawList.map(item => {
         const sym = (item?.symbol || '').toUpperCase().trim();
-        const foundOfficial = officialQuotes ? officialQuotes[sym] : null;
+        const liveStock = masterStockMap.get(sym);
         let sanitized = { ...item };
         
-        // For active / live sessions, ground-truth official quotes as authoritative EOD single source of truth
-        if (foundOfficial?.currentPrice && !isHistoricalView) {
-          const offPrice = Number(foundOfficial.currentPrice);
+        // For active / live sessions, ground-truth live master stock store as authoritative EOD single source of truth
+        if (liveStock?.currentPrice && !isHistoricalView) {
+          const offPrice = Number(liveStock.currentPrice);
           sanitized.currentPrice = offPrice;
-          sanitized.prevClose = Number(foundOfficial.prevClose || offPrice * 0.99);
-          sanitized.change = foundOfficial.change !== undefined ? Number(foundOfficial.change) : Number((offPrice - sanitized.prevClose).toFixed(2));
-          sanitized.changePercent = foundOfficial.changePercent !== undefined ? Number(foundOfficial.changePercent) : (sanitized.prevClose > 0 ? Number((((offPrice - sanitized.prevClose) / sanitized.prevClose) * 100).toFixed(2)) : 0);
+          sanitized.prevClose = Number(liveStock.prevClose || offPrice * 0.99);
+          sanitized.change = liveStock.change !== undefined ? Number(liveStock.change) : Number((offPrice - sanitized.prevClose).toFixed(2));
+          sanitized.changePercent = liveStock.changePercent !== undefined ? Number(liveStock.changePercent) : (sanitized.prevClose > 0 ? Number((((offPrice - sanitized.prevClose) / sanitized.prevClose) * 100).toFixed(2)) : 0);
           
-          // Re-evaluate signal if drop < -2.2% (e.g. PRL -6.77% cannot remain Momentum Breakout)
+          // Re-evaluate signal if drop < -2.2% (e.g. PRL -4.77% cannot remain Momentum Breakout)
           if (sanitized.changePercent < -2.2) {
             sanitized.signal = 'AVOID_SELL';
             sanitized.isMomentumBreakout = false;
@@ -488,21 +530,15 @@ export default function DailyRecommendations({
           }
         }
         
-        if (sym === 'BIPL') {
-          sanitized.currentPrice = 24.33;
-          sanitized.prevClose = 24.08;
-          sanitized.change = 0.25;
-          sanitized.changePercent = 1.04;
-        }
         return sanitized;
       });
     } else if (Array.isArray(stocks) && stocks.length > 0) {
       baseList = stocks.map(stock => {
         const sym = (stock.symbol || '').toUpperCase().trim();
-        const foundOfficial = officialQuotes ? officialQuotes[sym] : null;
-        const price = (sym === 'BIPL') ? 24.33 : (Number(stock.currentPrice) > 0 ? Number(stock.currentPrice) : (foundOfficial?.currentPrice || 100));
-        const changePct = (sym === 'BIPL') ? 1.04 : Number(foundOfficial?.changePercent ?? stock.changePercent ?? 0);
-        const rsi = Number(stock.technicals?.rsi14 || 52);
+        const liveStock = masterStockMap.get(sym);
+        const price = Number(liveStock?.currentPrice || stock.currentPrice || 100);
+        const changePct = Number(liveStock?.changePercent ?? stock.changePercent ?? 0);
+        const rsi = Number(liveStock?.technicals?.rsi14 || stock.technicals?.rsi14 || 52);
         
         // Derive deterministic unique multiplier from symbol hash
         let symHash = 0;
@@ -804,67 +840,57 @@ export default function DailyRecommendations({
     return Array.from(map.values()).sort((a, b) => a.symbol.localeCompare(b.symbol));
   }, [all, stocks]);
 
-  const strongBuyCount = all.filter(r => r.signal === 'STRONG_BUY').length;
-  const accumulateCount = all.filter(r => r.signal === 'ACCUMULATE').length;
-  const holdCount = all.filter(r => r.signal === 'HOLD').length;
-  const avoidSellCount = all.filter(r => r.signal === 'AVOID_SELL').length;
-
-  const summary = {
-    total: all.length,
-    strongBuyCount,
-    accumulateCount,
-    holdCount,
-    avoidSellCount
-  };
+  const summary = useMemo(() => {
+    let strongBuyCount = 0;
+    let accumulateCount = 0;
+    let holdCount = 0;
+    let avoidSellCount = 0;
+    all.forEach(r => {
+      if (r.signal === 'STRONG_BUY') strongBuyCount++;
+      else if (r.signal === 'ACCUMULATE') accumulateCount++;
+      else if (r.signal === 'HOLD') holdCount++;
+      else if (r.signal === 'AVOID_SELL') avoidSellCount++;
+    });
+    return {
+      total: all.length,
+      strongBuyCount,
+      accumulateCount,
+      holdCount,
+      avoidSellCount
+    };
+  }, [all]);
 
   const getLiveStock = (item) => {
     const sym = (item?.symbol || '').toUpperCase().trim();
-    const foundInStocks = Array.isArray(stocks) ? stocks.find(s => s.symbol?.toUpperCase() === sym) : null;
-    const foundOfficial = officialQuotes ? officialQuotes[sym] : null;
-
-    const officialPrice = Number(foundOfficial?.currentPrice || 0);
-    const inStockPrice = Number(foundInStocks?.currentPrice || 0);
-    const itemPrice = Number(item?.currentPrice || 0);
+    const liveStock = masterStockMap.get(sym);
 
     const isSnapshot = Boolean(isHistoricalView || item?.isHistoricalSnapshot);
 
-    // Live market price from unified source of truth (EOD Closing Store)
-    const liveMarketPrice = Number(
-      sym === 'BIPL'
-        ? 24.33
-        : (officialPrice > 0 ? officialPrice : (inStockPrice > 0 ? inStockPrice : (itemPrice > 0 ? itemPrice : 100)))
+    // Live verified EOD closing price from unified single source of truth (exact store consumed by Ticker Tape)
+    const verifiedEODPrice = Number(
+      liveStock?.currentPrice || liveStock?.closeRate || liveStock?.settlementPrice || item?.currentPrice || 100
     );
 
     const prevClose = Number(
-      sym === 'BIPL'
-        ? 24.08
-        : (foundOfficial?.prevClose || foundInStocks?.prevClose || (liveMarketPrice * 0.99))
+      liveStock?.prevClose || (verifiedEODPrice * 0.99)
     );
 
-    const liveChange = sym === 'BIPL'
-      ? 0.25
-      : (foundOfficial?.change !== undefined 
-          ? Number(foundOfficial.change) 
-          : (foundInStocks?.change !== undefined 
-              ? Number(foundInStocks.change) 
-              : Number((liveMarketPrice - prevClose).toFixed(2))));
+    const liveChange = liveStock?.change !== undefined 
+      ? Number(liveStock.change) 
+      : Number((verifiedEODPrice - prevClose).toFixed(2));
 
-    const liveChangePercent = sym === 'BIPL'
-      ? 1.04
-      : (foundOfficial?.changePercent !== undefined 
-          ? Number(foundOfficial.changePercent) 
-          : (foundInStocks?.changePercent !== undefined 
-              ? Number(foundInStocks.changePercent) 
-              : (prevClose > 0 ? Number((((liveMarketPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0)));
+    const liveChangePercent = liveStock?.changePercent !== undefined 
+      ? Number(liveStock.changePercent) 
+      : (prevClose > 0 ? Number((((verifiedEODPrice - prevClose) / prevClose) * 100).toFixed(2)) : 0);
 
     // In historical snapshot mode, render the exact recorded snapshot price & metrics
-    const signalPrice = isSnapshot ? Number(item?.currentPrice || liveMarketPrice) : liveMarketPrice;
+    const signalPrice = isSnapshot ? Number(item?.currentPrice || verifiedEODPrice) : verifiedEODPrice;
     const change = isSnapshot ? (item?.change !== undefined ? Number(item.change) : liveChange) : liveChange;
     const changePercent = isSnapshot ? (item?.changePercent !== undefined ? Number(item.changePercent) : liveChangePercent) : liveChangePercent;
 
     const liveRsi = isSnapshot 
       ? Number(item?.rsi || item?.technicals?.rsi14 || 52)
-      : Number(foundInStocks?.technicals?.rsi14 || item?.technicals?.rsi14 || 52);
+      : Number(liveStock?.technicals?.rsi14 || item?.technicals?.rsi14 || 52);
 
     const isMomentumBreakout = Boolean(
       isSnapshot 
@@ -889,11 +915,6 @@ export default function DailyRecommendations({
       finalStopLoss = Number(item.stopLoss);
       finalTarget1 = Number(item.target1);
       finalTarget2 = Number(item.target2 || item.target1 * 1.05);
-    } else if (sym === 'BIPL') {
-      finalEntryZone = { min: 24.00, max: 24.45 };
-      finalStopLoss = 23.30;
-      finalTarget1 = 25.80;
-      finalTarget2 = 27.20;
     } else {
       if (isAvoid) {
         if (isMomentumBreakout) {
@@ -920,7 +941,7 @@ export default function DailyRecommendations({
       }
     }
 
-    if (!isAvoid && sym !== 'BIPL' && !isSnapshot) {
+    if (!isAvoid && !isSnapshot) {
       if (finalEntryZone.min >= signalPrice) finalEntryZone.min = Number((signalPrice * 0.985).toFixed(2));
       if (finalEntryZone.max <= finalEntryZone.min) finalEntryZone.max = Number((finalEntryZone.min + Math.max(stockAtr * 0.4, signalPrice * 0.015)).toFixed(2));
       if (finalStopLoss >= finalEntryZone.min) finalStopLoss = Number((finalEntryZone.min - Math.max(stockAtr * 0.6, signalPrice * 0.02)).toFixed(2));
@@ -938,13 +959,32 @@ export default function DailyRecommendations({
                   ? 'Accumulate on Dip' 
                   : (item?.tradeStrategy || 'Trend Continuation Setup'))));
 
-    // Reasons / Catalyst notes:
+    // Reasons / Catalyst notes with sanitized RSI thresholds
     let finalReasons = Array.isArray(item?.reasons) && item.reasons.length > 0 
-      ? [...item.reasons] 
+      ? item.reasons.map(r => {
+          if (typeof r === 'string' && r.toLowerCase().includes('overbought')) {
+            if (liveRsi < 70) {
+              if (liveRsi >= 50 && liveRsi <= 60) {
+                return `Neutral Momentum (${liveRsi.toFixed(1)}) — Consolidation Range`;
+              }
+              return `Consolidation Range (${liveRsi.toFixed(1)}) — Low Volatility`;
+            }
+          }
+          return r;
+        })
       : [];
+
     if (finalReasons.length === 0) {
       if (isMomentumBreakout) {
         finalReasons = [`Overbought / Extended Momentum (${liveRsi.toFixed(1)}) — Trail stop loss advised to lock gains rather than chasing entries.`];
+      } else if (item?.signal === 'AVOID_SELL') {
+        finalReasons = [
+          liveRsi >= 70
+            ? `RSI is Overbought (${liveRsi.toFixed(1)}): High probability of profit-taking consolidation`
+            : (liveRsi >= 50 && liveRsi <= 60)
+              ? `Neutral Momentum (${liveRsi.toFixed(1)}) — Consolidation Range`
+              : `Technical Momentum (${liveRsi.toFixed(1)}): Capital preservation advised`
+        ];
       } else {
         finalReasons = [`${item?.signal || 'HOLD'}: Technical setup confirmed on EOD volume.`];
       }
@@ -1083,15 +1123,18 @@ export default function DailyRecommendations({
 
   // Clear All Filters
   const clearAllFilters = () => {
-    setSelectedSectors([]);
-    setSelectedStocks([]);
-    setSearchQuery('');
-    setFilterSignal('ALL');
+    startTransition(() => {
+      setSelectedSectors([]);
+      setSelectedStocks([]);
+      setSearchQuery('');
+      setFilterSignal('ALL');
+      setCurrentPage(1);
+    });
   };
 
-  // Filter recommendations using all multi-select & search parameters
-  const filtered = useMemo(() => {
-    return all.filter(r => {
+  // Filter recommendations using all multi-select & search parameters and pre-hydrate live stock data
+  const filteredSignals = useMemo(() => {
+    const list = all.filter(r => {
       // 1. Signal Filter Tab
       if (filterSignal !== 'ALL' && r.signal !== filterSignal) return false;
 
@@ -1115,14 +1158,27 @@ export default function DailyRecommendations({
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const symMatch = (r.symbol || '').toLowerCase().includes(q);
-        const nameMatch = (r.companyName || '').toLowerCase().includes(q);
+        const nameMatch = (r.companyName || getCompanyFullName(r.symbol) || '').toLowerCase().includes(q);
         const sectorMatch = (r.sector || '').toLowerCase().includes(q);
         if (!symMatch && !nameMatch && !sectorMatch) return false;
       }
 
       return true;
     });
-  }, [all, filterSignal, selectedSectors, selectedStocks, searchQuery]);
+
+    return list.map((rawItem, idx) => ({
+      ...getLiveStock(rawItem),
+      rawIndex: idx
+    }));
+  }, [all, filterSignal, selectedSectors, selectedStocks, searchQuery, masterStockMap, isHistoricalView]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSignals.length / (pageSize === -1 ? filteredSignals.length || 1 : pageSize)));
+
+  const paginatedSignals = useMemo(() => {
+    if (pageSize === -1) return filteredSignals;
+    const start = (currentPage - 1) * pageSize;
+    return filteredSignals.slice(start, start + pageSize);
+  }, [filteredSignals, currentPage, pageSize]);
 
   // Filtered lists for dropdown menus
   const filteredSectorOptions = useMemo(() => {
@@ -1241,7 +1297,7 @@ export default function DailyRecommendations({
               return (
                 <button
                   key={session.dateStr}
-                  onClick={() => setSelectedSessionDate(session.dateStr)}
+                  onClick={() => handleSessionDateChange(session.dateStr)}
                   className={`px-3 py-1.5 rounded text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center text-center ${
                     isSelected 
                       ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs ring-1 ring-zinc-900/10' 
@@ -1314,7 +1370,7 @@ export default function DailyRecommendations({
             {/* Signal Tabs */}
             <div className="flex items-center overflow-x-auto scrollbar-none gap-1 bg-zinc-100 dark:bg-zinc-900 p-0.5 rounded border border-zinc-200 dark:border-zinc-800 text-xs w-full sm:w-auto touch-pan-x shrink-0">
               <button
-                onClick={() => setFilterSignal('ALL')}
+                onClick={() => handleFilterSignalChange('ALL')}
                 className={`px-2.5 py-1 rounded font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   filterSignal === 'ALL' 
                     ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs' 
@@ -1324,7 +1380,7 @@ export default function DailyRecommendations({
                 All ({summary.total || all.length})
               </button>
               <button
-                onClick={() => setFilterSignal('STRONG_BUY')}
+                onClick={() => handleFilterSignalChange('STRONG_BUY')}
                 className={`px-2.5 py-1 rounded font-bold transition-all flex items-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
                   filterSignal === 'STRONG_BUY' 
                     ? 'bg-emerald-600 text-white shadow-xs' 
@@ -1336,7 +1392,7 @@ export default function DailyRecommendations({
                 <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] bg-black/20 font-bold font-mono">{summary.strongBuyCount || 0}</span>
               </button>
               <button
-                onClick={() => setFilterSignal('ACCUMULATE')}
+                onClick={() => handleFilterSignalChange('ACCUMULATE')}
                 className={`px-2.5 py-1 rounded font-bold transition-all flex items-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
                   filterSignal === 'ACCUMULATE' 
                     ? 'bg-blue-600 text-white shadow-xs' 
@@ -1348,7 +1404,7 @@ export default function DailyRecommendations({
                 <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] bg-black/20 font-bold font-mono">{summary.accumulateCount || 0}</span>
               </button>
               <button
-                onClick={() => setFilterSignal('HOLD')}
+                onClick={() => handleFilterSignalChange('HOLD')}
                 className={`px-2.5 py-1 rounded font-bold transition-all flex items-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
                   filterSignal === 'HOLD' 
                     ? 'bg-amber-600 text-white shadow-xs' 
@@ -1360,7 +1416,7 @@ export default function DailyRecommendations({
                 <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] bg-black/20 font-bold font-mono">{summary.holdCount || 0}</span>
               </button>
               <button
-                onClick={() => setFilterSignal('AVOID_SELL')}
+                onClick={() => handleFilterSignalChange('AVOID_SELL')}
                 className={`px-2.5 py-1 rounded font-bold transition-all flex items-center space-x-1 cursor-pointer whitespace-nowrap shrink-0 ${
                   filterSignal === 'AVOID_SELL' 
                     ? 'bg-rose-600 text-white shadow-xs' 
@@ -1702,7 +1758,7 @@ export default function DailyRecommendations({
               <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
                 <span>Signal: {filterSignal === 'STRONG_BUY' ? 'Strong Buy' : (filterSignal === 'ACCUMULATE' ? 'Accumulate' : (filterSignal === 'HOLD' ? 'Hold / Neutral' : 'Avoid / Exit'))}</span>
                 <button
-                  onClick={() => setFilterSignal('ALL')}
+                  onClick={() => handleFilterSignalChange('ALL')}
                   className="hover:text-rose-500 p-0.5 rounded cursor-pointer ml-1"
                 >
                   <X className="w-3 h-3" />
@@ -1752,8 +1808,8 @@ export default function DailyRecommendations({
       )}
 
       {/* Empty State when filters yield 0 results */}
-      {filtered.length === 0 ? (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-8 text-center space-y-3">
+      {filteredSignals.length === 0 ? (
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-8 text-center space-y-3 min-h-[300px] flex flex-col items-center justify-center">
           <div className="w-10 h-10 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500 flex items-center justify-center mx-auto">
             <Search className="w-5 h-5" />
           </div>
@@ -1775,7 +1831,7 @@ export default function DailyRecommendations({
         /* ========================================================================= */
         /* DENSE INSTITUTIONAL SPREADSHEET TABLE VIEW                                */
         /* ========================================================================= */
-        <div className="border border-zinc-200 dark:border-zinc-800 rounded-md overflow-x-auto bg-white dark:bg-zinc-900 shadow-xs">
+        <div className={`border border-zinc-200 dark:border-zinc-800 rounded-md overflow-x-auto bg-white dark:bg-zinc-900 shadow-xs min-h-[400px] transition-opacity duration-200 ${isPending ? 'opacity-70' : 'opacity-100'}`}>
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/80 text-[10px] uppercase font-semibold text-zinc-500 tracking-wider">
@@ -1794,11 +1850,10 @@ export default function DailyRecommendations({
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60 font-mono">
-              {filtered.map((rawItem, idx) => {
-                const item = getLiveStock(rawItem);
+              {paginatedSignals.map((item, idx) => {
                 const badge = getSignalBadge(item.signal, item.isMomentumBreakout);
                 const isUp = (item.change || 0) >= 0;
-                const isLocked = !isPro && idx >= 2;
+                const isLocked = !isPro && (item.rawIndex !== undefined ? item.rawIndex >= 2 : idx >= 2);
 
                 if (isLocked) {
                   return (
@@ -1910,18 +1965,17 @@ export default function DailyRecommendations({
         /* ========================================================================= */
         /* COMPACT QUANT CARDS GRID                                                  */
         /* ========================================================================= */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.map((rawItem, idx) => {
-            const item = getLiveStock(rawItem);
+        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-h-[400px] transition-opacity duration-200 ${isPending ? 'opacity-70' : 'opacity-100'}`}>
+          {paginatedSignals.map((item, idx) => {
             const badge = getSignalBadge(item.signal, item.isMomentumBreakout);
             const isUp = (item.change || 0) >= 0;
-            const isLocked = !isPro && idx >= 2;
+            const isLocked = !isPro && (item.rawIndex !== undefined ? item.rawIndex >= 2 : idx >= 2);
 
             if (isLocked) {
               return (
                 <div
                   key={item.symbol || idx}
-                  className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-4 relative overflow-hidden flex flex-col justify-between"
+                  className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-4 relative overflow-hidden flex flex-col justify-between min-h-[380px]"
                 >
                   <div className="filter blur-sm select-none pointer-events-none opacity-40">
                     <div className="flex justify-between mb-2">
@@ -1995,7 +2049,7 @@ export default function DailyRecommendations({
             return (
               <div
                 key={item.symbol || idx}
-                className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 rounded-md p-3.5 transition-colors flex flex-col justify-between text-left"
+                className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 rounded-md p-3.5 transition-colors flex flex-col justify-between text-left min-h-[380px]"
               >
                 <div>
                   {/* Card Header: Symbol, Name, Badge */}
@@ -2132,6 +2186,69 @@ export default function DailyRecommendations({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination & Results Summary Bar (Prevents Layout Shifting & Heavy DOM Repaints) */}
+      {filteredSignals.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md text-xs">
+          {/* Result Count */}
+          <div className="text-zinc-500 dark:text-zinc-400 font-mono text-[11px]">
+            Showing <span className="font-bold text-zinc-900 dark:text-zinc-100">
+              {pageSize === -1 ? 1 : Math.min(filteredSignals.length, (currentPage - 1) * pageSize + 1)}
+            </span> to <span className="font-bold text-zinc-900 dark:text-zinc-100">
+              {pageSize === -1 ? filteredSignals.length : Math.min(filteredSignals.length, currentPage * pageSize)}
+            </span> of <span className="font-bold text-zinc-900 dark:text-zinc-100">{filteredSignals.length}</span> setups
+            {isPending && <span className="ml-2 text-blue-600 dark:text-blue-400 font-semibold animate-pulse">(Updating...)</span>}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Page Size Selector */}
+            <div className="flex items-center space-x-1.5 text-[11px] font-mono">
+              <span className="text-zinc-400">Per page:</span>
+              {[24, 48, 96, -1].map((size) => (
+                <button
+                  key={size}
+                  onClick={() => {
+                    setPageSize(size);
+                    setCurrentPage(1);
+                  }}
+                  className={`px-2 py-0.5 rounded font-bold cursor-pointer transition-colors ${
+                    pageSize === size
+                      ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
+                      : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-100 dark:bg-zinc-800'
+                  }`}
+                >
+                  {size === -1 ? 'All' : size}
+                </button>
+              ))}
+            </div>
+
+            {/* Prev / Next Pagination Controls */}
+            {pageSize !== -1 && totalPages > 1 && (
+              <div className="flex items-center space-x-1">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-1 rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer"
+                  title="Previous Page"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="px-2 font-mono font-bold text-zinc-900 dark:text-zinc-100 text-[11px]">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-1 rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer"
+                  title="Next Page"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
