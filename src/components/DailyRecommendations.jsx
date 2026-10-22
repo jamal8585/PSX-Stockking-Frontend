@@ -670,15 +670,17 @@ export default function DailyRecommendations({
           riskReward = '1 : ' + rrRatio;
         }
 
+        const foundOfficial = officialQuotes ? officialQuotes[sym] : null;
         const resolvedSector = (
           (stock.sector && stock.sector !== 'General Market' && stock.sector !== 'Miscellaneous') ? stock.sector :
+          (liveStock?.sector && liveStock.sector !== 'General Market' && liveStock.sector !== 'Miscellaneous') ? liveStock.sector :
           (foundOfficial?.sector && foundOfficial.sector !== 'General Market' && foundOfficial.sector !== 'Miscellaneous') ? foundOfficial.sector :
           (MASTER_STOCKS_LIST.find(m => m.symbol === sym)?.sector) ||
           'Miscellaneous'
         );
 
         const masterStock = MASTER_STOCKS_LIST.find(m => m.symbol === sym);
-        const resolvedCompanyName = getCompanyFullName(sym) || masterStock?.name || (stock.name && stock.name !== sym ? stock.name : null) || foundOfficial?.name || sym;
+        const resolvedCompanyName = getCompanyFullName(sym) || masterStock?.name || (stock.name && stock.name !== sym ? stock.name : null) || liveStock?.name || foundOfficial?.name || sym;
 
         return {
           symbol: sym,
@@ -1067,16 +1069,17 @@ export default function DailyRecommendations({
       }
     }
 
+    const foundOfficial = officialQuotes ? officialQuotes[sym] : null;
     const resolvedSector = (
       (item?.sector && item.sector !== 'General Market' && item.sector !== 'Miscellaneous') ? item.sector :
+      (liveStock?.sector && liveStock.sector !== 'General Market' && liveStock.sector !== 'Miscellaneous') ? liveStock.sector :
       (foundOfficial?.sector && foundOfficial.sector !== 'General Market' && foundOfficial.sector !== 'Miscellaneous') ? foundOfficial.sector :
-      (foundInStocks?.sector && foundInStocks.sector !== 'General Market' && foundInStocks.sector !== 'Miscellaneous') ? foundInStocks.sector :
       (MASTER_STOCKS_LIST.find(m => m.symbol === sym)?.sector) ||
       'Miscellaneous'
     );
 
     const masterStock = MASTER_STOCKS_LIST.find(m => m.symbol === sym);
-    const resolvedCompanyName = getCompanyFullName(sym) || masterStock?.name || (foundInStocks?.name && foundInStocks.name !== sym ? foundInStocks.name : null) || (foundOfficial?.name && foundOfficial.name !== sym ? foundOfficial.name : null) || (item?.companyName && item.companyName !== sym ? item.companyName : null) || sym;
+    const resolvedCompanyName = getCompanyFullName(sym) || masterStock?.name || (liveStock?.name && liveStock.name !== sym ? liveStock.name : null) || (foundOfficial?.name && foundOfficial.name !== sym ? foundOfficial.name : null) || (item?.companyName && item.companyName !== sym ? item.companyName : null) || sym;
 
     return {
       ...item,
