@@ -132,8 +132,8 @@ export default function StockScreenerTable({
         const divY = Number(stock.dividendYield || 0) || (UPCOMING_DIV_YIELD_MAP.get(symUpper) || 0);
         matchPreset = divY >= 8.0;
       } else if (activeFilter === 'OVERSOLD') {
-        const rsiVal = stock.technicals?.rsi14 ?? Math.round(Math.max(15, Math.min(85, 50 + (Number(stock.changePercent || 0) * 4))));
-        matchPreset = rsiVal <= 35 || Number(stock.changePercent || 0) <= -2.5;
+        const rsiVal = stock.technicals?.rsi14 !== undefined && stock.technicals?.rsi14 !== null ? Number(stock.technicals.rsi14) : null;
+        matchPreset = (rsiVal !== null && rsiVal <= 35) || Number(stock.changePercent || 0) <= -2.5;
       }
 
       let matchMarketView = true;
@@ -177,13 +177,25 @@ export default function StockScreenerTable({
       let bVal = b[sortField];
 
       if (sortField === 'rsi') {
-        aVal = a.technicals?.rsi14 ?? Math.round(Math.max(15, Math.min(85, 50 + (Number(a.changePercent || 0) * 4))));
-        bVal = b.technicals?.rsi14 ?? Math.round(Math.max(15, Math.min(85, 50 + (Number(b.changePercent || 0) * 4))));
+        aVal = a.technicals?.rsi14 !== undefined && a.technicals?.rsi14 !== null ? Number(a.technicals.rsi14) : null;
+        bVal = b.technicals?.rsi14 !== undefined && b.technicals?.rsi14 !== null ? Number(b.technicals.rsi14) : null;
+      } else if (sortField === 'peRatio') {
+        aVal = a.peRatio && Number(a.peRatio) > 0 ? Number(a.peRatio) : null;
+        bVal = b.peRatio && Number(b.peRatio) > 0 ? Number(b.peRatio) : null;
       } else if (sortField === 'dividendYield') {
         const aSym = (a.symbol || '').toUpperCase().trim();
         const bSym = (b.symbol || '').toUpperCase().trim();
-        aVal = Number(a.dividendYield || 0) || (UPCOMING_DIV_YIELD_MAP.get(aSym) || 0);
-        bVal = Number(b.dividendYield || 0) || (UPCOMING_DIV_YIELD_MAP.get(bSym) || 0);
+        const aDiv = Number(a.dividendYield || 0) || (UPCOMING_DIV_YIELD_MAP.get(aSym) || 0);
+        const bDiv = Number(b.dividendYield || 0) || (UPCOMING_DIV_YIELD_MAP.get(bSym) || 0);
+        aVal = aDiv > 0 ? aDiv : null;
+        bVal = bDiv > 0 ? bDiv : null;
+      }
+
+      if (sortField === 'rsi' || sortField === 'peRatio' || sortField === 'dividendYield') {
+        if (aVal === null && bVal === null) return 0;
+        if (aVal === null) return 1;
+        if (bVal === null) return -1;
+        return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
       }
 
       if (typeof aVal === 'string') {
@@ -431,7 +443,7 @@ export default function StockScreenerTable({
                 const isPos = stock.changePercent >= 0;
                 const isWatch = watchlistSet.has(stock.symbol);
                 const symUpper = (stock.symbol || '').toUpperCase().trim();
-                const rsi = Math.round(stock.technicals?.rsi14 ?? Math.max(15, Math.min(85, 50 + (Number(stock.changePercent || 0) * 4))));
+                const rsiVal = stock.technicals?.rsi14 !== undefined && stock.technicals?.rsi14 !== null ? Math.round(Number(stock.technicals.rsi14)) : null;
                 const effDivYield = Number(stock.dividendYield || 0) || (UPCOMING_DIV_YIELD_MAP.get(symUpper) || 0);
 
                 return (
@@ -519,18 +531,26 @@ export default function StockScreenerTable({
                     </td>
 
                     {/* RSI */}
-                    <td className={`py-2.5 px-3 mono text-xs ${getRSIColor(rsi)}`}>
-                      {rsi}
+                    <td className={`py-2.5 px-3 mono text-xs ${rsiVal !== null ? getRSIColor(rsiVal) : 'text-[#64748B] dark:text-[#94A3B8]'}`}>
+                      {rsiVal !== null ? rsiVal : '—'}
                     </td>
 
                     {/* PE Ratio */}
                     <td className="py-2.5 px-3 text-[#64748B] dark:text-[#94A3B8] mono text-xs">
-                      {stock.peRatio ? stock.peRatio + 'x' : 'N/A'}
+                      {stock.peRatio && Number(stock.peRatio) > 0 ? `${Number(stock.peRatio).toFixed(2)}x` : '—'}
                     </td>
 
                     {/* Dividend Yield */}
-                    <td className="py-2.5 px-3 text-[#16A34A] dark:text-[#22C55E] mono text-xs font-bold">
-                      {effDivYield > 0 ? effDivYield.toFixed(1) + '%' : '0.0%'}
+                    <td className="py-2.5 px-3 mono text-xs font-bold">
+                      {effDivYield > 0 ? (
+                        <span className="text-[#16A34A] dark:text-[#22C55E]">
+                          {effDivYield.toFixed(1)}%
+                        </span>
+                      ) : (
+                        <span className="text-[#64748B] dark:text-[#94A3B8] font-normal">
+                          —
+                        </span>
+                      )}
                     </td>
 
                     {/* Actions */}

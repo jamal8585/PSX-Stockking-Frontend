@@ -456,9 +456,9 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
   const sector = canonicalizeSector(rawSector, sym);
   const high = Number(stockObj.high || official?.high || (currentPrice * 1.02));
   const low = Number(stockObj.low || official?.low || (currentPrice * 0.98));
-  const peRatio = Number(stockObj.peRatio || 5.35);
+  const peRatio = (stockObj.peRatio && Number(stockObj.peRatio) > 0) ? Number(stockObj.peRatio) : null;
   const eps = Number(stockObj.eps || 6.9);
-  const dividendYield = Number(stockObj.dividendYield || 0);
+  const dividendYield = (stockObj.dividendYield && Number(stockObj.dividendYield) > 0) ? Number(stockObj.dividendYield) : 0;
   const marketCap = Number(stockObj.marketCap || (currentPrice * (volume > 5000000 ? 5500000000 : 120000000)));
 
   // Overlay Live Real Technicals from Backend Analytics Engine
@@ -527,7 +527,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
   const netMargin = 14.2;
   const dividendPayout = dividendYield > 0 ? Number(((dividendYield * price / 100) / Math.max(0.1, eps) * 100).toFixed(1)) : 0;
   const beta = 0.89;
-  const sectorPe = Number((Number(peRatio || 5.35) * 1.1).toFixed(2));
+  const sectorPe = peRatio ? Number((peRatio * 1.1).toFixed(2)) : null;
 
   // Market Cap formatting (Rs. in Millions)
   const marketCapFormatted = (marketCap > 1000000)
@@ -880,7 +880,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
                     }`}>P/E Ratio (TTM)</span>
                     <span className={`font-extrabold mono ${
                       isDark ? 'text-white' : 'text-slate-900'
-                    }`}>{peRatio ? `${peRatio}x` : '5.35x'}</span>
+                    }`}>{peRatio ? `${peRatio}x` : '—'}</span>
                   </div>
                   <div>
                     <span className={`text-[10px] uppercase font-bold block ${
@@ -904,7 +904,7 @@ export default function StockDetailModal({ stock, onClose, onOpenCalculator, the
                     }`}>Div Yield</span>
                     <span className={`font-extrabold mono ${
                       isDark ? 'text-emerald-400' : 'text-emerald-600'
-                    }`}>{dividendYield ? `${dividendYield}%` : '0.0%'}</span>
+                    }`}>{dividendYield > 0 ? `${dividendYield}%` : '—'}</span>
                   </div>
                 </div>
               </div>

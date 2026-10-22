@@ -322,12 +322,17 @@ const mergeWithOfficialQuotes = (serverStocks = []) => {
           name: q.name || symKey,
           sector: canonicalizeSector(q.sector, symKey),
           currentPrice: Number(q.currentPrice || 0),
+          closeRate: Number(q.currentPrice || 0),
+          settlementPrice: Number(q.currentPrice || 0),
           prevClose: Number(q.prevClose || q.currentPrice || 0),
           change: Number(q.change || 0),
           changePercent: Number(q.changePercent || 0),
           volume: Number(q.volume || 0),
           high: Number(q.high || q.currentPrice),
           low: Number(q.low || q.currentPrice),
+          peRatio: (q.peRatio && Number(q.peRatio) > 0) ? Number(q.peRatio) : null,
+          dividendYield: (q.dividendYield && Number(q.dividendYield) > 0) ? Number(q.dividendYield) : null,
+          technicals: null,
           isOfficialDPS: true
         });
       }
@@ -341,36 +346,43 @@ const mergeWithOfficialQuotes = (serverStocks = []) => {
         const symKey = s.symbol.toUpperCase().trim();
         const existing = stockMap.get(symKey);
         if (existing) {
-          const serverPrice = Number(s.currentPrice || 0);
+          const serverPrice = Number(s.currentPrice || s.settlementPrice || s.closeRate || 0);
           const rawSector = (existing.sector && existing.sector !== 'General Market') 
             ? existing.sector 
             : (s.sector && s.sector !== 'General Market' ? s.sector : 'Miscellaneous');
           const resolvedSector = canonicalizeSector(rawSector, symKey);
-          const authoritativePrice = Number(existing.currentPrice > 0 ? existing.currentPrice : (serverPrice > 0 ? serverPrice : 100));
-          const authoritativePrevClose = Number(existing.prevClose > 0 ? existing.prevClose : (s.prevClose || (authoritativePrice * 0.99)));
-          const authoritativeChange = existing.change !== undefined ? Number(existing.change) : (s.change !== undefined ? Number(s.change) : Number((authoritativePrice - authoritativePrevClose).toFixed(2)));
-          const authoritativeChangePercent = existing.changePercent !== undefined ? Number(existing.changePercent) : (s.changePercent !== undefined ? Number(s.changePercent) : (authoritativePrevClose > 0 ? Number((((authoritativePrice - authoritativePrevClose) / authoritativePrevClose) * 100).toFixed(2)) : 0));
+          const authoritativePrice = serverPrice > 0 ? serverPrice : Number(existing.currentPrice || 100);
+          const authoritativePrevClose = Number(s.prevClose > 0 ? s.prevClose : (existing.prevClose > 0 ? existing.prevClose : (authoritativePrice * 0.99)));
+          const authoritativeChange = s.change !== undefined ? Number(s.change) : (existing.change !== undefined ? Number(existing.change) : Number((authoritativePrice - authoritativePrevClose).toFixed(2)));
+          const authoritativeChangePercent = s.changePercent !== undefined ? Number(s.changePercent) : (existing.changePercent !== undefined ? Number(existing.changePercent) : (authoritativePrevClose > 0 ? Number((((authoritativePrice - authoritativePrevClose) / authoritativePrevClose) * 100).toFixed(2)) : 0));
 
           stockMap.set(symKey, {
             ...existing,
             ...s,
             symbol: symKey,
-            name: existing.name || s.name,
+            name: (s.name && s.name !== symKey) ? s.name : (existing.name || symKey),
             sector: resolvedSector,
             currentPrice: authoritativePrice,
+            closeRate: authoritativePrice,
+            settlementPrice: authoritativePrice,
             prevClose: authoritativePrevClose,
             change: authoritativeChange,
             changePercent: authoritativeChangePercent,
-            volume: Number(existing.volume || s.volume || 0),
-            high: Number(existing.high || s.high || (authoritativePrice * 1.02)),
-            low: Number(existing.low || s.low || (authoritativePrice * 0.98)),
-            technicals: s.technicals || existing.technicals || { rsi14: 52, signal: 'NEUTRAL' }
+            volume: Number(s.volume || existing.volume || 0),
+            high: Number(s.high || existing.high || (authoritativePrice * 1.02)),
+            low: Number(s.low || existing.low || (authoritativePrice * 0.98)),
+            peRatio: (s.peRatio && Number(s.peRatio) > 0) ? Number(s.peRatio) : null,
+            dividendYield: (s.dividendYield && Number(s.dividendYield) > 0) ? Number(s.dividendYield) : null,
+            technicals: s.technicals || null
           });
         } else {
           stockMap.set(symKey, {
             ...s,
             symbol: symKey,
-            sector: canonicalizeSector(s.sector, symKey)
+            sector: canonicalizeSector(s.sector, symKey),
+            peRatio: (s.peRatio && Number(s.peRatio) > 0) ? Number(s.peRatio) : null,
+            dividendYield: (s.dividendYield && Number(s.dividendYield) > 0) ? Number(s.dividendYield) : null,
+            technicals: s.technicals || null
           });
         }
       }
