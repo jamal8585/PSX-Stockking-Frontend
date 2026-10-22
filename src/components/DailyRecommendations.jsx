@@ -872,6 +872,7 @@ export default function DailyRecommendations({
     const verifiedEODPrice = Number(
       liveStock?.currentPrice || liveStock?.closeRate || liveStock?.settlementPrice || item?.currentPrice || 100
     );
+    const liveMarketPrice = verifiedEODPrice;
 
     const prevClose = Number(
       liveStock?.prevClose || (verifiedEODPrice * 0.99)
