@@ -1857,7 +1857,7 @@ export default function DailyRecommendations({
               {paginatedSignals.map((item, idx) => {
                 const badge = getSignalBadge(item.signal, item.isMomentumBreakout);
                 const isUp = (item.change || 0) >= 0;
-                const isLocked = !isPro && (item.rawIndex !== undefined ? item.rawIndex >= 2 : idx >= 2);
+                const isLocked = Boolean(item.isLocked || (!isPro && (item.rawIndex !== undefined ? item.rawIndex >= 2 : idx >= 2)));
 
                 if (isLocked) {
                   return (
@@ -1973,7 +1973,7 @@ export default function DailyRecommendations({
           {paginatedSignals.map((item, idx) => {
             const badge = getSignalBadge(item.signal, item.isMomentumBreakout);
             const isUp = (item.change || 0) >= 0;
-            const isLocked = !isPro && (item.rawIndex !== undefined ? item.rawIndex >= 2 : idx >= 2);
+            const isLocked = Boolean(item.isLocked || (!isPro && (item.rawIndex !== undefined ? item.rawIndex >= 2 : idx >= 2)));
 
             if (isLocked) {
               return (
