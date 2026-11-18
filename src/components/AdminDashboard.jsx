@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Crown, ShieldAlert, CheckCircle2, XCircle, Search, RefreshCw, 
   Trash2, PlusCircle, ArrowUpRight, DollarSign, Clock, Filter, AlertCircle,
-  Eye, Calendar, Phone, Mail, ShieldCheck, UserPlus, X, Sparkles, LogOut
+  Eye, Calendar, Phone, Mail, ShieldCheck, UserPlus, X, Sparkles, LogOut,
+  History, Smartphone, Laptop, Activity, Monitor
 } from 'lucide-react';
 import { 
   getAdminUsers, 
@@ -23,8 +24,10 @@ export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }
   const [actionLoading, setActionLoading] = useState(null);
   const [message, setMessage] = useState({ text: '', type: '' });
   
-  // Modals
+  // Modals & History
   const [selectedProofUser, setSelectedProofUser] = useState(null);
+  const [selectedHistoryUser, setSelectedHistoryUser] = useState(null);
+  const [showRecentLoginsFeed, setShowRecentLoginsFeed] = useState(false);
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [newUserForm, setNewUserForm] = useState({
     name: '',
@@ -179,6 +182,38 @@ export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }
 
 
 
+  const formatTimeAgo = (dateStr) => {
+    if (!dateStr) return 'Never';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'Never';
+    const diffMs = Date.now() - date.getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHr = Math.floor(diffMin / 60);
+    const diffDays = Math.floor(diffHr / 24);
+
+    if (diffSec < 60) return 'Just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    if (diffHr < 24) return `${diffHr}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  };
+
+  const formatFullDateTime = (dateStr) => {
+    if (!dateStr) return 'No timestamp recorded';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'Invalid date';
+    return date.toLocaleString('en-GB', { 
+      day: '2-digit', 
+      month: 'short', 
+      year: 'numeric', 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit',
+      hour12: true 
+    });
+  };
+
   const getDaysLeft = (endStr, isLifetime) => {
     if (isLifetime) return 'Lifetime VIP';
     if (!endStr) return 'No Active Sub';
@@ -213,6 +248,18 @@ export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={() => setShowRecentLoginsFeed(prev => !prev)}
+              className={`px-3.5 py-2 rounded-lg font-bold text-xs cursor-pointer shadow-sm transition-all flex items-center space-x-1.5 border ${
+                showRecentLoginsFeed 
+                  ? 'bg-[#2563EB] text-white border-[#2563EB]' 
+                  : 'bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] border-[#E2E8F0] dark:border-[#243044]'
+              }`}
+              title="Toggle Live Login Activity Stream"
+            >
+              <Activity className="w-4 h-4" />
+              <span>{showRecentLoginsFeed ? 'Hide Login Stream' : 'Live Login Stream'}</span>
+            </button>
             <button
               onClick={() => setIsAddUserOpen(true)}
               className="px-3.5 py-2 rounded-lg bg-[#16A34A] hover:bg-[#15803D] dark:bg-[#22C55E] dark:hover:bg-[#16A34A] text-white dark:text-black font-bold text-xs cursor-pointer shadow-sm transition-all flex items-center space-x-1.5"
@@ -287,6 +334,65 @@ export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }
               <span className="text-[10px] uppercase font-bold text-[#16A34A] dark:text-[#22C55E] block">Estimated MRR</span>
               <span className="text-2xl font-black text-[#16A34A] dark:text-[#22C55E] mono mt-1 block">PKR {analytics.estimatedMRR?.toLocaleString()}</span>
               <span className="text-[10px] text-[#16A34A]/80 dark:text-[#22C55E]/80">Monthly Revenue</span>
+            </div>
+          </div>
+        )}
+
+        {/* Live Login Activity Stream (Collapsible) */}
+        {showRecentLoginsFeed && (
+          <div className="bg-[#FFFFFF] dark:bg-[#151E2E] p-5 rounded-xl border border-[#2563EB]/40 dark:border-[#3B82F6]/40 space-y-3.5 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E2E8F0] dark:border-[#243044] pb-3">
+              <div className="flex items-center space-x-2">
+                <Activity className="w-5 h-5 text-[#2563EB] dark:text-[#3B82F6]" />
+                <h2 className="text-sm font-bold text-[#0F172A] dark:text-[#F8FAFC] uppercase tracking-wider">
+                  Live User Login & Activity Stream (Latest Active Accounts)
+                </h2>
+              </div>
+              <span className="text-xs text-[#64748B] dark:text-[#94A3B8]">
+                Click any user card to inspect full authentication audit trail
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {users
+                .filter(u => u.lastLogin)
+                .sort((a, b) => new Date(b.lastLogin || 0) - new Date(a.lastLogin || 0))
+                .slice(0, 6)
+                .map(u => {
+                  const latest = u.loginHistory?.[0] || {
+                    device: 'Web Client',
+                    browser: 'Browser',
+                    ip: 'Direct',
+                    method: 'Session'
+                  };
+                  const isMobile = /mobile|iphone|android|ipad/i.test(latest.device || '');
+                  return (
+                    <div 
+                      key={u.id}
+                      onClick={() => setSelectedHistoryUser(u)}
+                      className="p-3.5 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] hover:border-[#2563EB] hover:shadow-sm cursor-pointer transition-all space-y-2 group"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center space-x-2.5">
+                          <div className="p-1.5 rounded-lg bg-[#2563EB]/10 text-[#2563EB] dark:bg-[#3B82F6]/10 dark:text-[#3B82F6]">
+                            {isMobile ? <Smartphone className="w-4 h-4" /> : <Laptop className="w-4 h-4" />}
+                          </div>
+                          <div>
+                            <span className="font-bold text-xs block text-[#0F172A] dark:text-[#F8FAFC] group-hover:text-[#2563EB] transition-colors">{u.name}</span>
+                            <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">{u.email}</span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#2563EB]/10 text-[#2563EB] dark:bg-[#3B82F6]/10 dark:text-[#3B82F6]">
+                          {formatTimeAgo(u.lastLogin)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-[#64748B] dark:text-[#94A3B8] pt-1.5 border-t border-[#E2E8F0]/60 dark:border-[#243044]/60">
+                        <span>{latest.device} • {latest.browser}</span>
+                        <span className="mono font-semibold text-[#16A34A] dark:text-[#22C55E]">IP: {latest.ip}</span>
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           </div>
         )}
@@ -424,6 +530,7 @@ export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }
                   <th className="py-3 px-3">Duration</th>
                   <th className="py-3 px-3">Status & Time Left</th>
                   <th className="py-3 px-3">Expiry Date</th>
+                  <th className="py-3 px-3">Last Active & Activity</th>
                   <th className="py-3 px-3">Payment Proof</th>
                   <th className="py-3 px-3 text-center">Subscription Controls</th>
                   <th className="py-3 px-3 text-center">Actions</th>
@@ -432,7 +539,7 @@ export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }
               <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#243044] bg-[#FFFFFF] dark:bg-[#151E2E]">
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
+                    <td colSpan={10} className="py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
                       No users found matching your search.
                     </td>
                   </tr>
@@ -508,6 +615,31 @@ export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }
                           ) : u.subscriptionEnd ? (
                             new Date(u.subscriptionEnd).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                           ) : '—'}
+                        </td>
+
+                        {/* Last Active & Activity History */}
+                        <td className="py-3 px-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center space-x-1.5">
+                              <Clock className="w-3 h-3 text-[#2563EB] dark:text-[#3B82F6] shrink-0" />
+                              <span className="font-bold text-[11px] text-[#0F172A] dark:text-[#F8FAFC]">
+                                {formatTimeAgo(u.lastLogin)}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] mono">
+                                {u.loginCount || (u.loginHistory?.length || 1)} logins
+                              </span>
+                              <button
+                                onClick={() => setSelectedHistoryUser(u)}
+                                className="px-1.5 py-0.5 rounded bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 text-[#2563EB] dark:text-[#3B82F6] hover:bg-[#2563EB]/20 text-[10px] font-bold inline-flex items-center space-x-1 cursor-pointer transition-colors"
+                                title="View detailed login session history"
+                              >
+                                <History className="w-2.5 h-2.5" />
+                                <span>History</span>
+                              </button>
+                            </div>
+                          </div>
                         </td>
 
                         {/* Payment Proof Button */}
@@ -653,6 +785,147 @@ export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }
                   className="px-3 py-2 rounded-lg bg-[#DC2626]/10 text-[#DC2626] font-bold text-xs cursor-pointer"
                 >
                   Reject
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: User Login & Activity History */}
+        {selectedHistoryUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+            <div className="bg-[#FFFFFF] dark:bg-[#151E2E] border border-[#E2E8F0] dark:border-[#243044] rounded-2xl w-full max-w-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+              {/* Modal Header */}
+              <div className="flex justify-between items-center border-b border-[#E2E8F0] dark:border-[#243044] pb-3 shrink-0">
+                <div className="flex items-center space-x-2.5">
+                  <div className="p-2 rounded-lg bg-[#2563EB]/10 dark:bg-[#3B82F6]/10 text-[#2563EB] dark:text-[#3B82F6]">
+                    <History className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold flex items-center gap-2">
+                      <span>User Login & Activity History</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#2563EB]/10 text-[#2563EB] dark:bg-[#3B82F6]/10 dark:text-[#3B82F6]">
+                        {selectedHistoryUser.loginCount || (selectedHistoryUser.loginHistory?.length || 1)} Total Sessions
+                      </span>
+                    </h3>
+                    <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
+                      Detailed authentication audit trail for <strong className="text-[#0F172A] dark:text-[#F8FAFC]">{selectedHistoryUser.name}</strong> ({selectedHistoryUser.email})
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedHistoryUser(null)} 
+                  className="p-1 rounded-lg hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* User Quick Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 shrink-0 text-xs">
+                <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] p-3 rounded-xl border border-[#E2E8F0] dark:border-[#243044]">
+                  <span className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] block">Last Active</span>
+                  <span className="font-bold text-xs text-[#2563EB] dark:text-[#3B82F6] block mt-0.5">
+                    {formatTimeAgo(selectedHistoryUser.lastLogin)}
+                  </span>
+                  <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] mono block truncate mt-0.5">
+                    {formatFullDateTime(selectedHistoryUser.lastLogin)}
+                  </span>
+                </div>
+
+                <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] p-3 rounded-xl border border-[#E2E8F0] dark:border-[#243044]">
+                  <span className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] block">Subscription & Role</span>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      selectedHistoryUser.plan === 'PRO' ? 'bg-[#D97706]/10 text-[#D97706] dark:text-[#F59E0B]' : 'bg-[#64748B]/10 text-[#64748B]'
+                    }`}>
+                      {selectedHistoryUser.plan || 'FREE'}
+                    </span>
+                    <span className="text-[11px] font-bold text-[#0F172A] dark:text-[#F8FAFC]">
+                      {selectedHistoryUser.role || 'USER'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] p-3 rounded-xl border border-[#E2E8F0] dark:border-[#243044]">
+                  <span className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] block">Latest Known IP</span>
+                  <span className="font-bold mono text-xs text-[#16A34A] dark:text-[#22C55E] block mt-0.5">
+                    {selectedHistoryUser.loginHistory?.[0]?.ip || 'Direct'}
+                  </span>
+                  <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] block truncate mt-0.5">
+                    {selectedHistoryUser.loginHistory?.[0]?.device || 'Web Browser'} • {selectedHistoryUser.loginHistory?.[0]?.browser || 'Browser'}
+                  </span>
+                </div>
+              </div>
+
+              {/* History Log Stream */}
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[200px]">
+                <h4 className="text-xs font-bold text-[#64748B] dark:text-[#94A3B8] uppercase tracking-wider">
+                  Recorded Login Timeline ({selectedHistoryUser.loginHistory?.length || 1})
+                </h4>
+
+                {(!selectedHistoryUser.loginHistory || selectedHistoryUser.loginHistory.length === 0) ? (
+                  <div className="p-4 rounded-xl bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] text-center text-xs text-[#64748B]">
+                    Initial account session recorded at {formatFullDateTime(selectedHistoryUser.createdAt || selectedHistoryUser.lastLogin)}.
+                  </div>
+                ) : (
+                  selectedHistoryUser.loginHistory.map((item, idx) => {
+                    const isMobile = /mobile|iphone|android|ipad/i.test(item.device || '');
+                    return (
+                      <div 
+                        key={idx} 
+                        className="p-3 rounded-xl bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#243044] flex items-center justify-between gap-3 text-xs hover:border-[#2563EB]/40 transition-colors"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className={`p-2 rounded-lg ${idx === 0 ? 'bg-[#16A34A]/10 text-[#16A34A] dark:text-[#22C55E]' : 'bg-[#64748B]/10 text-[#64748B]'}`}>
+                            {isMobile ? <Smartphone className="w-4 h-4" /> : <Laptop className="w-4 h-4" />}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-[12px] text-[#0F172A] dark:text-[#F8FAFC]">
+                                {item.device || 'Desktop Device'} • {item.browser || 'Web Browser'}
+                              </span>
+                              {idx === 0 && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-[#16A34A]/10 text-[#16A34A] dark:text-[#22C55E]">
+                                  LATEST
+                                </span>
+                              )}
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-[#2563EB]/10 text-[#2563EB] dark:text-[#3B82F6]">
+                                {item.method || 'Password'}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-[#64748B] dark:text-[#94A3B8] flex items-center gap-2 mt-0.5">
+                              <span>{formatFullDateTime(item.timestamp)}</span>
+                              <span>•</span>
+                              <span className="font-semibold text-[#2563EB] dark:text-[#3B82F6]">{formatTimeAgo(item.timestamp)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="font-bold mono text-[11px] block text-[#0F172A] dark:text-[#F8FAFC]">
+                            IP: {item.ip || '127.0.0.1'}
+                          </span>
+                          <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] block">
+                            Verified session
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="pt-3 border-t border-[#E2E8F0] dark:border-[#243044] flex justify-between items-center shrink-0">
+                <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">
+                  Logs auto-captured on every login / authentication event
+                </span>
+                <button
+                  onClick={() => setSelectedHistoryUser(null)}
+                  className="px-4 py-2 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs cursor-pointer shadow-sm"
+                >
+                  Close History
                 </button>
               </div>
             </div>
