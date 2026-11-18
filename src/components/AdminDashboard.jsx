@@ -3,7 +3,7 @@ import {
   Users, Crown, ShieldAlert, CheckCircle2, XCircle, Search, RefreshCw, 
   Trash2, PlusCircle, ArrowUpRight, DollarSign, Clock, Filter, AlertCircle,
   Eye, Calendar, Phone, Mail, ShieldCheck, UserPlus, X, Sparkles, LogOut,
-  History, Smartphone, Laptop, Activity, Monitor
+  History, Smartphone, Laptop, Activity, Monitor, Globe
 } from 'lucide-react';
 import { 
   getAdminUsers, 
@@ -362,7 +362,7 @@ export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }
                   const latest = u.loginHistory?.[0] || {
                     device: 'Web Client',
                     browser: 'Browser',
-                    ip: 'Direct',
+                    ip: u.lastIp || '127.0.0.1',
                     method: 'Session'
                   };
                   const isMobile = /mobile|iphone|android|ipad/i.test(latest.device || '');
@@ -530,7 +530,7 @@ export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }
                   <th className="py-3 px-3">Duration</th>
                   <th className="py-3 px-3">Status & Time Left</th>
                   <th className="py-3 px-3">Expiry Date</th>
-                  <th className="py-3 px-3">Last Active & Activity</th>
+                  <th className="py-3 px-3">Last Active & IP Address</th>
                   <th className="py-3 px-3">Payment Proof</th>
                   <th className="py-3 px-3 text-center">Subscription Controls</th>
                   <th className="py-3 px-3 text-center">Actions</th>
@@ -617,7 +617,7 @@ export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }
                           ) : '—'}
                         </td>
 
-                        {/* Last Active & Activity History */}
+                        {/* Last Active & IP Address */}
                         <td className="py-3 px-3">
                           <div className="space-y-1">
                             <div className="flex items-center space-x-1.5">
@@ -626,7 +626,13 @@ export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }
                                 {formatTimeAgo(u.lastLogin)}
                               </span>
                             </div>
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-1">
+                              <Globe className="w-3 h-3 text-[#16A34A] dark:text-[#22C55E] shrink-0" />
+                              <span className="mono font-bold text-[10px] px-1.5 py-0.5 rounded bg-[#16A34A]/10 text-[#16A34A] dark:text-[#22C55E] border border-[#16A34A]/20">
+                                {u.lastIp || u.loginHistory?.[0]?.ip || '127.0.0.1'}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-2 pt-0.5">
                               <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] mono">
                                 {u.loginCount || (u.loginHistory?.length || 1)} logins
                               </span>
@@ -848,9 +854,9 @@ export default function AdminDashboard({ currentUser, onBackToPortal, onLogout }
                 </div>
 
                 <div className="bg-[#F8FAFC] dark:bg-[#0B0F19] p-3 rounded-xl border border-[#E2E8F0] dark:border-[#243044]">
-                  <span className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] block">Latest Known IP</span>
+                  <span className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8] block">Last Known IP</span>
                   <span className="font-bold mono text-xs text-[#16A34A] dark:text-[#22C55E] block mt-0.5">
-                    {selectedHistoryUser.loginHistory?.[0]?.ip || 'Direct'}
+                    {selectedHistoryUser.lastIp || selectedHistoryUser.loginHistory?.[0]?.ip || '127.0.0.1'}
                   </span>
                   <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] block truncate mt-0.5">
                     {selectedHistoryUser.loginHistory?.[0]?.device || 'Web Browser'} • {selectedHistoryUser.loginHistory?.[0]?.browser || 'Browser'}
